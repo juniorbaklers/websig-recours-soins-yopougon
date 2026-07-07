@@ -1,0 +1,7 @@
+# Configuration locale specifique a la machine (previsualisation)
+.claude/
+
+# Fichiers systeme
+Thumbs.db
+desktop.ini
+.DS_Store
