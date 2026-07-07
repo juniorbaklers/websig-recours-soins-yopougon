@@ -13,7 +13,8 @@ Tableau de bord cartographique interactif (WebSIG) construit à partir d'une enq
 - **Carte** des enquêtés (Leaflet), coloriable par n'importe quelle variable (premier recours, sexe, âge, assurance, maladie…).
 - **8 indicateurs clés** recalculés en direct selon les filtres.
 - **Filtres multicritères** (sexe, âge, quartier, revenu, instruction, assurance…) qui s'appliquent à toutes les vues.
-- **6 onglets** : Carte, Vue d'ensemble, Recours aux soins, Perceptions & qualité, Analyse croisée (choix libre de deux variables + tableau de contingence), Explorateur (distributions et statistiques, export CSV).
+- **Analyse spatiale (SIG)** : 108 établissements de santé de Yopougon superposés, zones de couverture (buffers 500 m / 1 km), et **distance réelle** de chaque enquêté au centre le plus proche (public, privé, premier contact) calculée en projection métrique.
+- **7 onglets** : Carte, Vue d'ensemble, Recours aux soins, Perceptions & qualité, Analyse spatiale, Analyse croisée (choix libre de deux variables + tableau de contingence), Explorateur (distributions et statistiques, export CSV).
 
 ## Principaux résultats
 
@@ -21,6 +22,7 @@ Tableau de bord cartographique interactif (WebSIG) construit à partir d'une enq
 - Recours à la médecine moderne fortement lié à l'**instruction** (73 % → 91 % du sans-niveau au supérieur), à l'**assurance** (87 % vs 73 %) et au **revenu**.
 - Seulement **26 %** des enquêtés possèdent une assurance maladie.
 - **91 %** fréquenteraient davantage le public si les médicaments y étaient disponibles.
+- Accessibilité (SIG) : centre le plus proche à **369 m** en médiane, mais seulement **24 %** à moins de 500 m d'un centre **public**. La distance est un frein secondaire ; le coût domine.
 
 Analyse détaillée dans [`RAPPORT_ANALYSE.md`](RAPPORT_ANALYSE.md).
 

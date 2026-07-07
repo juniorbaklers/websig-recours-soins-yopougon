@@ -53,7 +53,10 @@ const ORD = {
   resultatTraitement:['Guérison','Amélioration','Pas de Guérison'],
   retourneMemeStructure:['Oui','Ne sait pas','Non'],
   prixVsPharmacie:['Moins chers','Pareils','Plus chers'],
-  coutVsTradi:['Moins cher','Pareil','Plus cher']
+  coutVsTradi:['Moins cher','Pareil','Plus cher'],
+  // Tranches de distance REELLE calculee en SIG (voir section analyse spatiale)
+  bandPrim:['Moins de 500 m','500 m a 1 km','1 a 1,5 km','Plus de 1,5 km'],
+  bandAny:['Moins de 500 m','500 m a 1 km','1 a 1,5 km','Plus de 1,5 km']
 };
 
 // DIMS = pour chaque variable (cle technique), son libelle lisible affiche
@@ -86,12 +89,19 @@ const DIMS = {
   respecte:'Respecté par le médecin', dialogue:'Dialogue permanent', satisfaitMedecin:'Satisfait du médecin traitant',
   resultatTraitement:'Résultat du traitement', personnelGentil:'Personnel soignant gentil',
   prisConstantes:'Constantes prises (poids/tension…)', oriente:'Orienté vers une autre structure',
-  recommandeTradi:"Recommandé d'aller voir un tradipraticien", retourneMemeStructure:'Retournerait dans la même structure'
+  recommandeTradi:"Recommandé d'aller voir un tradipraticien", retourneMemeStructure:'Retournerait dans la même structure',
+  // Variables issues de l'analyse spatiale (distances reelles au centre le plus proche)
+  bandPrim:'Distance réelle au 1er contact', bandAny:'Distance réelle (tout centre)'
 };
 
-// NUM = les variables numeriques (montants). Traitees a part car on calcule
+// NUM = les variables numeriques (montants + distances calculees en SIG). Traitees a part car on calcule
 // des statistiques (mediane, moyenne) et un histogramme, pas des categories.
-const NUM = { coutConsultation:'Coût de la consultation (FCFA)', coutMax:'Coût max. accepté (FCFA)', loyer:'Loyer mensuel (FCFA)' };
+const NUM = { coutConsultation:'Coût de la consultation (FCFA)', coutMax:'Coût max. accepté (FCFA)', loyer:'Loyer mensuel (FCFA)',
+  dAny:'Distance au centre le plus proche (m)', dPub:'Distance au centre public le plus proche (m)', dPrim:'Distance au 1er contact le plus proche (m)' };
+
+// Couches spatiales injectees par centres.js et yopougon.js
+const CENTRES = window.CENTRES || [];
+const YOP = window.YOP_BOUNDARY || null;
 
 // FILTER_GROUPS = quelles variables apparaissent dans la barre de filtres a
 // gauche, et sous quel intitule de groupe. On ne met pas TOUT pour ne pas
@@ -100,7 +110,7 @@ const FILTER_GROUPS = [
   { g:'Profil', keys:['sexe','age','nationalite','ethnie','matrimonial','religion','instruction','professionCat','cadreProfession'] },
   { g:'Localisation', keys:['quartier','lieuNaissance'] },
   { g:'Ménage & économie', keys:['statutLogement','typeConstruction','nbPieces','revenu','depenses','nbEnfantsCat','personnesCharge','autreRevenu'] },
-  { g:'Accès aux soins', keys:['existenceCentre','frequentation','distancePublique','tempsMis','opinionDistance','coutTransport'] },
+  { g:'Accès aux soins', keys:['existenceCentre','frequentation','distancePublique','bandPrim','tempsMis','opinionDistance','coutTransport'] },
   { g:'Recours & assurance', keys:['premierRecours','premierRecoursCat','assurance','seulAccompagne'] },
   { g:'Santé & résultats', keys:['maladieCat','resultatTraitement','retourneMemeStructure','satisfaitMedecin'] }
 ];
@@ -306,6 +316,10 @@ function renderKPIs(recs){
    ============================================================================ */
 
 let map,baseOSM,baseCarto,markerLayer,clusterLayer;
+let centresLayer,buffer500Layer,buffer1000Layer,boundaryLayer; // couches de l'analyse spatiale
+
+// Couleur d'un centre de sante selon son type simplifie
+const CENTRE_COL={'Hopital':'#b5121b','Clinique privee':'#7a3fa0','Centre de sante (1er contact)':'#0d8a6a','Cabinet / Infirmerie':'#e8813a','Autre / a verifier':'#8a94a6'};
 
 // initMap() : cree la carte une seule fois, centree sur Yopougon
 function initMap(){
@@ -313,19 +327,51 @@ function initMap(){
   // deux fonds de carte possibles
   baseOSM=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
   baseCarto=L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{maxZoom:20,attribution:'© OpenStreetMap © CARTO'});
-  markerLayer=L.layerGroup().addTo(map); // couche qui contiendra les points
+  markerLayer=L.layerGroup().addTo(map); // couche qui contiendra les enquetes
+
+  buildSpatialLayers(); // cree les couches centres / buffers / limite
+
   // bascule du fond de carte
   document.getElementById('basemapToggle').addEventListener('change',e=>{
     if(e.target.checked){map.removeLayer(baseOSM);baseCarto.addTo(map);}else{map.removeLayer(baseCarto);baseOSM.addTo(map);}});
   // bascule du regroupement (cluster)
   document.getElementById('clusterToggle').addEventListener('change',()=>renderMap(filtered()));
+  // bascules des couches spatiales : on affiche/masque la couche correspondante
+  const tog=(id,layer)=>document.getElementById(id).addEventListener('change',e=>{e.target.checked?layer.addTo(map):map.removeLayer(layer);});
+  tog('centresToggle',centresLayer); tog('buffer500Toggle',buffer500Layer); tog('buffer1000Toggle',buffer1000Layer); tog('boundaryToggle',boundaryLayer);
+}
+
+// buildSpatialLayers() : construit une fois pour toutes les couches SIG
+function buildSpatialLayers(){
+  // 1) limite communale de Yopougon (contour)
+  if(YOP){ boundaryLayer=L.geoJSON(YOP,{style:{color:'#0f5e8f',weight:2,fill:false,dashArray:'4 3'}}).addTo(map); }
+  else boundaryLayer=L.layerGroup();
+
+  // 2) centres de sante : petit carre colore selon le type
+  centresLayer=L.layerGroup();
+  buffer500Layer=L.layerGroup(); buffer1000Layer=L.layerGroup();
+  CENTRES.forEach(c=>{
+    const col=CENTRE_COL[c.type]||'#8a94a6';
+    const icon=L.divIcon({className:'',iconSize:[12,12],iconAnchor:[6,6],
+      html:`<div style="width:11px;height:11px;background:${col};border:1.5px solid #fff;box-shadow:0 0 2px rgba(0,0,0,.5);transform:rotate(45deg)"></div>`});
+    const mk=L.marker([c.lat,c.lon],{icon});
+    mk.bindPopup(`<div class="pop"><b>${c.nom}</b><table><tr><td class="k">Catégorie</td><td>${c.categorie}</td></tr><tr><td class="k">Niveau</td><td>${c.niveau}</td></tr><tr><td class="k">Secteur</td><td>${c.secteur}</td></tr></table></div>`);
+    centresLayer.addLayer(mk);
+    // zones de couverture autour des centres de PREMIER CONTACT uniquement
+    if(c.type==='Centre de sante (1er contact)'){
+      buffer500Layer.addLayer(L.circle([c.lat,c.lon],{radius:500,color:'#0d8a6a',weight:1,fillColor:'#0d8a6a',fillOpacity:.08}));
+      buffer1000Layer.addLayer(L.circle([c.lat,c.lon],{radius:1000,color:'#12a08a',weight:1,fillColor:'#12a08a',fillOpacity:.05}));
+    }
+  });
+  centresLayer.addTo(map); // affiches par defaut (case cochee)
 }
 
 // popupHtml() : contenu de la fiche affichee quand on clique un point
 function popupHtml(d){
   const rows=[['Quartier',d.quartier],['Sexe',d.sexe],['Âge',d.age],['Profession',d.professionRaw],
     ['Instruction',d.instruction],['Revenu',d.revenu],['Assurance',d.assurance],
-    ['1er recours',d.premierRecours],['Maladie',d.maladieCat],['Résultat',d.resultatTraitement]];
+    ['1er recours',d.premierRecours],['Maladie',d.maladieCat],['Résultat',d.resultatTraitement],
+    ['Dist. 1er contact',d.dPrim!=null?d.dPrim+' m':'—'],['Dist. centre public',d.dPub!=null?d.dPub+' m':'—']];
   return `<div class="pop"><b>Enquêté n°${d.id}</b><table>${rows.map(r=>`<tr><td class="k">${r[0]}</td><td>${r[1]||'—'}</td></tr>`).join('')}</table></div>`;
 }
 
@@ -483,8 +529,59 @@ function renderTab(recs){
     barSimple('p_plus','iraitPlusSouvent',recs,{doughnut:true});
   }
 
+  if(currentTab==='spatial'){ renderSpatial(recs); } // analyse spatiale (distances SIG)
   if(currentTab==='croise'){ renderCross(recs); }   // analyse croisee libre
   if(currentTab==='explor'){ renderExplorer(recs); } // explorateur de variable
+}
+
+/* --- Rendu de l'onglet Analyse spatiale --- */
+function renderSpatial(recs){
+  // 1) KPIs de couverture (part des enquetes a moins de X m d'un centre)
+  const covRate=(field,thr)=>{const v=recs.map(d=>d[field]).filter(x=>typeof x==='number'); return v.length?100*v.filter(x=>x<thr).length/v.length:0;};
+  const medOf=(field)=>{const v=recs.map(d=>d[field]).filter(x=>typeof x==='number'); return median(v);};
+  const kp=[
+    {v:medOf('dAny')!=null?Math.round(medOf('dAny'))+' m':'—',l:'Distance médiane au centre le plus proche'},
+    {v:medOf('dPrim')!=null?Math.round(medOf('dPrim'))+' m':'—',l:'Distance médiane au 1er contact'},
+    {v:covRate('dAny',1000).toFixed(0)+'%',l:'À moins d\'1 km d\'un centre (tout type)'},
+    {v:covRate('dPub',1000).toFixed(0)+'%',l:'À moins d\'1 km d\'un centre public'}
+  ];
+  document.getElementById('spatialKpis').innerHTML=kp.map(k=>`<div class="kpi"><div class="v">${k.v}</div><div class="l">${k.l}</div></div>`).join('');
+
+  // 2) Tableau des taux de couverture
+  const rows=[['Tout centre','dAny'],['Centre public','dPub'],['1er contact','dPrim']];
+  const thrs=[500,1000,1500];
+  let html='<table class="ct"><thead><tr><th>Type de centre</th>'+thrs.map(t=>`<th>&lt; ${t} m</th>`).join('')+'</tr></thead><tbody>';
+  rows.forEach(r=>{html+=`<tr><td class="rowh">${r[0]}</td>`+thrs.map(t=>{const p=covRate(r[1],t);return `<td><span class="hm" style="background:${heat(p)}">${p.toFixed(0)}%</span></td>`;}).join('')+'</tr>';});
+  html+='</tbody></table>';
+  document.getElementById('coverageTable').innerHTML=html;
+
+  // 3) Histogramme de la distance au 1er contact
+  const vals=recs.map(d=>d.dPrim).filter(x=>typeof x==='number');
+  const bins=10,size=250; const counts=new Array(bins).fill(0);
+  vals.forEach(v=>{let b=Math.min(bins-1,Math.floor(v/size));counts[b]++;});
+  draw('s_hist',{type:'bar',data:{labels:counts.map((_,i)=>`${i*size}–${(i+1)*size}`),datasets:[{data:counts,backgroundColor:'#0d8a6a',borderRadius:3}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{title:{display:true,text:'mètres'}},y:{title:{display:true,text:'Effectif'}}}}});
+
+  // 4) Premier recours (categorie) selon la tranche de distance reelle -> graphe cle
+  crossChart('s_recours','bandPrim','premierRecoursCat',recs,'pct');
+
+  // 5) Part cumulee "hors systeme formel" (traditionnelle + automedication) par distance
+  const cats=ORD.bandPrim;
+  const hors=cats.map(b=>{const g=recs.filter(d=>d.bandPrim===b);const t=g.filter(d=>d.premierRecoursCat).length;const h=g.filter(d=>['Médecine traditionnelle','Automédication'].includes(d.premierRecoursCat)).length;return t?100*h/t:0;});
+  draw('s_hors',{type:'bar',data:{labels:cats,datasets:[{data:hors,backgroundColor:'#b0568f',borderRadius:4}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.parsed.y.toFixed(1)+'% hors système formel'}}},scales:{y:{max:Math.max(40,Math.ceil(Math.max(...hors)/10)*10),ticks:{callback:v=>v+'%'}}}}});
+
+  // 6) Distance declaree (enquete) vs distance reelle (SIG)
+  crossChart('s_declare','distancePublique','bandPrim',recs,'pct');
+
+  // 7) Distance moyenne au 1er contact par quartier (Top 20 par effectif)
+  const byq={};recs.forEach(d=>{if(typeof d.dPrim==='number'){(byq[d.quartier]=byq[d.quartier]||[]).push(d.dPrim);}});
+  const q=Object.entries(byq).filter(e=>e[1].length>=3).map(e=>[e[0],e[1].reduce((a,b)=>a+b,0)/e[1].length,e[1].length]).sort((a,b)=>b[2]-a[2]).slice(0,20).sort((a,b)=>b[1]-a[1]);
+  draw('s_quart',{type:'bar',data:{labels:q.map(e=>e[0]),datasets:[{data:q.map(e=>Math.round(e[1])),backgroundColor:q.map(e=>e[1]>687?'#d9534f':'#0d8a6a'),borderRadius:3}]},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.parsed.x+' m en moyenne'}}},scales:{x:{title:{display:true,text:'mètres (rouge = au-dessus de la moyenne générale)'}},y:{ticks:{autoSkip:false}}}}});
+
+  // 8) Frequentation du centre public selon la distance reelle
+  crossChart('s_freq','bandPrim','frequentation',recs,'pct');
 }
 
 // structPerception() : graphique special qui compare les trois types de
@@ -584,7 +681,7 @@ function refresh(){ const recs=filtered(); renderChips(); renderKPIs(recs); rend
 function switchTab(t){
   currentTab=t;
   document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===t));
-  ['carte','apercu','recours','percept','croise','explor'].forEach(id=>{const el=document.getElementById('tab-'+id);if(el)el.classList.toggle('hidden',id!==t);});
+  ['carte','apercu','recours','percept','spatial','croise','explor'].forEach(id=>{const el=document.getElementById('tab-'+id);if(el)el.classList.toggle('hidden',id!==t);});
   renderTab(filtered());
   if(t==='carte') setTimeout(()=>map.invalidateSize(),80); // Leaflet doit recalculer sa taille quand on revient sur la carte
 }
@@ -596,7 +693,7 @@ document.addEventListener('DOMContentLoaded',()=>{
   buildFilters();  // 2. la barre de filtres
 
   // 3. menu "colorer la carte par"
-  fillSelect(document.getElementById('colorBy'),['premierRecours','premierRecoursCat','sexe','age','assurance','frequentation','maladieCat','revenu','instruction','professionCat','resultatTraitement','satisfaitMedecin','quartier'],'premierRecours');
+  fillSelect(document.getElementById('colorBy'),['premierRecours','premierRecoursCat','bandPrim','sexe','age','assurance','frequentation','maladieCat','revenu','instruction','professionCat','resultatTraitement','satisfaitMedecin','quartier'],'premierRecours');
   document.getElementById('colorBy').addEventListener('change',()=>renderMap(filtered()));
 
   // 4. menus de l'analyse croisee (valeurs de depart : age x premier recours)

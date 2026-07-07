@@ -23,8 +23,9 @@ Six onglets :
 2. **📊 Vue d'ensemble** : profil sociodémographique (sexe, âge, instruction, religion, profession, revenu, quartiers, maladies).
 3. **🏥 Recours aux soins** : le cœur de l'analyse. Premier recours et ses croisements avec l'âge, le sexe, le revenu, l'instruction, l'assurance ; raisons du choix ; accompagnement.
 4. **⭐ Perceptions & qualité** : comparaison Public / Privé / Traditionnel, qualité de la relation médecin, coûts, médicaments, résultats.
-5. **🔀 Analyse croisée** : **choisissez vous-même deux variables** à croiser (X et Y), le mode d'affichage (barres empilées en %, en effectifs, ou groupées) et lisez le **tableau de contingence** coloré.
-6. **🔎 Explorateur** : sélectionnez n'importe quelle variable pour voir sa distribution détaillée, y compris les variables numériques (histogramme + statistiques). Bouton d'**export CSV** de la sélection filtrée.
+5. **🧭 Analyse spatiale** : accessibilité géographique aux 108 centres de santé. Taux de couverture par rayon (500 m / 1 km / 1,5 km), distance réelle au premier contact, premier recours selon la distance, distance moyenne par quartier, distance déclarée vs réelle. Sur l'onglet **Carte**, activez les centres de santé et les zones de couverture, et colorez les enquêtés par « Distance réelle au 1er contact ».
+6. **🔀 Analyse croisée** : **choisissez vous-même deux variables** à croiser (X et Y), le mode d'affichage (barres empilées en %, en effectifs, ou groupées) et lisez le **tableau de contingence** coloré.
+7. **🔎 Explorateur** : sélectionnez n'importe quelle variable pour voir sa distribution détaillée, y compris les variables numériques (histogramme + statistiques). Bouton d'**export CSV** de la sélection filtrée.
 
 ---
 
@@ -43,7 +44,9 @@ Six onglets :
 |---|---|
 | `index.html` | L'application (à ouvrir) |
 | `app.js` | Logique du tableau de bord |
-| `data/data.js` | Données nettoyées (intégrées à l'app) |
+| `data/data.js` | Données nettoyées + distances SIG (intégrées à l'app) |
+| `data/centres.js` | 108 établissements de santé de Yopougon |
+| `data/yopougon.js` | Limite communale de Yopougon |
 | `data/donnees_nettoyees.csv` | Données propres, ouvrables dans Excel |
 | `data/journal_corrections.csv` | Journal des corrections appliquées |
 | `RAPPORT_ANALYSE.md` | Rapport d'analyse rédigé |

@@ -77,6 +77,41 @@ L'hôpital public reste le premier réflexe, choisi d'abord parce qu'il est **mo
 
 ---
 
+## 5 bis. Analyse spatiale (SIG) : accessibilité géographique aux centres de santé
+
+À la couche des enquêtés a été ajoutée une **couche de 108 établissements de santé** de Yopougon (2 CHU, 1 hôpital général, 1 polyclinique, 37 cliniques, 11 CSU/FSU, 29 centres de santé, dispensaires, etc.). Pour chaque personne âgée, la **distance réelle au centre le plus proche** a été calculée en projection métrique (UTM 30N).
+
+### Couverture géographique
+| Type de centre | à moins de 500 m | à moins d'1 km | à moins de 1,5 km |
+|---|---|---|---|
+| Tout centre (public ou privé) | 70 % | 98 % | 99 % |
+| Centre **public** | 24 % | 69 % | — |
+| **1er contact** (CSU, centre de santé, dispensaire) | 32 % | 81 % | 96 % |
+
+- Distance médiane au centre le plus proche, tous types confondus : **369 m** (moyenne 408 m, maximum 2,1 km).
+- Distance médiane au **premier contact** : **621 m** (moyenne 687 m, maximum 2,3 km).
+
+**Lecture** : l'offre de soins de proximité est dense, mais elle est surtout **privée**. Les structures **publiques et de premier niveau, celles que privilégient les personnes âgées pour leur coût, sont sensiblement plus éloignées** (à peine 24 % des enquêtés à moins de 500 m d'un centre public, contre 70 % pour l'ensemble). Il existe donc un décalage entre l'offre proche (privée, jugée chère) et l'offre recherchée (publique, plus lointaine).
+
+### La distance influence-t-elle le recours ?
+La part de recours **hors système formel** (traditionnel + automédication) selon la distance au premier contact :
+
+| Distance au 1er contact | Effectif | 1er recours public | Hors système formel |
+|---|---|---|---|
+| Moins de 500 m | 234 | 57,7 % | 24,8 % |
+| 500 m à 1 km | 356 | 54,5 % | 22,5 % |
+| 1 à 1,5 km | 105 | 54,3 % | 26,7 % |
+| Plus de 1,5 km | 31 | 61,3 % | 12,9 % |
+
+Le gradient est **faible et non monotone** : la distance physique n'est **pas** le principal déterminant du recours dans ce contexte urbain dense. Ce résultat, à première vue contre-intuitif, renforce la conclusion précédente : les vrais freins sont **économiques** (coût, absence d'assurance) et non la proximité. En revanche, la **fréquentation effective du centre public** décroît légèrement avec l'éloignement (68 % à moins de 500 m, 59 % au-delà de 1,5 km), signe d'un effet de distance réel mais secondaire.
+
+### Distance déclarée vs distance réelle
+Les distances déclarées dans l'enquête ne coïncident pas exactement avec les distances calculées : les enquêtés qui déclarent « moins de 500 m » ont en réalité une distance médiane de **758 m** au centre public le plus proche. Les déclarations renvoient à la structure **habituellement fréquentée**, pas nécessairement à la plus proche. Le SIG apporte donc une mesure objective qui complète le ressenti des enquêtés.
+
+> Ces analyses sont explorables dans l'onglet **Analyse spatiale** du WebSIG, et visualisables sur la carte (centres de santé, zones de couverture 500 m / 1 km, coloration des enquêtés par distance réelle).
+
+---
+
 ## 6. Perception et qualité des structures
 
 Part de jugements positifs (« oui ») :

@@ -133,6 +133,7 @@ table.ct td .hm{display:inline-block;padding:2px 6px;border-radius:5px}
       <div class="tab" data-tab="apercu">📊 Vue d'ensemble</div>
       <div class="tab" data-tab="recours">🏥 Recours aux soins</div>
       <div class="tab" data-tab="percept">⭐ Perceptions &amp; qualité</div>
+      <div class="tab" data-tab="spatial">🧭 Analyse spatiale</div>
       <div class="tab" data-tab="croise">🔀 Analyse croisée</div>
       <div class="tab" data-tab="explor">🔎 Explorateur</div>
     </div>
@@ -152,7 +153,12 @@ table.ct td .hm{display:inline-block;padding:2px 6px;border-radius:5px}
             <select class="sel" id="colorBy" style="width:100%"></select>
             <div class="switch"><input type="checkbox" id="clusterToggle"><label for="clusterToggle">Regrouper les points (densité)</label></div>
             <div class="switch"><input type="checkbox" id="basemapToggle"><label for="basemapToggle">Fond clair (CARTO)</label></div>
-            <div class="note">Chaque point = un enquêté. Cliquez un point pour voir sa fiche. La carte suit les filtres actifs.</div>
+            <hr style="border:none;border-top:1px solid var(--line);margin:8px 0">
+            <div class="switch"><input type="checkbox" id="centresToggle" checked><label for="centresToggle">🏥 Centres de santé (108)</label></div>
+            <div class="switch"><input type="checkbox" id="buffer500Toggle"><label for="buffer500Toggle">Zone de couverture 500 m</label></div>
+            <div class="switch"><input type="checkbox" id="buffer1000Toggle"><label for="buffer1000Toggle">Zone de couverture 1 km</label></div>
+            <div class="switch"><input type="checkbox" id="boundaryToggle" checked><label for="boundaryToggle">Limite de Yopougon</label></div>
+            <div class="note">Chaque point = un enquêté. Cliquez un point ou un centre pour voir sa fiche. Les zones de couverture sont tracées autour des centres de <b>premier contact</b>. La carte suit les filtres actifs.</div>
           </div>
           <div class="card"><div class="legend" id="mapLegend"></div></div>
         </div>
@@ -206,6 +212,25 @@ table.ct td .hm{display:inline-block;padding:2px 6px;border-radius:5px}
         <div class="card"><h3>Achat des médicaments</h3><div class="sub">Tous les médicaments achetés / achetés sur place</div><div class="chartbox"><canvas id="p_med"></canvas></div></div>
         <div class="card"><h3>Irait plus souvent au public si les médicaments y étaient disponibles</h3><div class="chartbox"><canvas id="p_plus"></canvas></div></div>
       </div>
+    </section>
+
+    <!-- TAB: ANALYSE SPATIALE -->
+    <section id="tab-spatial" class="hidden">
+      <div class="card wide" style="margin-bottom:16px">
+        <h3>Accessibilité géographique des personnes âgées aux structures de santé</h3>
+        <div class="sub">Distances calculées en mètres (projection UTM 30N) entre chaque enquêté et le centre de santé le plus proche. « 1er contact » = CSU/FSU, centres de santé, dispensaires, maternités (soins de premier niveau).</div>
+        <div class="kpis" id="spatialKpis"></div>
+      </div>
+      <div class="grid g2">
+        <div class="card"><h3>Taux de couverture selon le rayon d'accès</h3><div class="sub">Part des enquêtés situés à moins de X mètres d'un centre</div><div id="coverageTable"></div></div>
+        <div class="card"><h3>Distribution de la distance au 1<sup>er</sup> contact</h3><div class="chartbox"><canvas id="s_hist"></canvas></div></div>
+        <div class="card wide"><h3>Premier recours selon la distance réelle au centre de premier contact</h3><div class="sub">Répartition en % — la distance influence-t-elle le type de recours ?</div><div class="chartbox tall"><canvas id="s_recours"></canvas></div></div>
+        <div class="card"><h3>Recours à la médecine traditionnelle + automédication par distance</h3><div class="sub">Part cumulée des recours hors système formel</div><div class="chartbox"><canvas id="s_hors"></canvas></div></div>
+        <div class="card"><h3>Distance déclarée (enquête) vs distance réelle (SIG)</h3><div class="sub">Distance déclarée au public × distance réelle calculée au 1er contact</div><div class="chartbox"><canvas id="s_declare"></canvas></div></div>
+        <div class="card"><h3>Distance moyenne au 1<sup>er</sup> contact par quartier (Top 20)</h3><div class="chartbox tall"><canvas id="s_quart"></canvas></div></div>
+        <div class="card"><h3>Fréquentation du centre public selon la distance</h3><div class="chartbox"><canvas id="s_freq"></canvas></div></div>
+      </div>
+      <div class="note" style="margin-top:12px">La carte de l'onglet <b>Carte</b> permet d'afficher les centres de santé et leurs zones de couverture (500 m / 1 km) pour visualiser ces résultats géographiquement.</div>
     </section>
 
     <!-- TAB: CROISE -->
@@ -265,6 +290,8 @@ table.ct td .hm{display:inline-block;padding:2px 6px;border-radius:5px}
 <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="data/data.js"></script>
+<script src="data/centres.js"></script>   <!-- window.CENTRES : 108 etablissements de sante -->
+<script src="data/yopougon.js"></script>  <!-- window.YOP_BOUNDARY : limite communale -->
 <script src="app.js"></script>
 </body>
 </html>
