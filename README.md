@@ -6,9 +6,7 @@ Tableau de bord cartographique interactif (WebSIG) construit à partir d'une enq
 
 ## 🔗 Voir le rendu en ligne
 
-**➡️ https://USERNAME.github.io/REPO/**
-
-*(le lien exact s'affichera ici une fois GitHub Pages activé)*
+**➡️ https://juniorbaklers.github.io/websig-recours-soins-yopougon/**
 
 ## Ce que contient l'application
 
