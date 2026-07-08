@@ -715,6 +715,7 @@ function renderTab(recs){
   if(currentTab==='carte'){ renderMap(recs); }
 
   if(currentTab==='apercu'){ // profil sociodemographique
+    drawGauges(recs); // jauges radiales animees (indicateurs cles)
     barSimple('c_sexe','sexe',recs,{doughnut:true});
     barSimple('c_age','age',recs);
     barSimple('c_instr','instruction',recs);
@@ -765,6 +766,29 @@ function renderTab(recs){
   if(currentTab==='spatial'){ renderSpatial(recs); } // analyse spatiale (distances SIG)
   if(currentTab==='croise'){ renderCross(recs); }   // analyse croisee libre
   if(currentTab==='explor'){ renderExplorer(recs); } // explorateur de variable
+}
+
+// drawGauges() : jauges radiales animees des indicateurs cles (onglet Vue d'ensemble)
+function drawGauges(recs){
+  const box=document.getElementById('apercuGauges'); if(!box) return;
+  const items=[
+    {v:rate(recs,'premierRecoursCat',['Médecine moderne']),l:'Médecine moderne',c:'#0f5e8f'},
+    {v:rate(recs,'premierRecours',['La formation sanitaire publique']),l:'1er recours = public',c:'#12a08a'},
+    {v:rate(recs,'assurance',['Oui']),l:'Assurance maladie',c:'#e8813a'},
+    {v:rate(recs,'satisfaitMedecin',['Oui']),l:'Satisfaits du médecin',c:'#b0568f'},
+    {v:rate(recs,'resultatTraitement',['Guérison','Amélioration']),l:'Guérison / amélioration',c:'#4c9a4c'}
+  ];
+  const C=2*Math.PI*42;
+  box.innerHTML=items.map((it,i)=>`<div class="gauge"><svg viewBox="0 0 100 100" width="92" height="92">
+    <circle cx="50" cy="50" r="42" fill="none" stroke="#e9eef4" stroke-width="9"/>
+    <circle id="garc${i}" cx="50" cy="50" r="42" fill="none" stroke="${it.c}" stroke-width="9" stroke-linecap="round" transform="rotate(-90 50 50)" stroke-dasharray="${C.toFixed(1)}" stroke-dashoffset="${C.toFixed(1)}"/>
+    <text id="gtxt${i}" x="50" y="56" text-anchor="middle" font-size="22" font-weight="800" fill="${it.c}">0%</text></svg>
+    <div class="glabel">${it.l}</div></div>`).join('');
+  items.forEach((it,i)=>{ const arc=document.getElementById('garc'+i), txt=document.getElementById('gtxt'+i); if(!arc)return;
+    const t0=performance.now(), dur=850;
+    const step=now=>{ const p=Math.min(1,(now-t0)/dur), val=it.v*(1-Math.pow(1-p,3));
+      arc.setAttribute('stroke-dashoffset',(C*(1-val/100)).toFixed(1)); txt.textContent=Math.round(val)+'%'; if(p<1)requestAnimationFrame(step); };
+    requestAnimationFrame(step); });
 }
 
 /* --- Onglet Determinants (objectif 3) : facteurs influencant le recours --- */

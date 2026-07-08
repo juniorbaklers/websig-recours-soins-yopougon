@@ -74,6 +74,10 @@ details.fg[open]>summary .chev{transform:rotate(90deg)}
 .kpi .s{font-size:11px;color:var(--muted);margin-top:4px}
 @keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
 @media(prefers-reduced-motion:reduce){.kpi,.card{animation:none}}
+.gauges{display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:14px;margin-bottom:16px}
+.gauge{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:12px 10px;text-align:center;transition:transform .15s,box-shadow .15s}
+.gauge:hover{transform:translateY(-3px);box-shadow:0 6px 20px rgba(16,32,50,.13)}
+.glabel{font-size:11.5px;color:var(--muted);margin-top:2px;font-weight:600;line-height:1.2}
 .grid{display:grid;gap:16px}
 .g2{grid-template-columns:repeat(2,1fr)}
 .g3{grid-template-columns:repeat(3,1fr)}
@@ -212,6 +216,7 @@ table.ct td .hm{display:inline-block;padding:2px 6px;border-radius:5px}
 
     <!-- TAB: APERCU -->
     <section id="tab-apercu" class="hidden">
+      <div class="gauges" id="apercuGauges"></div>
       <div class="grid g3">
         <div class="card"><h3>Sexe</h3><div class="chartbox"><canvas id="c_sexe"></canvas></div></div>
         <div class="card"><h3>Tranche d'âge</h3><div class="chartbox"><canvas id="c_age"></canvas></div></div>
