@@ -56,7 +56,9 @@ const ORD = {
   coutVsTradi:['Moins cher','Pareil','Plus cher'],
   // Tranches de distance REELLE calculee en SIG (voir section analyse spatiale)
   bandPrim:['Moins de 500 m','500 m a 1 km','1 a 1,5 km','Plus de 1,5 km'],
-  bandAny:['Moins de 500 m','500 m a 1 km','1 a 1,5 km','Plus de 1,5 km']
+  bandAny:['Moins de 500 m','500 m a 1 km','1 a 1,5 km','Plus de 1,5 km'],
+  // Classe d'accessibilite selon le temps de marche au centre le plus proche
+  coverClass:['5 min','10 min','15 min','Hors 15 min']
 };
 
 // DIMS = pour chaque variable (cle technique), son libelle lisible affiche
@@ -91,7 +93,8 @@ const DIMS = {
   prisConstantes:'Constantes prises (poids/tension…)', oriente:'Orienté vers une autre structure',
   recommandeTradi:"Recommandé d'aller voir un tradipraticien", retourneMemeStructure:'Retournerait dans la même structure',
   // Variables issues de l'analyse spatiale (distances reelles au centre le plus proche)
-  bandPrim:'Distance réelle au 1er contact', bandAny:'Distance réelle (tout centre)'
+  bandPrim:'Distance réelle au 1er contact', bandAny:'Distance réelle (tout centre)',
+  coverClass:'Couverture (temps de marche)'
 };
 
 // NUM = les variables numeriques (montants + distances calculees en SIG). Traitees a part car on calcule
@@ -117,7 +120,7 @@ const FILTER_GROUPS = [
   { g:'Profil', keys:['sexe','age','nationalite','ethnie','matrimonial','religion','instruction','professionCat','cadreProfession'] },
   { g:'Localisation', keys:['quartier','lieuNaissance'] },
   { g:'Ménage & économie', keys:['statutLogement','typeConstruction','nbPieces','revenu','depenses','nbEnfantsCat','personnesCharge','autreRevenu'] },
-  { g:'Accès aux soins', keys:['existenceCentre','frequentation','distancePublique','bandPrim','tempsMis','opinionDistance','coutTransport'] },
+  { g:'Accès aux soins', keys:['existenceCentre','frequentation','coverClass','distancePublique','bandPrim','tempsMis','opinionDistance','coutTransport'] },
   { g:'Recours & assurance', keys:['premierRecours','premierRecoursCat','assurance','seulAccompagne'] },
   { g:'Santé & résultats', keys:['maladieCat','resultatTraitement','retourneMemeStructure','satisfaitMedecin'] }
 ];
@@ -133,6 +136,27 @@ const PAL = ['#0f5e8f','#e8813a','#12a08a','#b0568f','#4c9a4c','#d9534f','#6f7fb
 
 // Cas particulier des reponses Oui/Non : vert = Oui, rouge = Non (plus intuitif).
 const YESNO = { 'Oui':'#4c9a4c','Non':'#d9534f','OUI':'#4c9a4c','NON':'#d9534f' };
+// Couleurs des classes d'accessibilite (marche) : du vert (proche) au rouge (hors zone)
+const COVER_COL = { '5 min':'#1a9850','10 min':'#91cf60','15 min':'#fee08b','Hors 15 min':'#d73027' };
+// Vitesse de marche retenue pour les personnes agees : 4,8 km/h = 80 m/min
+const WALK_M_MIN = 80;
+// haversine() : distance en metres entre deux points (lat/lon degres)
+function haversine(la1,lo1,la2,lo2){ const R=6371000,r=Math.PI/180;
+  const dla=(la2-la1)*r, dlo=(lo2-lo1)*r;
+  const a=Math.sin(dla/2)**2+Math.cos(la1*r)*Math.cos(la2*r)*Math.sin(dlo/2)**2;
+  return 2*R*Math.asin(Math.sqrt(a)); }
+// computeNearest() : pour chaque enquete, centre le plus proche + distance + temps de marche + classe
+function computeNearest(){
+  if(!CENTRES||!CENTRES.length) return;
+  DATA.forEach(d=>{
+    if(typeof d.lat!=='number'||typeof d.lng!=='number'||!d.lat){ d.nearestDist=null; d.nearestName=''; d.walkMin=null; d.coverClass=''; return; }
+    let best=1e18,bn='',bt='';
+    for(const c of CENTRES){ const dist=haversine(d.lat,d.lng,c.lat,c.lon); if(dist<best){best=dist;bn=c.nom;bt=c.type;} }
+    d.nearestDist=Math.round(best); d.nearestName=bn; d.nearestType=bt;
+    d.walkMin=Math.max(1,Math.round(best/WALK_M_MIN));
+    d.coverClass = best<=400?'5 min':best<=800?'10 min':best<=1200?'15 min':'Hors 15 min';
+  });
+}
 
 // catsOf(cle) : renvoie la liste ORDONNEE des modalites d'une variable,
 // calculee une seule fois sur TOUT le jeu de donnees (pour que les couleurs
@@ -160,6 +184,7 @@ const CATS={}; Object.keys(DIMS).forEach(k=>CATS[k]=catsOf(k));
 // colorFor(cle, valeur) : couleur d'une modalite. Si la variable est de type
 // Oui/Non on utilise le code vert/rouge, sinon la position dans la palette.
 function colorFor(key,val){
+  if(key==='coverClass' && COVER_COL[(val||'').trim()]) return COVER_COL[val.trim()]; // classes de marche
   const cats=CATS[key]||catsOf(key);
   if(cats.every(c=>YESNO[c.trim()]!==undefined || ['Oui','Non','OUI','NON'].includes(c.trim())) && YESNO[val.trim()]) return YESNO[val.trim()];
   const i=cats.indexOf(val); return PAL[(i<0?0:i)%PAL.length];
@@ -338,6 +363,7 @@ let map,baseLayers,currentBase,markerLayer,clusterLayer;
 let centresLayer,buffer500Layer,buffer1000Layer,boundaryLayer,gridLayer; // couches de l'analyse spatiale
 let homeBounds=null, measureOn=false, measurePts=[], measureLayer=null; // outils SIG
 let isoMode=false, isoLayer=null; // isochrones d'accessibilite
+let underLayer=null; // zones faiblement desservies (hors 15 min)
 let gridCounts={}; // effectif d'enquetes par cellule (recalcule en direct pendant l'edition)
 const GRID_COL={1:'#f0cf87',2:'#5fae5f',3:'#e69a34',4:'#d9534f'}; // couleur cellule selon nb d'enquetes
 
@@ -383,6 +409,7 @@ function initMap(){
   currentBase=baseLayers.osm; currentBase.addTo(map);
   markerLayer=L.layerGroup().addTo(map); // couche qui contiendra les enquetes
   isoLayer=L.layerGroup(); // couche des isochrones d'accessibilite
+  underLayer=L.layerGroup(); // couche des personnes hors zone 15 min
 
   buildSpatialLayers(); // cree les couches centres / buffers / limite
   homeBounds = YOP ? L.geoJSON(YOP).getBounds() : null;
@@ -449,7 +476,9 @@ function popupHtml(d){
   const rows=[['Quartier',d.quartier],['Sexe',d.sexe],['Âge',d.age],['Profession',d.professionRaw],
     ['Instruction',d.instruction],['Revenu',d.revenu],['Assurance',d.assurance],
     ['1er recours',d.premierRecours],['Maladie',d.maladieCat],['Résultat',d.resultatTraitement],
-    ['Dist. 1er contact',d.dPrim!=null?d.dPrim+' m':'—'],['Dist. centre public',d.dPub!=null?d.dPub+' m':'—']];
+    ['Centre le + proche',d.nearestName||'—'],
+    ['Distance / marche',d.nearestDist!=null?`${d.nearestDist} m · ~${d.walkMin} min`:'—'],
+    ['Couverture',d.coverClass||'—']];
   return `<div class="pop"><b>Enquêté n°${d.id}</b><table>${rows.map(r=>`<tr><td class="k">${r[0]}</td><td>${r[1]||'—'}</td></tr>`).join('')}</table></div>`;
 }
 
@@ -479,7 +508,20 @@ function renderMap(recs){
     mk.bindPopup(popupHtml(d),{maxWidth:260}); target.addLayer(mk);
   });
   if(cluster) map.addLayer(clusterLayer);
+  renderUnderserved(recs); // met en evidence les personnes hors zone 15 min si active
   renderLegend(key,recs);
+}
+
+// renderUnderserved() : halos rouges autour des enquetes hors zone 15 min (suit les filtres)
+function renderUnderserved(recs){
+  if(!underLayer) return;
+  underLayer.clearLayers();
+  const on=document.getElementById('underToggle') && document.getElementById('underToggle').checked;
+  if(!on){ if(map.hasLayer(underLayer)) map.removeLayer(underLayer); return; }
+  const latF=gridView?'gLat':'lat', lngF=gridView?'gLon':'lng';
+  recs.forEach(d=>{ if(d.coverClass==='Hors 15 min' && typeof d[latF]==='number'){
+    L.circleMarker([d[latF],d[lngF]],{radius:11,color:'#d73027',weight:2,fill:false,opacity:.9,dashArray:'3 3'}).addTo(underLayer); }});
+  if(!map.hasLayer(underLayer)) underLayer.addTo(map);
 }
 
 // renderLegend() : legende des couleurs de la carte, avec effectifs
@@ -640,6 +682,7 @@ function onDragEnd(d,mk){
   else        { d.lat=+p.lat.toFixed(7);  d.lng=+p.lng.toFixed(7); }
   const cell=cellAt(p.lat,p.lng);
   if(gridView) d.cellId = cell?cell.id:null; // rattachement automatique a la nouvelle cellule
+  computeNearest(); // recalcule le centre le plus proche apres deplacement
   saveEdit(d);
   recomputeGridCounts(); if(gridLayer) gridLayer.setStyle(styleCell);
   mk.setPopupContent(popupHtml(d));
@@ -713,7 +756,7 @@ function importPositions(file){
         e[d.id]={gLa:d.gLat,gLn:d.gLon,cid:d.cellId,la:d.lat,ln:d.lng}; localStorage.setItem(EDIT_KEY,JSON.stringify(e));
         n++;
       }
-      recomputeGridCounts(); if(gridLayer) gridLayer.setStyle(styleCell);
+      computeNearest(); recomputeGridCounts(); if(gridLayer) gridLayer.setStyle(styleCell);
       renderMap(filtered()); if(currentTab==='spatial') renderGridPlan();
       document.getElementById('editInfo').textContent=`${n} position(s) importée(s) et appliquée(s).`;
     }catch(err){ alert('Erreur de lecture du CSV : '+err.message); }
@@ -724,7 +767,7 @@ function importPositions(file){
 function resetPositions(){
   localStorage.removeItem(EDIT_KEY);
   DATA.forEach(d=>{ d.gLat=d._gLat0; d.gLon=d._gLon0; d.cellId=d._cellId0; d.lat=d._lat0; d.lng=d._lng0; });
-  recomputeGridCounts(); if(gridLayer) gridLayer.setStyle(styleCell);
+  computeNearest(); recomputeGridCounts(); if(gridLayer) gridLayer.setStyle(styleCell);
   renderMap(filtered()); if(currentTab==='spatial') renderGridPlan();
   document.getElementById('editInfo').textContent='Déplacements réinitialisés.';
 }
@@ -923,9 +966,43 @@ function renderDeterminants(recs){
   document.getElementById('detNote').innerHTML=`Recours ${targetLbl} : <b>${moy.toFixed(1)}%</b> en moyenne sur la sélection. Le graphique du haut classe les facteurs du plus discriminant au moins discriminant.`;
 }
 
+// renderAccessibility() : couverture par temps de marche + indicateurs + tableau par quartier
+function renderAccessibility(recs){
+  const wc=recs.filter(d=>d.coverClass);
+  // 1) doughnut des classes de couverture
+  barSimple('acc_cover','coverClass',recs,{doughnut:true});
+  // 2) indicateurs
+  const n=wc.length;
+  const c=v=>wc.filter(d=>d.coverClass===v).length;
+  const c5=c('5 min'),c10=c('10 min'),c15=c('15 min'),hors=c('Hors 15 min');
+  const taux=n?100*(c5+c10+c15)/n:0;
+  const dm=median(wc.map(d=>d.nearestDist).filter(x=>typeof x==='number'));
+  const wm=median(wc.map(d=>d.walkMin).filter(x=>typeof x==='number'));
+  const kp=[
+    {v:taux.toFixed(0)+'%',l:'Couverts à ≤ 15 min de marche'},
+    {v:hors,l:'Hors zone 15 min',s:n?`${(100*hors/n).toFixed(0)}% de la sélection`:''},
+    {v:dm!=null?Math.round(dm)+' m':'—',l:'Distance médiane au centre le + proche'},
+    {v:wm!=null?wm+' min':'—',l:'Temps de marche médian'}
+  ];
+  const ak=document.getElementById('accKpis'); if(ak) ak.innerHTML=kp.map(k=>`<div class="kpi"><div class="v">${k.v}</div><div class="l">${k.l}</div>${k.s?`<div class="s">${k.s}</div>`:''}</div>`).join('');
+  document.querySelectorAll('#accKpis .v').forEach(el=>animateCount(el,el.textContent));
+  // 3) tableau recapitulatif par quartier
+  const byq={};
+  wc.forEach(d=>{ const q=d.quartier||'(non précisé)'; (byq[q]=byq[q]||{t:0,c5:0,c10:0,c15:0,h:0}); byq[q].t++;
+    if(d.coverClass==='5 min')byq[q].c5++; else if(d.coverClass==='10 min')byq[q].c10++; else if(d.coverClass==='15 min')byq[q].c15++; else byq[q].h++; });
+  const rows=Object.entries(byq).map(([q,o])=>({q,...o,taux:o.t?100*(o.c5+o.c10+o.c15)/o.t:0})).sort((a,b)=>b.t-a.t);
+  let html='<table class="ct"><thead><tr><th>Quartier</th><th>Enquêtés</th><th>≤5 min</th><th>≤10 min</th><th>≤15 min</th><th>Hors 15 min</th><th>Taux couverture</th></tr></thead><tbody>';
+  rows.forEach(r=>{ html+=`<tr><td class="rowh">${r.q}</td><td>${r.t}</td><td>${r.c5}</td><td>${r.c10}</td><td>${r.c15}</td><td>${r.h}</td><td><span class="hm" style="background:${heat(r.taux)}">${r.taux.toFixed(0)}%</span></td></tr>`; });
+  const tot={t:n,c5,c10,c15,h:hors};
+  html+=`<tr><td class="rowh"><b>Ensemble</b></td><td><b>${tot.t}</b></td><td><b>${c5}</b></td><td><b>${c10}</b></td><td><b>${c15}</b></td><td><b>${hors}</b></td><td><b>${taux.toFixed(0)}%</b></td></tr>`;
+  html+='</tbody></table>';
+  const aq=document.getElementById('accQuartier'); if(aq) aq.innerHTML=html;
+}
+
 /* --- Rendu de l'onglet Analyse spatiale --- */
 function renderSpatial(recs){
   renderGridPlan(); // synthese du plan d'echantillonnage (design fixe sur les 726)
+  renderAccessibility(recs); // couverture par temps de marche + tableau par quartier
 
   // 1) KPIs de couverture (part des enquetes a moins de X m d'un centre)
   const covRate=(field,thr)=>{const v=recs.map(d=>d[field]).filter(x=>typeof x==='number'); return v.length?100*v.filter(x=>x<thr).length/v.length:0;};
@@ -1112,6 +1189,7 @@ document.addEventListener('DOMContentLoaded',async ()=>{
   document.getElementById('nTotal').textContent=DATA.length;
   // memoriser les positions d'origine (pour le bouton Reinitialiser du mode edition)
   DATA.forEach(d=>{ d._gLat0=d.gLat; d._gLon0=d.gLon; d._cellId0=d.cellId; d._lat0=d.lat; d._lng0=d.lng; });
+  computeNearest(); // centre le plus proche + temps de marche + classe de couverture
   initMap();       // 1. la carte
   buildFilters();  // 2. la barre de filtres
   if(cloudFull){
@@ -1122,10 +1200,10 @@ document.addEventListener('DOMContentLoaded',async ()=>{
     if(nEdits) document.getElementById('editInfo').textContent=`${nEdits} déplacement(s) restauré(s) depuis ce navigateur.`;
   }
   // dans tous les cas : appliquer les surcharges de positions publiees (points_overrides)
-  cloudLoad().then(n=>{ if(n){ recomputeGridCounts(); if(gridLayer) gridLayer.setStyle(styleCell); renderMap(filtered()); if(currentTab==='spatial')renderGridPlan(); setEditInfo(n+' point(s) synchronisé(s) depuis le cloud.'); }});
+  cloudLoad().then(n=>{ if(n){ computeNearest(); recomputeGridCounts(); if(gridLayer) gridLayer.setStyle(styleCell); renderMap(filtered()); if(currentTab==='spatial')renderGridPlan(); setEditInfo(n+' point(s) synchronisé(s) depuis le cloud.'); }});
 
   // 3. menu "colorer la carte par"
-  fillSelect(document.getElementById('colorBy'),['premierRecours','premierRecoursCat','bandPrim','sexe','age','assurance','frequentation','maladieCat','revenu','instruction','professionCat','resultatTraitement','satisfaitMedecin','quartier'],'premierRecours');
+  fillSelect(document.getElementById('colorBy'),['coverClass','premierRecours','premierRecoursCat','bandPrim','sexe','age','assurance','frequentation','maladieCat','revenu','instruction','professionCat','resultatTraitement','satisfaitMedecin','quartier'],'coverClass');
   document.getElementById('colorBy').addEventListener('change',()=>renderMap(filtered()));
 
   // 4. menus de l'analyse croisee (valeurs de depart : age x premier recours)
@@ -1164,6 +1242,14 @@ document.addEventListener('DOMContentLoaded',async ()=>{
   if(isoT) isoT.addEventListener('change',e=>{ isoMode=e.target.checked;
     if(isoMode){ const gt=document.getElementById('centresToggle'); if(!gt.checked){gt.checked=true;centresLayer.addTo(map);} setIsoInfo('Cliquez un centre de santé pour voir son isochrone.'); }
     else { isoLayer.clearLayers(); setIsoInfo(''); } });
+  // selecteur de centre pour afficher SES isochrones uniquement
+  const isoC=document.getElementById('isoCentre');
+  if(isoC){ isoC.innerHTML='<option value="">— Choisir un centre de santé —</option>'+CENTRES.map((c,i)=>`<option value="${i}">${c.nom}</option>`).join('');
+    isoC.addEventListener('change',()=>{ const i=isoC.value; if(i!==''){ isoMode=true; const t=document.getElementById('isoToggle'); if(t)t.checked=true;
+      const c=CENTRES[+i]; computeIsochrone(c); map.setView([c.lat,c.lon],15); } }); }
+  // couche zones faiblement desservies (hors 15 min)
+  const underT=document.getElementById('underToggle');
+  if(underT) underT.addEventListener('change',()=>renderMap(filtered()));
   const ors=document.getElementById('orsKey');
   if(ors){ ors.value=localStorage.getItem('ors_key')||''; ors.addEventListener('change',()=>localStorage.setItem('ors_key',ors.value.trim())); }
   // configuration de l'enregistrement en ligne (Supabase)

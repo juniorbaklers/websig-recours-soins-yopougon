@@ -140,6 +140,9 @@ table.ct td .hm{display:inline-block;padding:2px 6px;border-radius:5px}
 .gis-bar a{font-size:16px;font-weight:700;text-align:center;line-height:26px}
 .gis-measlabel{background:#e8813a;color:#fff;font-size:11px;font-weight:700;padding:2px 6px;border-radius:5px;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,.3)}
 .centre-ico{background:none;border:none}
+.isolegend{display:flex;gap:10px;flex-wrap:wrap;font-size:11px;color:var(--muted);margin:2px 0 4px}
+.isolegend span{display:flex;align-items:center;gap:4px}
+.isolegend i{width:11px;height:11px;border-radius:3px;display:inline-block}
 .foot{padding:10px 20px 30px;color:var(--muted);font-size:11.5px}
 </style>
 </head>
@@ -211,9 +214,16 @@ table.ct td .hm{display:inline-block;padding:2px 6px;border-radius:5px}
             <div class="switch"><input type="checkbox" id="boundaryToggle" checked><label for="boundaryToggle">Limite de Yopougon</label></div>
             <hr style="border:none;border-top:1px solid var(--line);margin:8px 0">
             <div class="switch"><input type="checkbox" id="isoToggle"><label for="isoToggle">🕒 <b>Isochrones</b> — accessibilité à pied</label></div>
+            <select class="sel" id="isoCentre" style="width:100%;margin:3px 0;font-size:11px"><option value="">— Choisir un centre de santé —</option></select>
+            <div class="isolegend" id="isoLegend">
+              <span><i style="background:#1a9850"></i>5 min</span>
+              <span><i style="background:#f9a825"></i>10 min</span>
+              <span><i style="background:#c62828"></i>15 min</span>
+            </div>
             <div id="isoInfo" class="note" style="min-height:14px;color:var(--brand)"></div>
+            <div class="switch"><input type="checkbox" id="underToggle"><label for="underToggle">🚩 Zones faiblement desservies (hors 15 min)</label></div>
             <input id="orsKey" class="sel" style="width:100%;margin-top:2px;font-size:11px" placeholder="Clé OpenRouteService (optionnelle)">
-            <div class="note">Activez, puis <b>cliquez un centre de santé</b> pour voir les zones atteignables en 5/10/15 min. Sans clé : zones approximatives par distance. Clé gratuite sur openrouteservice.org pour des isochrones réseau réelles.</div>
+            <div class="note">Choisissez un centre (ou cochez Isochrones puis cliquez un centre) pour voir les zones atteignables en 5/10/15 min. Sans clé : zones approximatives par distance. Clé gratuite sur openrouteservice.org pour des isochrones réseau réelles.</div>
             <hr style="border:none;border-top:1px solid var(--line);margin:8px 0">
             <div class="switch"><input type="checkbox" id="gridToggle"><label for="gridToggle">▦ Grille d'échantillonnage (500 m)</label></div>
             <div class="switch"><input type="checkbox" id="gridViewToggle"><label for="gridViewToggle"><b>Vue échantillonnage</b> (1 point/personne par cellule)</label></div>
@@ -332,6 +342,15 @@ table.ct td .hm{display:inline-block;padding:2px 6px;border-radius:5px}
         <h3>Accessibilité géographique des personnes âgées aux structures de santé</h3>
         <div class="sub">Distances calculées en mètres (projection UTM 30N) entre chaque enquêté et le centre de santé le plus proche. « 1er contact » = CSU/FSU, centres de santé, dispensaires, maternités (soins de premier niveau).</div>
         <div class="kpis" id="spatialKpis"></div>
+      </div>
+      <div class="grid g2" style="margin-bottom:16px">
+        <div class="card"><h3>Couverture sanitaire par temps de marche</h3><div class="sub">Part des personnes âgées selon le temps de marche à pied vers le centre le plus proche (~4,8 km/h)</div><div class="chartbox"><canvas id="acc_cover"></canvas></div></div>
+        <div class="card"><h3>Indicateurs d'accessibilité</h3><div class="sub">Sur la sélection courante</div><div class="kpis" id="accKpis" style="grid-template-columns:1fr 1fr;margin:0"></div></div>
+      </div>
+      <div class="card wide" style="margin-bottom:16px">
+        <h3>Couverture sanitaire par quartier</h3>
+        <div class="sub">Personnes âgées couvertes à 5 / 10 / 15 min de marche, hors couverture, et taux de couverture (≤ 15 min). Suit les filtres.</div>
+        <div id="accQuartier"></div>
       </div>
       <div class="grid g2">
         <div class="card"><h3>Taux de couverture selon le rayon d'accès</h3><div class="sub">Part des enquêtés situés à moins de X mètres d'un centre</div><div id="coverageTable"></div></div>
