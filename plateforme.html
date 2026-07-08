@@ -194,6 +194,11 @@ table.ct td .hm{display:inline-block;padding:2px 6px;border-radius:5px}
             <div class="switch"><input type="checkbox" id="buffer1000Toggle"><label for="buffer1000Toggle">Zone de couverture 1 km</label></div>
             <div class="switch"><input type="checkbox" id="boundaryToggle" checked><label for="boundaryToggle">Limite de Yopougon</label></div>
             <hr style="border:none;border-top:1px solid var(--line);margin:8px 0">
+            <div class="switch"><input type="checkbox" id="isoToggle"><label for="isoToggle">🕒 <b>Isochrones</b> — accessibilité à pied</label></div>
+            <div id="isoInfo" class="note" style="min-height:14px;color:var(--brand)"></div>
+            <input id="orsKey" class="sel" style="width:100%;margin-top:2px;font-size:11px" placeholder="Clé OpenRouteService (optionnelle)">
+            <div class="note">Activez, puis <b>cliquez un centre de santé</b> pour voir les zones atteignables en 5/10/15 min. Sans clé : zones approximatives par distance. Clé gratuite sur openrouteservice.org pour des isochrones réseau réelles.</div>
+            <hr style="border:none;border-top:1px solid var(--line);margin:8px 0">
             <div class="switch"><input type="checkbox" id="gridToggle"><label for="gridToggle">▦ Grille d'échantillonnage (500 m)</label></div>
             <div class="switch"><input type="checkbox" id="gridViewToggle"><label for="gridViewToggle"><b>Vue échantillonnage</b> (1 point/personne par cellule)</label></div>
             <div class="note">Chaque point = un enquêté. La <b>vue échantillonnage</b> repositionne chaque personne dans sa cellule (1H + 1F par cellule, max 4) pour respecter le plan de la grille ; décochez-la pour revenir aux positions GPS réelles. La grille est colorée par nombre d'enquêtés par cellule.</div>

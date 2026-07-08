@@ -337,6 +337,7 @@ function renderKPIs(recs){
 let map,baseLayers,currentBase,markerLayer,clusterLayer;
 let centresLayer,buffer500Layer,buffer1000Layer,boundaryLayer,gridLayer; // couches de l'analyse spatiale
 let homeBounds=null, measureOn=false, measurePts=[], measureLayer=null; // outils SIG
+let isoMode=false, isoLayer=null; // isochrones d'accessibilite
 let gridCounts={}; // effectif d'enquetes par cellule (recalcule en direct pendant l'edition)
 const GRID_COL={1:'#f0cf87',2:'#5fae5f',3:'#e69a34',4:'#d9534f'}; // couleur cellule selon nb d'enquetes
 
@@ -381,6 +382,7 @@ function initMap(){
   };
   currentBase=baseLayers.osm; currentBase.addTo(map);
   markerLayer=L.layerGroup().addTo(map); // couche qui contiendra les enquetes
+  isoLayer=L.layerGroup(); // couche des isochrones d'accessibilite
 
   buildSpatialLayers(); // cree les couches centres / buffers / limite
   homeBounds = YOP ? L.geoJSON(YOP).getBounds() : null;
@@ -421,6 +423,7 @@ function buildSpatialLayers(){
       html:`<svg width="20" height="20" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" fill="${col}" stroke="#fff" stroke-width="1.6"/><path d="M10 5.2V14.8M5.2 10H14.8" stroke="#fff" stroke-width="2.1" stroke-linecap="round"/></svg>`});
     const mk=L.marker([c.lat,c.lon],{icon});
     mk.bindPopup(`<div class="pop"><b>${c.nom}</b><table><tr><td class="k">Catégorie</td><td>${c.categorie}</td></tr><tr><td class="k">Niveau</td><td>${c.niveau}</td></tr><tr><td class="k">Secteur</td><td>${c.secteur}</td></tr></table></div>`);
+    mk.on('click',()=>{ if(isoMode) computeIsochrone(c); }); // isochrones a la demande
     centresLayer.addLayer(mk);
     // zones de couverture autour des centres de PREMIER CONTACT uniquement
     if(c.type==='Centre de sante (1er contact)'){
@@ -533,6 +536,36 @@ function drawMeasure(){
       html:`<div class="gis-measlabel">${tot<1000?Math.round(tot)+' m':(tot/1000).toFixed(2)+' km'}</div>`})}).addTo(measureLayer);
   }
 }
+
+/* ---------- Isochrones d'accessibilite (objectif 2) ---------- */
+function setIsoInfo(t){ const el=document.getElementById('isoInfo'); if(el) el.innerHTML=t; }
+// computeIsochrone() : zones atteignables a pied (5/10/15 min) autour d'un centre.
+// Utilise OpenRouteService si une cle est fournie, sinon des cercles approximatifs.
+async function computeIsochrone(c){
+  isoLayer.clearLayers(); if(!map.hasLayer(isoLayer)) isoLayer.addTo(map);
+  const key=(localStorage.getItem('ors_key')||'').trim();
+  const cols=['#2e7d32','#f9a825','#c62828']; // 5, 10, 15 min
+  if(key){
+    setIsoInfo(`Calcul des isochrones réseau autour de « ${c.nom} »…`);
+    try{
+      const res=await fetch('https://api.openrouteservice.org/v2/isochrones/foot-walking',
+        {method:'POST',headers:{'Authorization':key,'Content-Type':'application/json'},
+         body:JSON.stringify({locations:[[c.lon,c.lat]],range:[300,600,900],range_type:'time'})});
+      if(!res.ok) throw new Error('HTTP '+res.status);
+      const gj=await res.json();
+      // dessiner du plus grand (15 min) au plus petit (5 min)
+      gj.features.sort((a,b)=>b.properties.value-a.properties.value).forEach(f=>{
+        const v=f.properties.value, idx=v<=300?0:v<=600?1:2;
+        L.geoJSON(f,{style:{color:cols[idx],weight:1.6,fillColor:cols[idx],fillOpacity:.2}}).addTo(isoLayer); });
+      L.marker([c.lat,c.lon]).addTo(isoLayer);
+      setIsoInfo(`<b>${c.nom}</b> — isochrones à pied : <span style="color:#2e7d32">5 min</span> · <span style="color:#f9a825">10 min</span> · <span style="color:#c62828">15 min</span>.`);
+    }catch(e){ approxIso(c,cols); setIsoInfo(`API indisponible (${e.message}). Zones approximatives affichées. Vérifiez votre clé.`); }
+  } else { approxIso(c,cols);
+    setIsoInfo(`<b>${c.nom}</b> — zones approximatives (marche ~4,8 km/h) : 5/10/15 min. Ajoutez une clé OpenRouteService pour des isochrones réseau précises.`); }
+}
+// approxIso() : cercles de distance equivalents a 5/10/15 min de marche (~400/800/1200 m)
+function approxIso(c,cols){ [[1200,cols[2]],[800,cols[1]],[400,cols[0]]].forEach(([r,col])=>
+  L.circle([c.lat,c.lon],{radius:r,color:col,weight:1.6,fillColor:col,fillOpacity:.14}).addTo(isoLayer)); }
 
 /* ---------- Mode edition : deplacer les points a la souris ---------- */
 // onDragEnd() : appele quand on lache un point deplace. Met a jour ses coordonnees,
@@ -1054,6 +1087,13 @@ document.addEventListener('DOMContentLoaded',()=>{
     } else { document.getElementById('editInfo').textContent=''; }
     renderMap(filtered());
   });
+  // isochrones : activation + memorisation de la cle ORS
+  const isoT=document.getElementById('isoToggle');
+  if(isoT) isoT.addEventListener('change',e=>{ isoMode=e.target.checked;
+    if(isoMode){ const gt=document.getElementById('centresToggle'); if(!gt.checked){gt.checked=true;centresLayer.addTo(map);} setIsoInfo('Cliquez un centre de santé pour voir son isochrone.'); }
+    else { isoLayer.clearLayers(); setIsoInfo(''); } });
+  const ors=document.getElementById('orsKey');
+  if(ors){ ors.value=localStorage.getItem('ors_key')||''; ors.addEventListener('change',()=>localStorage.setItem('ors_key',ors.value.trim())); }
   document.getElementById('exportPositions').addEventListener('click',exportPositions);
   const ej=document.getElementById('exportDataJs'); if(ej) ej.addEventListener('click',exportDataJs);
   const ip=document.getElementById('importPositions'); if(ip) ip.addEventListener('change',e=>{ if(e.target.files[0]){ importPositions(e.target.files[0]); e.target.value=''; } });
