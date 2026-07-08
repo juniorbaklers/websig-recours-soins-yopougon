@@ -324,6 +324,7 @@ function renderKPIs(recs){
 
 let map,baseLayers,currentBase,markerLayer,clusterLayer;
 let centresLayer,buffer500Layer,buffer1000Layer,boundaryLayer,gridLayer; // couches de l'analyse spatiale
+let homeBounds=null, measureOn=false, measurePts=[], measureLayer=null; // outils SIG
 let gridCounts={}; // effectif d'enquetes par cellule (recalcule en direct pendant l'edition)
 const GRID_COL={1:'#f0cf87',2:'#5fae5f',3:'#e69a34',4:'#d9534f'}; // couleur cellule selon nb d'enquetes
 
@@ -370,6 +371,8 @@ function initMap(){
   markerLayer=L.layerGroup().addTo(map); // couche qui contiendra les enquetes
 
   buildSpatialLayers(); // cree les couches centres / buffers / limite
+  homeBounds = YOP ? L.geoJSON(YOP).getBounds() : null;
+  addGisTools(); // echelle, coordonnees, plein ecran, vue d'ensemble, mesure
 
   // choix du fond de carte
   document.getElementById('basemapSelect').addEventListener('change',e=>{
@@ -401,8 +404,9 @@ function buildSpatialLayers(){
   buffer500Layer=L.layerGroup(); buffer1000Layer=L.layerGroup();
   CENTRES.forEach(c=>{
     const col=CENTRE_COL[c.type]||'#8a94a6';
-    const icon=L.divIcon({className:'',iconSize:[12,12],iconAnchor:[6,6],
-      html:`<div style="width:11px;height:11px;background:${col};border:1.5px solid #fff;box-shadow:0 0 2px rgba(0,0,0,.5);transform:rotate(45deg)"></div>`});
+    // symbologie cartographique standard d'un point de sante : rond + croix blanche a l'interieur
+    const icon=L.divIcon({className:'centre-ico',iconSize:[20,20],iconAnchor:[10,10],
+      html:`<svg width="20" height="20" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" fill="${col}" stroke="#fff" stroke-width="1.6"/><path d="M10 5.2V14.8M5.2 10H14.8" stroke="#fff" stroke-width="2.1" stroke-linecap="round"/></svg>`});
     const mk=L.marker([c.lat,c.lon],{icon});
     mk.bindPopup(`<div class="pop"><b>${c.nom}</b><table><tr><td class="k">Catégorie</td><td>${c.categorie}</td></tr><tr><td class="k">Niveau</td><td>${c.niveau}</td></tr><tr><td class="k">Secteur</td><td>${c.secteur}</td></tr></table></div>`);
     centresLayer.addLayer(mk);
@@ -452,9 +456,12 @@ function renderMap(recs){
         html:`<div style="width:13px;height:13px;border-radius:50%;background:${col};border:2px solid #fff;box-shadow:0 0 3px rgba(0,0,0,.7);cursor:move"></div>`})});
       mk.on('dragend',()=>onDragEnd(d,mk));
     } else {
-      mk=L.circleMarker([la,ln],{radius:5,color:'#fff',weight:1,fillColor:col,fillOpacity:.85});
+      mk=L.circleMarker([la,ln],{radius:5.5,color:'#ffffff',weight:1.4,fillColor:col,fillOpacity:.9});
+      // interactivite : survol qui met en avant le point
+      mk.on('mouseover',function(){ this.setStyle({radius:8.5,weight:2,fillOpacity:1}); this.bringToFront&&this.bringToFront(); });
+      mk.on('mouseout', function(){ this.setStyle({radius:5.5,weight:1.4,fillOpacity:.9}); });
     }
-    mk.bindPopup(popupHtml(d)); target.addLayer(mk);
+    mk.bindPopup(popupHtml(d),{maxWidth:260}); target.addLayer(mk);
   });
   if(cluster) map.addLayer(clusterLayer);
   renderLegend(key,recs);
@@ -466,6 +473,53 @@ function renderLegend(key,recs){
   document.getElementById('mapLegend').innerHTML=
     `<b>${DIMS[key]||key}</b>`+cats.map(c=>`<div class="li"><span class="sw" style="background:${colorFor(key,c)}"></span>${c} <span class="cnt" style="margin-left:auto;color:#94a3b8">${m.get(c)||0}</span></div>`).join('')
     +(m.size?'':'<div class="muted">Aucune donnée</div>');
+}
+
+/* ---------- Outils SIG (echelle, coordonnees, plein ecran, mesure) ---------- */
+function addGisTools(){
+  L.control.scale({imperial:false,maxWidth:150}).addTo(map); // barre d'echelle metrique
+
+  // coordonnees sous le curseur (bas gauche)
+  const CoordCtl=L.Control.extend({options:{position:'bottomleft'},
+    onAdd:function(){ const d=L.DomUtil.create('div','gis-coord'); d.innerHTML='lat, lon'; this._d=d; return d; }});
+  const coordCtl=new CoordCtl(); map.addControl(coordCtl);
+  map.on('mousemove',e=>{ coordCtl._d.innerHTML=`${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)}`; });
+
+  // barre de boutons (haut droite) : vue d'ensemble, mesure, plein ecran
+  const bar=L.control({position:'topright'});
+  bar.onAdd=function(){ const c=L.DomUtil.create('div','leaflet-bar gis-bar');
+    c.innerHTML=`<a href="#" title="Vue d'ensemble de Yopougon" id="gisHome">⌂</a>`+
+                `<a href="#" title="Mesurer une distance (clic sur la carte, double-clic pour effacer)" id="gisMeasure">📏</a>`+
+                `<a href="#" title="Plein écran" id="gisFull">⛶</a>`;
+    L.DomEvent.disableClickPropagation(c); return c; };
+  bar.addTo(map);
+  document.getElementById('gisHome').onclick=e=>{e.preventDefault(); if(homeBounds)map.fitBounds(homeBounds);};
+  document.getElementById('gisFull').onclick=e=>{e.preventDefault(); const el=map.getContainer();
+    if(!document.fullscreenElement){ el.requestFullscreen&&el.requestFullscreen(); } else { document.exitFullscreen(); }
+    setTimeout(()=>map.invalidateSize(),250);};
+  document.getElementById('gisMeasure').onclick=e=>{e.preventDefault(); toggleMeasure();};
+
+  // clics pour la mesure
+  map.on('click',e=>{ if(measureOn){ measurePts.push(e.latlng); drawMeasure(); } });
+  map.on('dblclick',()=>{ if(measureOn){ clearMeasure(); } });
+}
+function toggleMeasure(){
+  measureOn=!measureOn;
+  const b=document.getElementById('gisMeasure'); if(b) b.style.background=measureOn?'#e8813a':'';
+  if(measureOn){ measurePts=[]; map.doubleClickZoom.disable(); map.getContainer().style.cursor='crosshair'; }
+  else { clearMeasure(); map.doubleClickZoom.enable(); map.getContainer().style.cursor=''; }
+}
+function clearMeasure(){ if(measureLayer){ map.removeLayer(measureLayer); measureLayer=null; } measurePts=[]; }
+function drawMeasure(){
+  if(measureLayer) map.removeLayer(measureLayer);
+  measureLayer=L.layerGroup().addTo(map);
+  if(measurePts.length>1) L.polyline(measurePts,{color:'#e8813a',weight:3,dashArray:'6 4'}).addTo(measureLayer);
+  measurePts.forEach(p=>L.circleMarker(p,{radius:4,color:'#e8813a',fillColor:'#fff',fillOpacity:1,weight:2}).addTo(measureLayer));
+  let tot=0; for(let i=1;i<measurePts.length;i++) tot+=measurePts[i-1].distanceTo(measurePts[i]);
+  if(measurePts.length){ const last=measurePts[measurePts.length-1];
+    L.marker(last,{icon:L.divIcon({className:'',iconSize:[110,20],iconAnchor:[-10,10],
+      html:`<div class="gis-measlabel">${tot<1000?Math.round(tot)+' m':(tot/1000).toFixed(2)+' km'}</div>`})}).addTo(measureLayer);
+  }
 }
 
 /* ---------- Mode edition : deplacer les points a la souris ---------- */
@@ -504,13 +558,58 @@ function applySavedEdits(){
   recomputeGridCounts();
   return n;
 }
-// exportPositions() : telecharge un CSV des positions (reelles + echantillonnage) et cellules
+// download() : utilitaire de telechargement d'un fichier texte
+function download(name,text,mime){ const blob=new Blob([text],{type:(mime||'text/plain')+';charset=utf-8'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; a.click(); }
+
+// champs internes a NE PAS exporter (memoires de reinitialisation)
+const HIDDEN=['_gLat0','_gLon0','_cellId0','_lat0','_lng0'];
+
+// exportPositions() : telecharge un CSV COMPLET (toutes les colonnes), actualise avec les
+// deplacements. Les coordonnees d'echantillonnage et la cellule refletent tes modifications.
 function exportPositions(){
-  const cols=['id','sexe','latitude_reelle','longitude_reelle','latitude_echantillonnage','longitude_echantillonnage','cellule'];
+  const cols=Object.keys(DATA[0]).filter(k=>!HIDDEN.includes(k));
+  const esc=v=>{ v=(v==null?'':(''+v)).replace(/"/g,'""'); return /[;"\n]/.test(v)?`"${v}"`:v; };
   const lines=[cols.join(';')];
-  DATA.forEach(d=>lines.push([d.id,d.sexe,d.lat,d.lng,d.gLat,d.gLon,d.cellId].join(';')));
-  const blob=new Blob(['﻿'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'});
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='positions_echantillonnage_modifiees.csv';a.click();
+  DATA.forEach(d=>lines.push(cols.map(c=>esc(d[c])).join(';')));
+  download('bakusmap_donnees_actualisees.csv','﻿'+lines.join('\r\n'),'text/csv');
+}
+// exportDataJs() : genere le fichier data.js pret a remplacer dans data/ pour rendre les
+// modifications DEFINITIVES sur la plateforme (a re-publier ensuite).
+function exportDataJs(){
+  const clean=DATA.map(d=>{const o={};Object.keys(d).forEach(k=>{if(!HIDDEN.includes(k))o[k]=d[k];});return o;});
+  download('data.js','window.DATA = '+JSON.stringify(clean)+';','application/javascript');
+}
+// importPositions() : recharge des positions depuis un CSV precedemment exporte
+// (colonnes id, lat, lng, gLat, gLon, cellId reconnues). Met a jour et enregistre.
+function importPositions(file){
+  const r=new FileReader();
+  r.onload=()=>{
+    try{
+      const txt=r.result.replace(/^﻿/,''); const rows=txt.split(/\r?\n/).filter(x=>x.trim());
+      const head=rows[0].split(';').map(h=>h.trim());
+      const ix=n=>head.indexOf(n);
+      const iId=ix('id'), iLat=ix('lat'), iLng=ix('lng'), iGLat=ix('gLat'), iGLon=ix('gLon'), iCell=ix('cellId');
+      if(iId<0){ alert('CSV non reconnu : colonne "id" manquante.'); return; }
+      const byId={}; DATA.forEach(d=>byId[d.id]=d);
+      let n=0;
+      for(let i=1;i<rows.length;i++){ const f=rows[i].split(';'); const d=byId[+f[iId]]; if(!d)continue;
+        if(iLat>=0&&f[iLat]!=='') d.lat=+f[iLat];
+        if(iLng>=0&&f[iLng]!=='') d.lng=+f[iLng];
+        if(iGLat>=0&&f[iGLat]!=='') d.gLat=+f[iGLat];
+        if(iGLon>=0&&f[iGLon]!=='') d.gLon=+f[iGLon];
+        if(iCell>=0&&f[iCell]!=='') d.cellId=+f[iCell];
+        // sauvegarde locale
+        let e={};try{e=JSON.parse(localStorage.getItem(EDIT_KEY)||'{}');}catch(_){}
+        e[d.id]={gLa:d.gLat,gLn:d.gLon,cid:d.cellId,la:d.lat,ln:d.lng}; localStorage.setItem(EDIT_KEY,JSON.stringify(e));
+        n++;
+      }
+      recomputeGridCounts(); if(gridLayer) gridLayer.setStyle(styleCell);
+      renderMap(filtered()); if(currentTab==='spatial') renderGridPlan();
+      document.getElementById('editInfo').textContent=`${n} position(s) importée(s) et appliquée(s).`;
+    }catch(err){ alert('Erreur de lecture du CSV : '+err.message); }
+  };
+  r.readAsText(file);
 }
 // resetPositions() : annule tous les deplacements et revient aux positions d'origine
 function resetPositions(){
@@ -650,9 +749,45 @@ function renderTab(recs){
     barSimple('p_plus','iraitPlusSouvent',recs,{doughnut:true});
   }
 
+  if(currentTab==='determinants'){ renderDeterminants(recs); } // objectif 3 : facteurs du recours
   if(currentTab==='spatial'){ renderSpatial(recs); } // analyse spatiale (distances SIG)
   if(currentTab==='croise'){ renderCross(recs); }   // analyse croisee libre
   if(currentTab==='explor'){ renderExplorer(recs); } // explorateur de variable
+}
+
+/* --- Onglet Determinants (objectif 3) : facteurs influencant le recours --- */
+const DET_FACTORS=['sexe','age','instruction','revenu','assurance','professionCat','religion','matrimonial','nationalite','bandPrim','frequentation','nbEnfantsCat','statutLogement','cadreProfession'];
+const DET_TARGET={mod:{cat:'premierRecoursCat',val:'Médecine moderne'},pub:{cat:'premierRecours',val:'La formation sanitaire publique'},
+  trad:{cat:'premierRecoursCat',val:'Médecine traditionnelle'},auto:{cat:'premierRecoursCat',val:'Automédication'}};
+// taux de recours (cible) pour un sous-groupe
+function targetRate(group,tgt){ let ok=0,t=0; group.forEach(d=>{const v=(d[tgt.cat]??'').toString().trim(); if(v){t++; if(v===tgt.val)ok++;}}); return t?{rate:100*ok/t,n:t}:{rate:null,n:0}; }
+function renderDeterminants(recs){
+  const tgtKey=document.getElementById('detTarget').value; const tgt=DET_TARGET[tgtKey];
+  // 1) classement des facteurs par ecart (max-min) du taux entre categories (n>=10)
+  const rank=DET_FACTORS.map(f=>{
+    const cats=ordered(f,countBy(recs,f)); const rates=[];
+    cats.forEach(c=>{ const g=recs.filter(d=>(d[f]??'').toString().trim()===c); const r=targetRate(g,tgt); if(r.n>=10&&r.rate!=null)rates.push(r.rate); });
+    if(rates.length<2) return {f,spread:0};
+    return {f,spread:Math.max(...rates)-Math.min(...rates)};
+  }).filter(x=>x.spread>0).sort((a,b)=>b.spread-a.spread);
+  draw('det_rank',{type:'bar',data:{labels:rank.map(r=>DIMS[r.f]),datasets:[{data:rank.map(r=>+r.spread.toFixed(1)),
+    backgroundColor:rank.map((_,i)=>i<3?'#0f5e8f':'#6f7fb3'),borderRadius:4}]},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},
+      tooltip:{callbacks:{label:c=>`écart de ${c.parsed.x} points de %`}}},
+      scales:{x:{title:{display:true,text:'écart de recours entre catégories (points de %)'},ticks:{callback:v=>v+' pts'}},y:{ticks:{autoSkip:false}}}}});
+
+  // 2) detail d'un facteur : taux du recours cible par categorie
+  const f=document.getElementById('detFactor').value;
+  const cats=ordered(f,countBy(recs,f)); const rows=[];
+  cats.forEach(c=>{ const g=recs.filter(d=>(d[f]??'').toString().trim()===c); const r=targetRate(g,tgt); if(r.n>0)rows.push({c,rate:r.rate,n:r.n}); });
+  const moy=targetRate(recs,tgt).rate||0;
+  draw('det_detail',{type:'bar',data:{labels:rows.map(r=>`${r.c} (n=${r.n})`),datasets:[{data:rows.map(r=>+r.rate.toFixed(1)),
+    backgroundColor:rows.map(r=>r.rate>=moy?'#4c9a4c':'#d9534f'),borderRadius:4}]},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},
+      tooltip:{callbacks:{label:c=>`${c.parsed.x}% (moyenne ${moy.toFixed(1)}%)`}}},
+      scales:{x:{max:100,title:{display:true,text:'% de recours — vert=au-dessus, rouge=en-dessous de la moyenne'},ticks:{callback:v=>v+'%'}},y:{ticks:{autoSkip:false}}}}});
+  const targetLbl={mod:'à la médecine moderne',pub:'à l\'hôpital public',trad:'à la médecine traditionnelle',auto:'à l\'automédication'}[tgtKey];
+  document.getElementById('detNote').innerHTML=`Recours ${targetLbl} : <b>${moy.toFixed(1)}%</b> en moyenne sur la sélection. Le graphique du haut classe les facteurs du plus discriminant au moins discriminant.`;
 }
 
 /* --- Rendu de l'onglet Analyse spatiale --- */
@@ -832,7 +967,7 @@ function refresh(){ const recs=filtered(); renderChips(); renderKPIs(recs); rend
 function switchTab(t){
   currentTab=t;
   document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===t));
-  ['carte','apercu','recours','percept','spatial','croise','explor'].forEach(id=>{const el=document.getElementById('tab-'+id);if(el)el.classList.toggle('hidden',id!==t);});
+  ['carte','apercu','recours','determinants','percept','spatial','croise','explor'].forEach(id=>{const el=document.getElementById('tab-'+id);if(el)el.classList.toggle('hidden',id!==t);});
   renderTab(filtered());
   if(t==='carte') setTimeout(()=>map.invalidateSize(),80); // Leaflet doit recalculer sa taille quand on revient sur la carte
 }
@@ -865,6 +1000,11 @@ document.addEventListener('DOMContentLoaded',()=>{
   ['cx','cy','cmode'].forEach(id=>document.getElementById(id).addEventListener('change',()=>renderCross(filtered())));
   document.getElementById('swapXY').addEventListener('click',()=>{const a=document.getElementById('cx'),b=document.getElementById('cy');const t=a.value;a.value=b.value;b.value=t;renderCross(filtered());});
   document.getElementById('ex').addEventListener('change',()=>renderExplorer(filtered()));
+  // menus de l'onglet Determinants
+  document.getElementById('detFactor').innerHTML=DET_FACTORS.map(f=>`<option value="${f}">${DIMS[f]}</option>`).join('');
+  document.getElementById('detFactor').value='instruction';
+  document.getElementById('detFactor').addEventListener('change',()=>renderDeterminants(filtered()));
+  document.getElementById('detTarget').addEventListener('change',()=>renderDeterminants(filtered()));
   document.getElementById('exportCsv').addEventListener('click',exportCsv);
   document.getElementById('resetFilters').addEventListener('click',resetFilters);
   // --- mode edition : activation, export, reinitialisation ---
@@ -879,6 +1019,8 @@ document.addEventListener('DOMContentLoaded',()=>{
     renderMap(filtered());
   });
   document.getElementById('exportPositions').addEventListener('click',exportPositions);
+  const ej=document.getElementById('exportDataJs'); if(ej) ej.addEventListener('click',exportDataJs);
+  const ip=document.getElementById('importPositions'); if(ip) ip.addEventListener('change',e=>{ if(e.target.files[0]){ importPositions(e.target.files[0]); e.target.value=''; } });
   document.getElementById('resetPositions').addEventListener('click',()=>{ if(confirm('Annuler tous vos déplacements et revenir aux positions d\'origine ?')) resetPositions(); });
   document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>switchTab(t.dataset.tab)));
 

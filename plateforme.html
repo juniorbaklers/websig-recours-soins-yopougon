@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<!--
+  ============================================================================
+  WebSIG — Recours aux soins des personnes du 3e age (Yopougon)
+  ----------------------------------------------------------------------------
+  Ce fichier decrit la STRUCTURE de la page (le squelette) et son style (CSS).
+  Toute la logique (calculs, graphiques, carte) est dans app.js.
+  Les donnees nettoyees sont dans data/data.js.
+  Ordre de lecture : <head> (styles) puis <body> (contenu) puis <script> (en bas).
+  ============================================================================
+-->
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bakusm@p — Recours aux soins des personnes du 3e âge · Yopougon</title>
+<!-- Bibliotheques externes (chargees depuis internet) : Leaflet = la carte, MarkerCluster = le regroupement des points -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
+<!-- STYLES : couleurs, mise en page, cartes, tableaux. Les couleurs de base sont dans :root (variables CSS reutilisables). -->
+<style>
+:root{
+  --bg:#f4f6f9; --panel:#ffffff; --ink:#1c2530; --muted:#64748b; --line:#e5e9f0;
+  --brand:#0f5e8f; --brand2:#12a08a; --accent:#e8813a; --danger:#d9534f; --ok:#4c9a4c;
+  --shadow:0 1px 3px rgba(16,32,50,.08),0 4px 14px rgba(16,32,50,.06);
+  --radius:12px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{font-family:"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);font-size:14px;line-height:1.45}
+a{color:var(--brand)}
+header.app{background:linear-gradient(100deg,#0d4f78,#0f5e8f 55%,#12a08a);color:#fff;padding:12px 22px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+header.app .brand{display:flex;align-items:center;gap:13px;min-width:0}
+header.app .logo{width:44px;height:44px;border-radius:12px;background:rgba(255,255,255,.15);border:1.5px solid rgba(255,255,255,.55);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:22px;letter-spacing:-1px;flex:none}
+header.app .logo span{color:#ffd27a}
+header.app h1{margin:0;font-size:23px;font-weight:800;letter-spacing:.3px;line-height:1.05}
+header.app .sub{margin:2px 0 0;font-size:12.5px;opacity:.92;font-weight:500}
+header.app .hmeta{font-size:12px;opacity:.95;white-space:nowrap;text-align:right}
+header.app .hmeta a{color:#fff;text-decoration:underline}
+@media(max-width:640px){header.app h1{font-size:19px} header.app .hmeta{display:none}}
+.wrap{display:grid;grid-template-columns:288px 1fr;gap:16px;padding:16px;align-items:start}
+@media(max-width:980px){.wrap{grid-template-columns:1fr}}
+.sidebar{position:sticky;top:16px;max-height:calc(100vh - 32px);overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+.sidebar .shead{padding:12px 14px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:var(--panel);z-index:2}
+.sidebar .shead b{font-size:13px}
+.sidebar .body{padding:6px 10px 14px}
+details.fg{border-bottom:1px solid var(--line)}
+details.fg>summary{cursor:pointer;padding:9px 6px;font-weight:600;font-size:12.8px;list-style:none;display:flex;justify-content:space-between;align-items:center}
+details.fg>summary::-webkit-details-marker{display:none}
+details.fg>summary .chev{color:var(--muted);font-size:11px;transition:.2s}
+details.fg[open]>summary .chev{transform:rotate(90deg)}
+.fg .opts{padding:2px 4px 10px}
+.fg .search{width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:8px;margin:2px 0 8px;font-size:12px}
+.opt{display:flex;align-items:center;gap:7px;padding:3px 4px;border-radius:6px;font-size:12.4px;cursor:pointer}
+.opt:hover{background:#f1f5fa}
+.opt input{accent-color:var(--brand)}
+.opt .cnt{margin-left:auto;color:var(--muted);font-size:11px;font-variant-numeric:tabular-nums}
+.btn{border:1px solid var(--line);background:#fff;color:var(--ink);padding:7px 11px;border-radius:8px;font-size:12.5px;cursor:pointer;font-weight:600}
+.btn:hover{border-color:var(--brand);color:var(--brand)}
+.btn.solid{background:var(--brand);color:#fff;border-color:var(--brand)}
+.btn.solid:hover{background:#0d527d;color:#fff}
+.content{min-width:0}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+.tab{padding:9px 14px;border-radius:999px;border:1px solid var(--line);background:#fff;cursor:pointer;font-weight:600;font-size:12.8px;color:var(--muted)}
+.tab.active{background:var(--brand);color:#fff;border-color:var(--brand)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:13px 15px;box-shadow:var(--shadow)}
+.kpi .v{font-size:24px;font-weight:800;letter-spacing:-.5px;color:var(--brand)}
+.kpi .l{font-size:11.5px;color:var(--muted);margin-top:2px;line-height:1.25}
+.kpi .s{font-size:11px;color:var(--muted);margin-top:4px}
+.grid{display:grid;gap:16px}
+.g2{grid-template-columns:repeat(2,1fr)}
+.g3{grid-template-columns:repeat(3,1fr)}
+@media(max-width:1100px){.g3{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:760px){.g2,.g3{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px 15px}
+.card h3{margin:0 0 3px;font-size:13.5px}
+.card .sub{color:var(--muted);font-size:11.5px;margin-bottom:10px}
+.card.wide{grid-column:1/-1}
+.chartbox{position:relative;height:300px}
+.chartbox.tall{height:420px}
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+select.sel{padding:7px 9px;border:1px solid var(--line);border-radius:8px;font-size:12.8px;background:#fff;max-width:280px}
+label.lbl{font-size:12px;color:var(--muted);font-weight:600}
+#map{height:560px;border-radius:var(--radius);border:1px solid var(--line);z-index:1}
+.legend{background:#fff;padding:8px 10px;border-radius:8px;box-shadow:0 1px 6px rgba(0,0,0,.2);font-size:12px;line-height:1.7;max-height:240px;overflow:auto}
+.legend b{display:block;margin-bottom:4px;font-size:11.5px}
+.legend .li{display:flex;align-items:center;gap:6px}
+.legend .sw{width:12px;height:12px;border-radius:3px;flex:none;border:1px solid rgba(0,0,0,.15)}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.chip{background:#eaf2f8;color:var(--brand);border:1px solid #cfe2ef;border-radius:999px;padding:3px 10px;font-size:11.5px;font-weight:600;display:flex;gap:6px;align-items:center}
+.chip b{font-weight:800}
+.chip .x{cursor:pointer;opacity:.7}
+.chip .x:hover{opacity:1}
+table.ct{border-collapse:collapse;width:100%;font-size:12px;overflow:auto;display:block;max-height:460px}
+table.ct th,table.ct td{border:1px solid var(--line);padding:5px 8px;text-align:center;white-space:nowrap}
+table.ct th{background:#f3f7fb;position:sticky;top:0;font-weight:700}
+table.ct td.rowh{text-align:left;font-weight:600;background:#fafcfe;position:sticky;left:0}
+table.ct td .hm{display:inline-block;padding:2px 6px;border-radius:5px}
+.muted{color:var(--muted)}
+.pop b{color:var(--brand)}
+.pop table{font-size:12px;border-collapse:collapse;margin-top:4px}
+.pop td{padding:1px 6px 1px 0;vertical-align:top}
+.pop td.k{color:var(--muted)}
+.note{font-size:11.5px;color:var(--muted);margin-top:8px}
+.maprow{display:grid;grid-template-columns:1fr 260px;gap:14px}
+@media(max-width:900px){.maprow{grid-template-columns:1fr}}
+.mapctrls .card{margin-bottom:14px}
+.switch{display:flex;align-items:center;gap:8px;font-size:12.5px;margin:6px 0}
+.hidden{display:none}
+.gis-coord{background:rgba(255,255,255,.9);padding:2px 8px;border-radius:6px;font-size:11px;color:#334155;font-variant-numeric:tabular-nums;box-shadow:0 1px 4px rgba(0,0,0,.2)}
+.gis-bar a{font-size:16px;font-weight:700;text-align:center;line-height:26px}
+.gis-measlabel{background:#e8813a;color:#fff;font-size:11px;font-weight:700;padding:2px 6px;border-radius:5px;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,.3)}
+.centre-ico{background:none;border:none}
+.foot{padding:10px 20px 30px;color:var(--muted);font-size:11.5px}
+</style>
+</head>
+<body>
+<!-- ===================== EN-TETE : titre de l'etude ===================== -->
+<header class="app">
+  <div class="brand">
+    <div class="logo">B<span>@</span></div>
+    <div class="btitle">
+      <h1>Bakusm@p</h1>
+      <p class="sub">WebSIG · Recours aux soins de santé des personnes du 3<sup>e</sup> âge — commune de Yopougon</p>
+    </div>
+  </div>
+  <div class="hmeta"><b id="nTotal"></b> enquêtés géolocalisés<br><a href="index.html">← Accueil</a></div>
+</header>
+
+<div class="wrap">
+  <!-- ===================== COLONNE DE GAUCHE : les filtres =====================
+       Le contenu (cases a cocher) est genere par app.js dans #filterBody. -->
+  <aside class="sidebar">
+    <div class="shead">
+      <b>Filtres</b>
+      <button class="btn" id="resetFilters">Réinitialiser</button>
+    </div>
+    <div class="body" id="filterBody"></div>
+  </aside>
+
+  <!-- CONTENT -->
+  <!-- ===================== ZONE PRINCIPALE : onglets + contenu ===================== -->
+  <main class="content">
+    <!-- Barre d'onglets (le clic est gere par app.js -> switchTab) -->
+    <div class="tabs" id="tabs">
+      <div class="tab active" data-tab="carte">🗺️ Carte</div>
+      <div class="tab" data-tab="apercu">📊 Vue d'ensemble</div>
+      <div class="tab" data-tab="recours">🏥 Recours aux soins</div>
+      <div class="tab" data-tab="determinants">🎯 Déterminants</div>
+      <div class="tab" data-tab="percept">⭐ Perceptions &amp; qualité</div>
+      <div class="tab" data-tab="spatial">🧭 Analyse spatiale</div>
+      <div class="tab" data-tab="croise">🔀 Analyse croisée</div>
+      <div class="tab" data-tab="explor">🔎 Explorateur</div>
+    </div>
+
+    <!-- Pastilles des filtres actifs (generees par app.js) -->
+    <div class="chips" id="activeChips"></div>
+    <!-- Les 8 indicateurs cles (generes par app.js -> renderKPIs) -->
+    <div class="kpis" id="kpis"></div>
+
+    <!-- TAB: CARTE -->
+    <section id="tab-carte">
+      <div class="maprow">
+        <div id="map"></div>
+        <div class="mapctrls">
+          <div class="card">
+            <h3>Colorer les points par</h3>
+            <select class="sel" id="colorBy" style="width:100%"></select>
+            <div class="switch"><input type="checkbox" id="clusterToggle"><label for="clusterToggle">Regrouper les points (densité)</label></div>
+            <div style="margin:6px 0"><label class="lbl" for="basemapSelect">Fond de carte</label>
+              <select class="sel" id="basemapSelect" style="width:100%;margin-top:3px">
+                <option value="osm">Plan (OpenStreetMap)</option>
+                <option value="carto">Clair (CARTO)</option>
+                <option value="gsat">Satellite (Google)</option>
+                <option value="ghyb">Satellite + rues (Google)</option>
+                <option value="esri">Satellite (Esri World Imagery)</option>
+              </select></div>
+            <hr style="border:none;border-top:1px solid var(--line);margin:8px 0">
+            <div class="switch"><input type="checkbox" id="centresToggle" checked><label for="centresToggle">🏥 Centres de santé (108)</label></div>
+            <div class="switch"><input type="checkbox" id="buffer500Toggle"><label for="buffer500Toggle">Zone de couverture 500 m</label></div>
+            <div class="switch"><input type="checkbox" id="buffer1000Toggle"><label for="buffer1000Toggle">Zone de couverture 1 km</label></div>
+            <div class="switch"><input type="checkbox" id="boundaryToggle" checked><label for="boundaryToggle">Limite de Yopougon</label></div>
+            <hr style="border:none;border-top:1px solid var(--line);margin:8px 0">
+            <div class="switch"><input type="checkbox" id="gridToggle"><label for="gridToggle">▦ Grille d'échantillonnage (500 m)</label></div>
+            <div class="switch"><input type="checkbox" id="gridViewToggle"><label for="gridViewToggle"><b>Vue échantillonnage</b> (1 point/personne par cellule)</label></div>
+            <div class="note">Chaque point = un enquêté. La <b>vue échantillonnage</b> repositionne chaque personne dans sa cellule (1H + 1F par cellule, max 4) pour respecter le plan de la grille ; décochez-la pour revenir aux positions GPS réelles. La grille est colorée par nombre d'enquêtés par cellule.</div>
+            <hr style="border:none;border-top:1px solid var(--line);margin:8px 0">
+            <div class="switch"><input type="checkbox" id="editToggle"><label for="editToggle">✏️ <b>Mode édition</b> — déplacer les points</label></div>
+            <div id="editInfo" class="note" style="min-height:14px;color:var(--brand)"></div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">
+              <button class="btn" id="exportPositions">⬇ Données actualisées (CSV)</button>
+              <button class="btn" id="exportDataJs">⬇ data.js (publication)</button>
+              <label class="btn" for="importPositions" style="cursor:pointer">⬆ Importer</label>
+              <input type="file" id="importPositions" accept=".csv" style="display:none">
+              <button class="btn" id="resetPositions">↺ Réinitialiser</button>
+            </div>
+            <div class="note">Glissez un point mal placé (forêt, zone non habitée) vers une zone habitée : ses coordonnées GPS et sa cellule se mettent à jour tout seuls. Vos déplacements sont enregistrés dans <b>votre</b> navigateur. <b>Données actualisées (CSV)</b> exporte tout le tableau à jour ; <b>data.js</b> génère le fichier à replacer dans le dépôt pour rendre les modifications définitives pour tous ; <b>Importer</b> recharge un CSV exporté.</div>
+          </div>
+          <div class="card"><div class="legend" id="mapLegend"></div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB: APERCU -->
+    <section id="tab-apercu" class="hidden">
+      <div class="grid g3">
+        <div class="card"><h3>Sexe</h3><div class="chartbox"><canvas id="c_sexe"></canvas></div></div>
+        <div class="card"><h3>Tranche d'âge</h3><div class="chartbox"><canvas id="c_age"></canvas></div></div>
+        <div class="card"><h3>Niveau d'instruction</h3><div class="chartbox"><canvas id="c_instr"></canvas></div></div>
+        <div class="card"><h3>Religion</h3><div class="chartbox"><canvas id="c_relig"></canvas></div></div>
+        <div class="card"><h3>Catégorie de profession</h3><div class="chartbox"><canvas id="c_prof"></canvas></div></div>
+        <div class="card"><h3>Revenu mensuel</h3><div class="chartbox"><canvas id="c_rev"></canvas></div></div>
+        <div class="card"><h3>Situation matrimoniale</h3><div class="chartbox"><canvas id="c_matri"></canvas></div></div>
+        <div class="card"><h3>Nationalité</h3><div class="chartbox"><canvas id="c_nat"></canvas></div></div>
+        <div class="card"><h3>Catégorie de maladie (dernière consultation)</h3><div class="chartbox"><canvas id="c_mal"></canvas></div></div>
+        <div class="card wide"><h3>Répartition par quartier (Top 20)</h3><div class="chartbox tall"><canvas id="c_quart"></canvas></div></div>
+      </div>
+    </section>
+
+    <!-- TAB: RECOURS -->
+    <section id="tab-recours" class="hidden">
+      <div class="grid g2">
+        <div class="card"><h3>Premier recours en cas de maladie</h3><div class="sub">Structure choisie en premier</div><div class="chartbox"><canvas id="r_prem"></canvas></div></div>
+        <div class="card"><h3>Type de médecine du premier recours</h3><div class="chartbox"><canvas id="r_cat"></canvas></div></div>
+        <div class="card"><h3>Premier recours selon la tranche d'âge</h3><div class="sub">Répartition en %</div><div class="chartbox"><canvas id="r_age"></canvas></div></div>
+        <div class="card"><h3>Premier recours selon le sexe</h3><div class="sub">Répartition en %</div><div class="chartbox"><canvas id="r_sexe"></canvas></div></div>
+        <div class="card"><h3>Premier recours selon le revenu</h3><div class="sub">Répartition en %</div><div class="chartbox tall"><canvas id="r_rev"></canvas></div></div>
+        <div class="card"><h3>Premier recours selon le niveau d'instruction</h3><div class="sub">Répartition en %</div><div class="chartbox tall"><canvas id="r_instr"></canvas></div></div>
+        <div class="card"><h3>Pourquoi l'hôpital public EST le 1<sup>er</sup> recours</h3><div class="chartbox"><canvas id="r_oui"></canvas></div></div>
+        <div class="card"><h3>Pourquoi l'hôpital public N'EST PAS le 1<sup>er</sup> recours</h3><div class="chartbox"><canvas id="r_non"></canvas></div></div>
+        <div class="card"><h3>Se rend seul ou accompagné à l'hôpital</h3><div class="chartbox"><canvas id="r_acc"></canvas></div></div>
+        <div class="card"><h3>Si accompagné, par qui ?</h3><div class="chartbox"><canvas id="r_par"></canvas></div></div>
+        <div class="card"><h3>Assurance maladie</h3><div class="chartbox"><canvas id="r_assur"></canvas></div></div>
+        <div class="card"><h3>Premier recours selon la possession d'une assurance</h3><div class="sub">Répartition en %</div><div class="chartbox"><canvas id="r_assurx"></canvas></div></div>
+      </div>
+    </section>
+
+    <!-- TAB: DETERMINANTS (objectif specifique 3) -->
+    <section id="tab-determinants" class="hidden">
+      <div class="card wide" style="margin-bottom:16px">
+        <h3>Facteurs influençant le recours aux soins des personnes du 3<sup>e</sup> âge</h3>
+        <div class="sub">Pour chaque facteur, écart (en points de %) du recours à la médecine moderne entre ses catégories extrêmes. Plus la barre est longue, plus le facteur discrimine le recours. Catégories d'au moins 10 enquêtés.</div>
+        <div class="chartbox tall"><canvas id="det_rank"></canvas></div>
+      </div>
+      <div class="card wide">
+        <div class="toolbar">
+          <label class="lbl">Examiner un facteur</label>
+          <select class="sel" id="detFactor"></select>
+          <label class="lbl">Recours étudié</label>
+          <select class="sel" id="detTarget">
+            <option value="mod">Médecine moderne</option>
+            <option value="pub">Hôpital public</option>
+            <option value="trad">Médecine traditionnelle</option>
+            <option value="auto">Automédication</option>
+          </select>
+        </div>
+        <div class="chartbox tall"><canvas id="det_detail"></canvas></div>
+        <div class="note" id="detNote"></div>
+      </div>
+    </section>
+
+    <!-- TAB: PERCEPTIONS -->
+    <section id="tab-percept" class="hidden">
+      <div class="grid g2">
+        <div class="card wide"><h3>Perception des structures : Public vs Privé vs Médecine traditionnelle</h3><div class="sub">Part de « Oui » — propreté, équipement suffisant, performance</div><div class="chartbox"><canvas id="p_struct"></canvas></div></div>
+        <div class="card"><h3>Qualité de la relation avec le médecin traitant</h3><div class="sub">Part de réponses « Oui »</div><div class="chartbox tall"><canvas id="p_rel"></canvas></div></div>
+        <div class="card"><h3>Accueil, attente et compétence (public)</h3><div class="chartbox tall"><canvas id="p_acc"></canvas></div></div>
+        <div class="card"><h3>Opinion sur le coût de la consultation</h3><div class="chartbox"><canvas id="p_cout"></canvas></div></div>
+        <div class="card"><h3>Coût public vs tradipraticien</h3><div class="chartbox"><canvas id="p_tradi"></canvas></div></div>
+        <div class="card"><h3>Résultat du traitement</h3><div class="chartbox"><canvas id="p_res"></canvas></div></div>
+        <div class="card"><h3>Retournerait dans la même structure</h3><div class="chartbox"><canvas id="p_ret"></canvas></div></div>
+        <div class="card"><h3>Achat des médicaments</h3><div class="sub">Tous les médicaments achetés / achetés sur place</div><div class="chartbox"><canvas id="p_med"></canvas></div></div>
+        <div class="card"><h3>Irait plus souvent au public si les médicaments y étaient disponibles</h3><div class="chartbox"><canvas id="p_plus"></canvas></div></div>
+      </div>
+    </section>
+
+    <!-- TAB: ANALYSE SPATIALE -->
+    <section id="tab-spatial" class="hidden">
+      <div class="card wide" style="margin-bottom:16px">
+        <h3>Plan d'échantillonnage : redistribution sur la grille de 500 m</h3>
+        <div class="sub">Réaffectation des 726 enquêtés aux cellules accessibles (1H + 1F par cellule en priorité, max 4, hors zones « acces = NON »). Redistribution locale : le surplus des cellules surchargées est déplacé vers les cellules voisines les plus proches.</div>
+        <div class="kpis" id="gridKpis"></div>
+        <div class="grid g2" style="margin-top:8px">
+          <div style="border:1px solid var(--line);border-radius:10px;padding:10px"><h3 style="font-size:12.5px">Occupation des cellules (nombre d'enquêtés par cellule)</h3><div class="chartbox" style="height:220px"><canvas id="g_occ"></canvas></div></div>
+          <div style="border:1px solid var(--line);border-radius:10px;padding:10px"><h3 style="font-size:12.5px">Distance de déplacement des enquêtés réaffectés</h3><div class="chartbox" style="height:220px"><canvas id="g_move"></canvas></div></div>
+        </div>
+        <div class="note">Activez « Vue échantillonnage » et « Grille » dans l'onglet Carte pour visualiser le résultat. Les distances d'accès ci-dessous restent calculées sur les positions GPS réelles.</div>
+      </div>
+      <div class="card wide" style="margin-bottom:16px">
+        <h3>Accessibilité géographique des personnes âgées aux structures de santé</h3>
+        <div class="sub">Distances calculées en mètres (projection UTM 30N) entre chaque enquêté et le centre de santé le plus proche. « 1er contact » = CSU/FSU, centres de santé, dispensaires, maternités (soins de premier niveau).</div>
+        <div class="kpis" id="spatialKpis"></div>
+      </div>
+      <div class="grid g2">
+        <div class="card"><h3>Taux de couverture selon le rayon d'accès</h3><div class="sub">Part des enquêtés situés à moins de X mètres d'un centre</div><div id="coverageTable"></div></div>
+        <div class="card"><h3>Distribution de la distance au 1<sup>er</sup> contact</h3><div class="chartbox"><canvas id="s_hist"></canvas></div></div>
+        <div class="card wide"><h3>Premier recours selon la distance réelle au centre de premier contact</h3><div class="sub">Répartition en % — la distance influence-t-elle le type de recours ?</div><div class="chartbox tall"><canvas id="s_recours"></canvas></div></div>
+        <div class="card"><h3>Recours à la médecine traditionnelle + automédication par distance</h3><div class="sub">Part cumulée des recours hors système formel</div><div class="chartbox"><canvas id="s_hors"></canvas></div></div>
+        <div class="card"><h3>Distance déclarée (enquête) vs distance réelle (SIG)</h3><div class="sub">Distance déclarée au public × distance réelle calculée au 1er contact</div><div class="chartbox"><canvas id="s_declare"></canvas></div></div>
+        <div class="card"><h3>Distance moyenne au 1<sup>er</sup> contact par quartier (Top 20)</h3><div class="chartbox tall"><canvas id="s_quart"></canvas></div></div>
+        <div class="card"><h3>Fréquentation du centre public selon la distance</h3><div class="chartbox"><canvas id="s_freq"></canvas></div></div>
+      </div>
+      <div class="note" style="margin-top:12px">La carte de l'onglet <b>Carte</b> permet d'afficher les centres de santé et leurs zones de couverture (500 m / 1 km) pour visualiser ces résultats géographiquement.</div>
+    </section>
+
+    <!-- TAB: CROISE -->
+    <section id="tab-croise" class="hidden">
+      <div class="card">
+        <div class="toolbar">
+          <label class="lbl">Variable en ligne (X)</label>
+          <select class="sel" id="cx"></select>
+          <label class="lbl">Variable en colonne (Y)</label>
+          <select class="sel" id="cy"></select>
+          <label class="lbl">Affichage</label>
+          <select class="sel" id="cmode">
+            <option value="pct">Barres empilées 100 %</option>
+            <option value="cnt">Barres empilées (effectifs)</option>
+            <option value="grp">Barres groupées (effectifs)</option>
+          </select>
+          <button class="btn" id="swapXY">↔ Inverser X/Y</button>
+        </div>
+        <div class="chartbox tall"><canvas id="crossChart"></canvas></div>
+        <div class="note" id="crossInfo"></div>
+      </div>
+      <div class="card" style="margin-top:16px">
+        <h3>Tableau de contingence</h3>
+        <div class="sub">Effectifs, avec en couleur le % en ligne (part de chaque colonne dans la ligne). Dernière colonne = total de la ligne.</div>
+        <div id="crossTable"></div>
+      </div>
+    </section>
+
+    <!-- TAB: EXPLORATEUR -->
+    <section id="tab-explor" class="hidden">
+      <div class="card">
+        <div class="toolbar">
+          <label class="lbl">Variable à explorer</label>
+          <select class="sel" id="ex"></select>
+          <button class="btn solid" id="exportCsv">⬇ Exporter la sélection (CSV)</button>
+        </div>
+        <div class="grid g2">
+          <div class="card" style="box-shadow:none;border:1px solid var(--line)"><h3 id="exTitle"></h3><div class="chartbox tall"><canvas id="exChart"></canvas></div></div>
+          <div class="card" style="box-shadow:none;border:1px solid var(--line)"><h3>Détail</h3><div id="exTable"></div></div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div class="foot">
+  Source : enquête de terrain, thèse de doctorat en géographie de la population (UFHB Cocody). Données nettoyées et harmonisées.
+  Fonds de carte © OpenStreetMap / CARTO. Outil d'analyse — les pourcentages sont calculés sur les réponses valides (non vides) de la sélection courante.
+</div>
+
+<!-- SCRIPTS charges en bas de page (dans l'ordre) :
+     1) Leaflet + MarkerCluster : la carte
+     2) Chart.js : les graphiques
+     3) data/data.js : les 726 enquetes nettoyees (variable window.DATA)
+     4) app.js : notre logique, qui utilise tout ce qui precede -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="data/data.js"></script>
+<script src="data/centres.js"></script>   <!-- window.CENTRES : 108 etablissements de sante -->
+<script src="data/yopougon.js"></script>  <!-- window.YOP_BOUNDARY : limite communale -->
+<script src="data/grille.js"></script>    <!-- window.GRID : grille d'echantillonnage 500 m -->
+<script src="app.js"></script>
+</body>
+</html>
