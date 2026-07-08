@@ -213,6 +213,12 @@ table.ct td .hm{display:inline-block;padding:2px 6px;border-radius:5px}
               <button class="btn" id="resetPositions">↺ Réinitialiser</button>
             </div>
             <div class="note">Glissez un point mal placé (forêt, zone non habitée) vers une zone habitée : ses coordonnées GPS et sa cellule se mettent à jour tout seuls. Vos déplacements sont enregistrés dans <b>votre</b> navigateur. <b>Données actualisées (CSV)</b> exporte tout le tableau à jour ; <b>data.js</b> génère le fichier à replacer dans le dépôt pour rendre les modifications définitives pour tous ; <b>Importer</b> recharge un CSV exporté.</div>
+            <hr style="border:none;border-top:1px solid var(--line);margin:8px 0">
+            <div style="font-weight:600;font-size:12px;margin-bottom:4px">☁ Enregistrement automatique en ligne (optionnel)</div>
+            <input id="sbUrl" class="sel" style="width:100%;font-size:11px;margin-bottom:4px" placeholder="URL du projet Supabase">
+            <input id="sbKey" class="sel" style="width:100%;font-size:11px" placeholder="Clé « anon » Supabase">
+            <button class="btn" id="cloudPublish" style="margin-top:5px;width:100%">☁ Publier mes modifications en ligne</button>
+            <div class="note">Une fois configuré (projet Supabase gratuit, voir GUIDE), tes déplacements sont sauvegardés en ligne et rechargés automatiquement sur tous les appareils, sans exporter. Sans configuration, tout reste local.</div>
           </div>
           <div class="card"><div class="legend" id="mapLegend"></div></div>
         </div>

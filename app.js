@@ -567,6 +567,41 @@ async function computeIsochrone(c){
 function approxIso(c,cols){ [[1200,cols[2]],[800,cols[1]],[400,cols[0]]].forEach(([r,col])=>
   L.circle([c.lat,c.lon],{radius:r,color:col,weight:1.6,fillColor:col,fillOpacity:.14}).addTo(isoLayer)); }
 
+/* ---------- Enregistrement en ligne optionnel (Supabase) ----------
+   Permet une sauvegarde AUTOMATIQUE et partagee des deplacements, sans exporter.
+   Inactif tant que l'URL et la cle ne sont pas renseignees. Voir GUIDE.md. */
+function setEditInfo(t){ const el=document.getElementById('editInfo'); if(el) el.innerHTML=t; }
+function sbCfg(){ return { url:(localStorage.getItem('sb_url')||'').trim().replace(/\/+$/,''), key:(localStorage.getItem('sb_key')||'').trim() }; }
+// cloudPublish() : envoie les points modifies vers la table Supabase (upsert)
+async function cloudPublish(){
+  const {url,key}=sbCfg(); if(!url||!key){ setEditInfo('Renseignez d\'abord l\'URL et la clé Supabase.'); return; }
+  const rows=DATA.filter(d=> d.gLat!==d._gLat0||d.gLon!==d._gLon0||d.lat!==d._lat0||d.lng!==d._lng0)
+    .map(d=>({id:d.id,glat:d.gLat,glon:d.gLon,cellid:d.cellId,lat:d.lat,lng:d.lng}));
+  if(!rows.length){ setEditInfo('Aucune modification à publier.'); return; }
+  setEditInfo('Publication en ligne…');
+  try{
+    const res=await fetch(url+'/rest/v1/points_overrides',{method:'POST',
+      headers:{'apikey':key,'Authorization':'Bearer '+key,'Content-Type':'application/json','Prefer':'resolution=merge-duplicates'},
+      body:JSON.stringify(rows)});
+    if(!res.ok) throw new Error('HTTP '+res.status+' '+(await res.text()).slice(0,100));
+    setEditInfo(`${rows.length} modification(s) publiée(s) en ligne ✓ (visibles sur tous les appareils).`);
+  }catch(e){ setEditInfo('Échec de publication : '+e.message); }
+}
+// cloudLoad() : recharge les deplacements publies et les applique
+async function cloudLoad(){
+  const {url,key}=sbCfg(); if(!url||!key) return 0;
+  try{
+    const res=await fetch(url+'/rest/v1/points_overrides?select=*',{headers:{'apikey':key,'Authorization':'Bearer '+key}});
+    if(!res.ok) return 0;
+    const arr=await res.json(); const byId={}; DATA.forEach(d=>byId[d.id]=d); let n=0;
+    arr.forEach(o=>{ const d=byId[o.id]; if(!d)return;
+      if(o.glat!=null){ d.gLat=+o.glat; d.gLon=+o.glon; d.cellId=o.cellid!=null?+o.cellid:d.cellId; }
+      if(o.lat!=null){ d.lat=+o.lat; d.lng=+o.lng; } n++; });
+    recomputeGridCounts(); if(gridLayer) gridLayer.setStyle(styleCell);
+    return n;
+  }catch(e){ return 0; }
+}
+
 /* ---------- Mode edition : deplacer les points a la souris ---------- */
 // onDragEnd() : appele quand on lache un point deplace. Met a jour ses coordonnees,
 // recalcule sa cellule, recolorie la grille, enregistre le deplacement.
@@ -1051,6 +1086,8 @@ document.addEventListener('DOMContentLoaded',()=>{
   // reappliquer d'eventuels deplacements enregistres dans ce navigateur
   const nEdits=applySavedEdits(); if(gridLayer) gridLayer.setStyle(styleCell);
   if(nEdits) document.getElementById('editInfo').textContent=`${nEdits} déplacement(s) restauré(s) depuis ce navigateur.`;
+  // synchronisation depuis le cloud (si configure) : applique les deplacements publies
+  cloudLoad().then(n=>{ if(n){ renderMap(filtered()); if(currentTab==='spatial')renderGridPlan(); setEditInfo(n+' point(s) synchronisé(s) depuis le cloud.'); }});
 
   // 3. menu "colorer la carte par"
   fillSelect(document.getElementById('colorBy'),['premierRecours','premierRecoursCat','bandPrim','sexe','age','assurance','frequentation','maladieCat','revenu','instruction','professionCat','resultatTraitement','satisfaitMedecin','quartier'],'premierRecours');
@@ -1094,6 +1131,11 @@ document.addEventListener('DOMContentLoaded',()=>{
     else { isoLayer.clearLayers(); setIsoInfo(''); } });
   const ors=document.getElementById('orsKey');
   if(ors){ ors.value=localStorage.getItem('ors_key')||''; ors.addEventListener('change',()=>localStorage.setItem('ors_key',ors.value.trim())); }
+  // configuration de l'enregistrement en ligne (Supabase)
+  const su=document.getElementById('sbUrl'), sk=document.getElementById('sbKey');
+  if(su){ su.value=localStorage.getItem('sb_url')||''; su.addEventListener('change',()=>localStorage.setItem('sb_url',su.value.trim())); }
+  if(sk){ sk.value=localStorage.getItem('sb_key')||''; sk.addEventListener('change',()=>localStorage.setItem('sb_key',sk.value.trim())); }
+  const cp=document.getElementById('cloudPublish'); if(cp) cp.addEventListener('click',cloudPublish);
   document.getElementById('exportPositions').addEventListener('click',exportPositions);
   const ej=document.getElementById('exportDataJs'); if(ej) ej.addEventListener('click',exportDataJs);
   const ip=document.getElementById('importPositions'); if(ip) ip.addEventListener('change',e=>{ if(e.target.files[0]){ importPositions(e.target.files[0]); e.target.value=''; } });

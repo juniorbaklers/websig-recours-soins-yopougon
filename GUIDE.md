@@ -2,6 +2,8 @@
 
 ## Comment ouvrir l'application
 
+> La **page d'accueil** est `index.html` (présentation Bakusm@p). Le **tableau de bord** est `plateforme.html` (bouton « Entrer dans la plateforme »).
+
 ### Méthode simple
 Double-cliquez sur **`index.html`**. L'application s'ouvre dans votre navigateur.
 > Une connexion internet est nécessaire au premier chargement (fond de carte OpenStreetMap et bibliothèques graphiques).
@@ -40,6 +42,34 @@ Certains points de la vue échantillonnage peuvent tomber dans une zone non habi
 5. Bouton **↺ Réinitialiser** : annule tous vos déplacements et revient aux positions d'origine.
 
 > Vos déplacements restent sur votre ordinateur (stockage local du navigateur). Ils ne modifient pas la version en ligne pour les autres visiteurs. Pour les rendre définitifs dans les données, exportez le CSV.
+
+## Isochrones d'accessibilité (zones atteignables à pied)
+
+Onglet **Carte** : cochez **🕒 Isochrones**, puis **cliquez un centre de santé**. Les zones atteignables en **5 / 10 / 15 minutes de marche** s'affichent (vert / orange / rouge).
+- Sans clé : zones **approximatives** par distance (~400 / 800 / 1200 m).
+- Pour des **isochrones réseau réelles** (le long des rues) : créez une clé gratuite sur [openrouteservice.org](https://openrouteservice.org/dev/#/signup), collez-la dans le champ **Clé OpenRouteService**. La clé est mémorisée dans votre navigateur.
+
+## Enregistrement automatique en ligne (optionnel, Supabase)
+
+Par défaut, vos déplacements de points restent sur votre navigateur. Pour qu'ils soient **sauvegardés en ligne et partagés sur tous vos appareils** automatiquement, configurez une base **Supabase** gratuite :
+
+1. Créez un compte sur [supabase.com](https://supabase.com) et un **nouveau projet** (gratuit).
+2. Dans le projet, ouvrez **SQL Editor** et exécutez :
+   ```sql
+   create table points_overrides (
+     id int8 primary key,
+     glat float8, glon float8, cellid int8, lat float8, lng float8,
+     maj timestamptz default now()
+   );
+   alter table points_overrides enable row level security;
+   create policy "acces public" on points_overrides for all using (true) with check (true);
+   ```
+3. Dans **Project Settings → API**, copiez l'**URL** du projet et la clé **anon public**.
+4. Dans Bakusm@p (onglet Carte, section ☁), collez l'URL et la clé, puis cliquez **☁ Publier mes modifications en ligne**.
+
+Ensuite, à chaque ouverture, la plateforme recharge automatiquement les positions publiées.
+
+> Note : avec la politique ci-dessus, la table est en lecture/écriture publique (adapté à un outil de recherche personnel). Pour un accès restreint, ajoutez une authentification Supabase.
 
 ## Exemples d'analyses à faire
 
