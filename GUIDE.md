@@ -29,6 +29,18 @@ Six onglets :
 
 ---
 
+## Déplacer les points manuellement (mode édition)
+
+Certains points de la vue échantillonnage peuvent tomber dans une zone non habitée (forêt, terrain vague), tandis que des zones habitées restent sans point. Vous pouvez corriger cela vous-même :
+
+1. Onglet **Carte**, choisissez un fond **Satellite** (Google ou Esri) pour voir le terrain.
+2. Cochez **✏️ Mode édition — déplacer les points**. La vue échantillonnage et la grille s'activent automatiquement.
+3. **Glissez** un point mal placé vers une zone habitée. Dès que vous le lâchez : ses coordonnées GPS et sa cellule se mettent à jour, la grille se recolore, et le déplacement est **enregistré dans votre navigateur** (vous seul le voyez).
+4. Bouton **⬇ Exporter mes positions** : télécharge un CSV (`positions_echantillonnage_modifiees.csv`) avec, pour chaque enquêté, la position réelle, la position d'échantillonnage modifiée et la cellule. Conservez-le ou transmettez-le pour l'intégrer définitivement.
+5. Bouton **↺ Réinitialiser** : annule tous vos déplacements et revient aux positions d'origine.
+
+> Vos déplacements restent sur votre ordinateur (stockage local du navigateur). Ils ne modifient pas la version en ligne pour les autres visiteurs. Pour les rendre définitifs dans les données, exportez le CSV.
+
 ## Exemples d'analyses à faire
 
 - Filtrer **Sans niveau** d'instruction et observer la montée du recours traditionnel dans l'onglet Recours.

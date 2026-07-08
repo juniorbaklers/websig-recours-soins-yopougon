@@ -169,6 +169,14 @@ table.ct td .hm{display:inline-block;padding:2px 6px;border-radius:5px}
             <div class="switch"><input type="checkbox" id="gridToggle"><label for="gridToggle">▦ Grille d'échantillonnage (500 m)</label></div>
             <div class="switch"><input type="checkbox" id="gridViewToggle"><label for="gridViewToggle"><b>Vue échantillonnage</b> (1 point/personne par cellule)</label></div>
             <div class="note">Chaque point = un enquêté. La <b>vue échantillonnage</b> repositionne chaque personne dans sa cellule (1H + 1F par cellule, max 4) pour respecter le plan de la grille ; décochez-la pour revenir aux positions GPS réelles. La grille est colorée par nombre d'enquêtés par cellule.</div>
+            <hr style="border:none;border-top:1px solid var(--line);margin:8px 0">
+            <div class="switch"><input type="checkbox" id="editToggle"><label for="editToggle">✏️ <b>Mode édition</b> — déplacer les points</label></div>
+            <div id="editInfo" class="note" style="min-height:14px;color:var(--brand)"></div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">
+              <button class="btn" id="exportPositions">⬇ Exporter mes positions</button>
+              <button class="btn" id="resetPositions">↺ Réinitialiser</button>
+            </div>
+            <div class="note">Glissez un point mal placé (forêt, zone non habitée) vers une zone habitée : ses coordonnées GPS et sa cellule se mettent à jour tout seuls. Vos déplacements sont enregistrés dans <b>votre</b> navigateur (vous seul les voyez) ; exportez-les en CSV pour les conserver ou me les transmettre.</div>
           </div>
           <div class="card"><div class="legend" id="mapLegend"></div></div>
         </div>

@@ -106,6 +106,9 @@ const GRID = window.GRID || null;
 // gridView : quand true, on affiche les enquetes a leur position "grille" (gLon/gLat)
 // au lieu de leur position GPS reelle (lat/lng). Voir la case "Vue echantillonnage".
 let gridView=false;
+// editMode : quand true, les points deviennent deplacables a la souris (mode edition).
+let editMode=false;
+const EDIT_KEY='websig_edits_v1'; // cle de sauvegarde des deplacements dans le navigateur
 
 // FILTER_GROUPS = quelles variables apparaissent dans la barre de filtres a
 // gauche, et sous quel intitule de groupe. On ne met pas TOUT pour ne pas
@@ -321,7 +324,33 @@ function renderKPIs(recs){
 
 let map,baseLayers,currentBase,markerLayer,clusterLayer;
 let centresLayer,buffer500Layer,buffer1000Layer,boundaryLayer,gridLayer; // couches de l'analyse spatiale
+let gridCounts={}; // effectif d'enquetes par cellule (recalcule en direct pendant l'edition)
 const GRID_COL={1:'#f0cf87',2:'#5fae5f',3:'#e69a34',4:'#d9534f'}; // couleur cellule selon nb d'enquetes
+
+// recomputeGridCounts() : recompte les enquetes par cellule (d'apres cellId)
+function recomputeGridCounts(){ gridCounts={}; DATA.forEach(d=>{ if(d.cellId!=null) gridCounts[d.cellId]=(gridCounts[d.cellId]||0)+1; }); }
+// styleCell() : style d'une cellule de la grille selon son effectif
+function styleCell(f){
+  const isNon=(f.properties.acces==='NON'); const n=gridCounts[f.properties.id]||0;
+  if(isNon) return {color:'#7a828c',weight:.6,fillColor:'#9aa5b1',fillOpacity:.35,dashArray:'2 2'};
+  if(n===0)  return {color:'#8794a3',weight:.5,fill:false};
+  return {color:'#5f6b7a',weight:.6,fillColor:GRID_COL[Math.min(n,4)],fillOpacity:.5};
+}
+// pointInGeom() : test point-dans-polygone (x=lng, y=lat) pour retrouver la cellule d'un point
+function pointInGeom(x,y,geom){
+  const polys = geom.type==='MultiPolygon'?geom.coordinates:[geom.coordinates];
+  for(const poly of polys){
+    let inside=false; const ring=poly[0];
+    for(let i=0,j=ring.length-1;i<ring.length;j=i++){
+      const xi=ring[i][0],yi=ring[i][1],xj=ring[j][0],yj=ring[j][1];
+      if(((yi>y)!==(yj>y)) && (x < (xj-xi)*(y-yi)/(yj-yi)+xi)) inside=!inside;
+    }
+    if(inside) return true;
+  }
+  return false;
+}
+// cellAt() : proprietes de la cellule contenant le point (ou null hors grille)
+function cellAt(lat,lng){ if(!GRID) return null; for(const f of GRID.features){ if(pointInGeom(lng,lat,f.geometry)) return f.properties; } return null; }
 
 // Couleur d'un centre de sante selon son type simplifie
 const CENTRE_COL={'Hopital':'#b5121b','Clinique privee':'#7a3fa0','Centre de sante (1er contact)':'#0d8a6a','Cabinet / Infirmerie':'#e8813a','Autre / a verifier':'#8a94a6'};
@@ -387,16 +416,11 @@ function buildSpatialLayers(){
 
   // 3) grille d'echantillonnage : cellules colorees selon le nombre d'enquetes affectes
   if(GRID){
-    const cnt={}; DATA.forEach(d=>{ if(d.cellId!=null) cnt[d.cellId]=(cnt[d.cellId]||0)+1; });
+    recomputeGridCounts();
     gridLayer=L.geoJSON(GRID,{
-      style:f=>{
-        const isNon=(f.properties.acces==='NON'); const n=cnt[f.properties.id]||0;
-        if(isNon) return {color:'#7a828c',weight:.6,fillColor:'#9aa5b1',fillOpacity:.35,dashArray:'2 2'};
-        if(n===0) return {color:'#8794a3',weight:.5,fill:false};
-        return {color:'#5f6b7a',weight:.6,fillColor:GRID_COL[Math.min(n,4)],fillOpacity:.5};
-      },
-      onEachFeature:(f,l)=>{const n=cnt[f.properties.id]||0;
-        l.bindPopup(`<div class="pop"><b>Cellule ${f.properties.id}</b><br>${f.properties.acces==='NON'?'Zone non enquêtée (industrielle)':n+' enquêté(s) affecté(s)'}</div>`);}
+      style:styleCell,
+      onEachFeature:(f,l)=>{ l.on('click',()=>{ const n=gridCounts[f.properties.id]||0;
+        l.bindPopup(`<div class="pop"><b>Cellule ${f.properties.id}</b><br>${f.properties.acces==='NON'?'Zone non enquêtée (industrielle)':n+' enquêté(s) affecté(s)'}</div>`).openPopup(); }); }
     });
   } else gridLayer=L.layerGroup();
 }
@@ -422,7 +446,14 @@ function renderMap(recs){
     if(typeof la!=='number'||typeof ln!=='number'||!la) return; // ignorer les points sans coordonnees
     const val=(d[key]??'').toString().trim()||'(non renseigné)';
     const col=val==='(non renseigné)'?'#9aa5b1':colorFor(key,val);
-    const mk=L.circleMarker([la,ln],{radius:5,color:'#fff',weight:1,fillColor:col,fillOpacity:.85});
+    let mk;
+    if(editMode){ // mode edition : point deplacable a la souris
+      mk=L.marker([la,ln],{draggable:true,icon:L.divIcon({className:'',iconSize:[16,16],iconAnchor:[8,8],
+        html:`<div style="width:13px;height:13px;border-radius:50%;background:${col};border:2px solid #fff;box-shadow:0 0 3px rgba(0,0,0,.7);cursor:move"></div>`})});
+      mk.on('dragend',()=>onDragEnd(d,mk));
+    } else {
+      mk=L.circleMarker([la,ln],{radius:5,color:'#fff',weight:1,fillColor:col,fillOpacity:.85});
+    }
     mk.bindPopup(popupHtml(d)); target.addLayer(mk);
   });
   if(cluster) map.addLayer(clusterLayer);
@@ -435,6 +466,59 @@ function renderLegend(key,recs){
   document.getElementById('mapLegend').innerHTML=
     `<b>${DIMS[key]||key}</b>`+cats.map(c=>`<div class="li"><span class="sw" style="background:${colorFor(key,c)}"></span>${c} <span class="cnt" style="margin-left:auto;color:#94a3b8">${m.get(c)||0}</span></div>`).join('')
     +(m.size?'':'<div class="muted">Aucune donnée</div>');
+}
+
+/* ---------- Mode edition : deplacer les points a la souris ---------- */
+// onDragEnd() : appele quand on lache un point deplace. Met a jour ses coordonnees,
+// recalcule sa cellule, recolorie la grille, enregistre le deplacement.
+function onDragEnd(d,mk){
+  const p=mk.getLatLng();
+  if(gridView){ d.gLat=+p.lat.toFixed(7); d.gLon=+p.lng.toFixed(7); }
+  else        { d.lat=+p.lat.toFixed(7);  d.lng=+p.lng.toFixed(7); }
+  const cell=cellAt(p.lat,p.lng);
+  if(gridView) d.cellId = cell?cell.id:null; // rattachement automatique a la nouvelle cellule
+  saveEdit(d);
+  recomputeGridCounts(); if(gridLayer) gridLayer.setStyle(styleCell);
+  mk.setPopupContent(popupHtml(d));
+  const nonWarn = (cell && cell.acces==='NON') ? ' <b style="color:#d9534f">(zone NON, non habitée)</b>' : '';
+  document.getElementById('editInfo').innerHTML =
+    `Point n°${d.id} → <b>${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}</b>` + (cell?` · cellule ${cell.id}${nonWarn}`:' · <b>hors grille</b>');
+  if(currentTab==='spatial') renderGridPlan(); // met a jour les indicateurs du plan
+}
+// saveEdit() : enregistre le deplacement d'un enquete dans le navigateur (localStorage)
+function saveEdit(d){
+  let e={}; try{ e=JSON.parse(localStorage.getItem(EDIT_KEY)||'{}'); }catch(_){}
+  e[d.id]=e[d.id]||{};
+  if(gridView){ e[d.id].gLa=d.gLat; e[d.id].gLn=d.gLon; e[d.id].cid=d.cellId; }
+  else        { e[d.id].la=d.lat;  e[d.id].ln=d.lng; }
+  localStorage.setItem(EDIT_KEY,JSON.stringify(e));
+}
+// applySavedEdits() : au chargement, reapplique les deplacements enregistres
+function applySavedEdits(){
+  let e={}; try{ e=JSON.parse(localStorage.getItem(EDIT_KEY)||'{}'); }catch(_){}
+  let n=0;
+  DATA.forEach(d=>{ const s=e[d.id]; if(!s)return; n++;
+    if(s.gLa!=null){ d.gLat=s.gLa; d.gLon=s.gLn; d.cellId=(s.cid!=null?s.cid:(cellAt(s.gLa,s.gLn)||{}).id); }
+    if(s.la!=null){ d.lat=s.la; d.lng=s.ln; }
+  });
+  recomputeGridCounts();
+  return n;
+}
+// exportPositions() : telecharge un CSV des positions (reelles + echantillonnage) et cellules
+function exportPositions(){
+  const cols=['id','sexe','latitude_reelle','longitude_reelle','latitude_echantillonnage','longitude_echantillonnage','cellule'];
+  const lines=[cols.join(';')];
+  DATA.forEach(d=>lines.push([d.id,d.sexe,d.lat,d.lng,d.gLat,d.gLon,d.cellId].join(';')));
+  const blob=new Blob(['﻿'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='positions_echantillonnage_modifiees.csv';a.click();
+}
+// resetPositions() : annule tous les deplacements et revient aux positions d'origine
+function resetPositions(){
+  localStorage.removeItem(EDIT_KEY);
+  DATA.forEach(d=>{ d.gLat=d._gLat0; d.gLon=d._gLon0; d.cellId=d._cellId0; d.lat=d._lat0; d.lng=d._lng0; });
+  recomputeGridCounts(); if(gridLayer) gridLayer.setStyle(styleCell);
+  renderMap(filtered()); if(currentTab==='spatial') renderGridPlan();
+  document.getElementById('editInfo').textContent='Déplacements réinitialisés.';
 }
 
 
@@ -756,8 +840,13 @@ function switchTab(t){
 // Au chargement de la page : on branche tout
 document.addEventListener('DOMContentLoaded',()=>{
   document.getElementById('nTotal').textContent=DATA.length;
+  // memoriser les positions d'origine (pour le bouton Reinitialiser du mode edition)
+  DATA.forEach(d=>{ d._gLat0=d.gLat; d._gLon0=d.gLon; d._cellId0=d.cellId; d._lat0=d.lat; d._lng0=d.lng; });
   initMap();       // 1. la carte
   buildFilters();  // 2. la barre de filtres
+  // reappliquer d'eventuels deplacements enregistres dans ce navigateur
+  const nEdits=applySavedEdits(); if(gridLayer) gridLayer.setStyle(styleCell);
+  if(nEdits) document.getElementById('editInfo').textContent=`${nEdits} déplacement(s) restauré(s) depuis ce navigateur.`;
 
   // 3. menu "colorer la carte par"
   fillSelect(document.getElementById('colorBy'),['premierRecours','premierRecoursCat','bandPrim','sexe','age','assurance','frequentation','maladieCat','revenu','instruction','professionCat','resultatTraitement','satisfaitMedecin','quartier'],'premierRecours');
@@ -778,6 +867,19 @@ document.addEventListener('DOMContentLoaded',()=>{
   document.getElementById('ex').addEventListener('change',()=>renderExplorer(filtered()));
   document.getElementById('exportCsv').addEventListener('click',exportCsv);
   document.getElementById('resetFilters').addEventListener('click',resetFilters);
+  // --- mode edition : activation, export, reinitialisation ---
+  document.getElementById('editToggle').addEventListener('change',e=>{
+    editMode=e.target.checked;
+    if(editMode){ // on force la vue echantillonnage + la grille, on desactive le cluster
+      gridView=true; document.getElementById('gridViewToggle').checked=true;
+      const gt=document.getElementById('gridToggle'); if(!gt.checked){ gt.checked=true; gridLayer.addTo(map); gridLayer.bringToBack(); }
+      const cl=document.getElementById('clusterToggle'); if(cl.checked){ cl.checked=false; }
+      document.getElementById('editInfo').textContent='Mode édition activé : glissez les points vers les zones habitées.';
+    } else { document.getElementById('editInfo').textContent=''; }
+    renderMap(filtered());
+  });
+  document.getElementById('exportPositions').addEventListener('click',exportPositions);
+  document.getElementById('resetPositions').addEventListener('click',()=>{ if(confirm('Annuler tous vos déplacements et revenir aux positions d\'origine ?')) resetPositions(); });
   document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>switchTab(t.dataset.tab)));
 
   // 7. premier affichage
