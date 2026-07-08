@@ -571,21 +571,26 @@ function approxIso(c,cols){ [[1200,cols[2]],[800,cols[1]],[400,cols[0]]].forEach
    Permet une sauvegarde AUTOMATIQUE et partagee des deplacements, sans exporter.
    Inactif tant que l'URL et la cle ne sont pas renseignees. Voir GUIDE.md. */
 function setEditInfo(t){ const el=document.getElementById('editInfo'); if(el) el.innerHTML=t; }
+function setCloudInfo(t){ const el=document.getElementById('cloudInfo'); if(el) el.innerHTML=t; else setEditInfo(t); }
 function sbCfg(){ return { url:(localStorage.getItem('sb_url')||'').trim().replace(/\/+$/,''), key:(localStorage.getItem('sb_key')||'').trim() }; }
-// cloudPublish() : envoie les points modifies vers la table Supabase (upsert)
+// cloudPublish() : teste la connexion puis envoie les points modifies vers Supabase (upsert)
 async function cloudPublish(){
-  const {url,key}=sbCfg(); if(!url||!key){ setEditInfo('Renseignez d\'abord l\'URL et la clé Supabase.'); return; }
+  const {url,key}=sbCfg(); if(!url||!key){ setCloudInfo('⚠ Renseignez d\'abord l\'URL et la clé Supabase, puis cliquez en dehors du champ.'); return; }
   const rows=DATA.filter(d=> d.gLat!==d._gLat0||d.gLon!==d._gLon0||d.lat!==d._lat0||d.lng!==d._lng0)
     .map(d=>({id:d.id,glat:d.gLat,glon:d.gLon,cellid:d.cellId,lat:d.lat,lng:d.lng}));
-  if(!rows.length){ setEditInfo('Aucune modification à publier.'); return; }
-  setEditInfo('Publication en ligne…');
+  setCloudInfo('Connexion à Supabase…');
   try{
+    // 1) test de connexion (verifie l'URL, la cle et la table)
+    const test=await fetch(url+'/rest/v1/points_overrides?select=id&limit=1',{headers:{'apikey':key,'Authorization':'Bearer '+key}});
+    if(!test.ok) throw new Error('HTTP '+test.status+' — '+(await test.text()).slice(0,120));
+    if(!rows.length){ setCloudInfo('✓ Connexion réussie. Aucune modification à publier pour l\'instant : déplace un point en Mode édition, puis reclique Publier.'); return; }
+    // 2) envoi des modifications
     const res=await fetch(url+'/rest/v1/points_overrides',{method:'POST',
       headers:{'apikey':key,'Authorization':'Bearer '+key,'Content-Type':'application/json','Prefer':'resolution=merge-duplicates'},
       body:JSON.stringify(rows)});
-    if(!res.ok) throw new Error('HTTP '+res.status+' '+(await res.text()).slice(0,100));
-    setEditInfo(`${rows.length} modification(s) publiée(s) en ligne ✓ (visibles sur tous les appareils).`);
-  }catch(e){ setEditInfo('Échec de publication : '+e.message); }
+    if(!res.ok) throw new Error('HTTP '+res.status+' — '+(await res.text()).slice(0,120));
+    setCloudInfo(`✓ ${rows.length} modification(s) publiée(s) en ligne (visibles sur tous les appareils).`);
+  }catch(e){ setCloudInfo('✗ Échec : '+e.message); }
 }
 // cloudLoad() : recharge les deplacements publies et les applique
 async function cloudLoad(){
