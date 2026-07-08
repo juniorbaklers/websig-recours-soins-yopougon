@@ -7,27 +7,27 @@
 <title>Bakusm@p — Plateforme WebSIG du recours aux soins · Yopougon</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-:root{--brand:#0f5e8f;--brand2:#12a08a;--gold:#ffd27a;--ink:#12222f;--muted:#5b6b7a}
+:root{--brand:#0f5e8f;--brand2:#12a08a;--gold:#ffd27a;--ink:#12222f}
 html,body{height:100%}
-body{font-family:"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:#0d4f78}
-a{text-decoration:none}
-.hero{min-height:100vh;position:relative;overflow:hidden;
+body{font-family:"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:#fff;
   background:radial-gradient(1200px 600px at 80% -10%,rgba(18,160,138,.55),transparent 60%),
-             radial-gradient(900px 500px at 0% 110%,rgba(255,210,122,.25),transparent 55%),
-             linear-gradient(120deg,#0b466b,#0f5e8f 55%,#0d7a68);color:#fff}
-/* motif de grille (rappel SIG) */
+             radial-gradient(900px 500px at 0% 110%,rgba(255,210,122,.22),transparent 55%),
+             linear-gradient(120deg,#0b466b,#0f5e8f 55%,#0d7a68);min-height:100vh}
+a{text-decoration:none;color:inherit}
+.hero{position:relative;overflow:hidden;min-height:100vh;display:flex;flex-direction:column}
 .hero::before{content:"";position:absolute;inset:0;opacity:.13;
   background-image:linear-gradient(rgba(255,255,255,.6) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.6) 1px,transparent 1px);
   background-size:46px 46px;-webkit-mask:radial-gradient(circle at 70% 30%,#000,transparent 75%);mask:radial-gradient(circle at 70% 30%,#000,transparent 75%)}
 .nav{position:relative;display:flex;align-items:center;justify-content:space-between;padding:20px 6vw}
 .brand{display:flex;align-items:center;gap:13px}
 .logo{width:52px;height:52px;border-radius:14px;background:rgba(255,255,255,.14);border:1.6px solid rgba(255,255,255,.55);
-  display:flex;align-items:center;justify-content:center;font-weight:800;font-size:27px;letter-spacing:-1px}
+  display:flex;align-items:center;justify-content:center;font-weight:800;font-size:27px;letter-spacing:-1px;transition:.25s}
+.logo:hover{transform:rotate(-6deg) scale(1.06);background:rgba(255,255,255,.22)}
 .logo span{color:var(--gold)}
 .brand b{font-size:22px;font-weight:800;letter-spacing:.3px}
 .nav .tag{font-size:12.5px;opacity:.85}
-.wrap{position:relative;max-width:1160px;margin:0 auto;padding:24px 6vw 70px;display:grid;grid-template-columns:1.15fr .85fr;gap:40px;align-items:center}
-@media(max-width:900px){.wrap{grid-template-columns:1fr;gap:26px;padding-top:10px}}
+.wrap{position:relative;flex:1;max-width:1160px;width:100%;margin:0 auto;padding:14px 6vw 40px;display:grid;grid-template-columns:1.15fr .85fr;gap:40px;align-items:center}
+@media(max-width:900px){.wrap{grid-template-columns:1fr;gap:26px}}
 h1{font-size:44px;line-height:1.08;font-weight:800;letter-spacing:-.5px;margin-bottom:14px}
 h1 .hl{color:var(--gold)}
 .lead{font-size:16.5px;line-height:1.6;opacity:.94;max-width:620px;margin-bottom:22px}
@@ -35,63 +35,81 @@ h1 .hl{color:var(--gold)}
 .cta{display:inline-flex;align-items:center;gap:10px;background:var(--gold);color:#3a2a06;font-weight:800;font-size:16px;
   padding:14px 26px;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.28);transition:.15s}
 .cta:hover{transform:translateY(-2px);box-shadow:0 14px 36px rgba(0,0,0,.35)}
-.cta.ghost{background:rgba(255,255,255,.12);color:#fff;border:1.5px solid rgba(255,255,255,.5);box-shadow:none;margin-left:10px}
+.cta.ghost{background:rgba(255,255,255,.12);color:#fff;border:1.5px solid rgba(255,255,255,.5);box-shadow:none}
 .ctarow{margin-bottom:26px}
 .stats{display:flex;gap:26px;flex-wrap:wrap}
-.stat b{display:block;font-size:30px;font-weight:800;color:var(--gold)}
+.stat b{display:block;font-size:30px;font-weight:800;color:var(--gold);font-variant-numeric:tabular-nums}
 .stat span{font-size:12.5px;opacity:.85}
-/* carte objectifs */
-.panel{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.18);border-radius:18px;padding:22px 22px 8px;backdrop-filter:blur(3px)}
+.panel{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.18);border-radius:18px;padding:22px 22px 18px;backdrop-filter:blur(3px)}
 .panel h3{font-size:13px;text-transform:uppercase;letter-spacing:1.5px;opacity:.85;margin-bottom:14px}
-.obj{display:flex;gap:13px;margin-bottom:16px}
+.obj{display:flex;gap:13px;margin-bottom:12px;padding:8px;border-radius:12px;transition:.16s;cursor:pointer}
+.obj:hover{background:rgba(255,255,255,.12);transform:translateX(4px)}
 .obj .n{width:30px;height:30px;border-radius:9px;background:var(--gold);color:#3a2a06;font-weight:800;display:flex;align-items:center;justify-content:center;flex:none}
 .obj p{font-size:14px;line-height:1.45;opacity:.96}
-.feat{display:flex;flex-wrap:wrap;gap:8px;margin-top:26px}
-.chip{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);border-radius:999px;padding:7px 13px;font-size:12.5px;font-weight:600}
-.foot{position:relative;text-align:center;padding:0 6vw 26px;font-size:12px;opacity:.8}
+.obj .go{margin-left:auto;align-self:center;opacity:0;transition:.16s;font-weight:800}
+.obj:hover .go{opacity:.9}
+.feat{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}
+.chip{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);border-radius:999px;padding:7px 13px;font-size:12.5px;font-weight:600;transition:.15s;cursor:pointer}
+.chip:hover{background:var(--gold);color:#3a2a06;border-color:var(--gold);transform:translateY(-2px)}
+.foot{position:relative;text-align:center;padding:0 6vw 22px;font-size:12px;opacity:.8}
+/* animation d'apparition */
+.reveal{opacity:0;transform:translateY(16px);transition:opacity .6s ease,transform .6s ease}
+.reveal.show{opacity:1;transform:none}
 </style>
 </head>
 <body>
 <div class="hero">
-  <div class="nav">
+  <div class="nav reveal">
     <div class="brand"><div class="logo">B<span>@</span></div><div><b>Bakusm@p</b><div class="tag">Plateforme cartographique interactive</div></div></div>
     <a class="cta ghost" href="plateforme.html">Ouvrir la plateforme →</a>
   </div>
 
   <div class="wrap">
     <div>
-      <div class="sub">Thèse de géographie de la population · Yopougon</div>
-      <h1>Le <span class="hl">recours aux soins</span> des personnes du 3<sup>e</sup> âge, cartographié et analysé</h1>
-      <p class="lead">Bakusm@p réunit une enquête de terrain géolocalisée et les structures de santé de la commune de Yopougon dans un tableau de bord SIG interactif : cartes, filtres croisés, analyses spatiales, accessibilité et déterminants du recours aux soins.</p>
-      <div class="ctarow">
+      <div class="sub reveal">Thèse de géographie de la population · Yopougon</div>
+      <h1 class="reveal">Le <span class="hl">recours aux soins</span> des personnes du 3<sup>e</sup> âge, cartographié et analysé</h1>
+      <p class="lead reveal">Bakusm@p réunit une enquête de terrain géolocalisée et les structures de santé de la commune de Yopougon dans un tableau de bord SIG interactif : cartes, filtres croisés, analyses spatiales, accessibilité et déterminants du recours aux soins.</p>
+      <div class="ctarow reveal">
         <a class="cta" href="plateforme.html">▶ Entrer dans la plateforme</a>
-        <a class="cta ghost" href="https://github.com/juniorbaklers/websig-recours-soins-yopougon" target="_blank" rel="noopener">Code source</a>
       </div>
-      <div class="stats">
-        <div class="stat"><b>726</b><span>personnes âgées enquêtées</span></div>
-        <div class="stat"><b>108</b><span>structures de santé</span></div>
-        <div class="stat"><b>332</b><span>cellules d'échantillonnage</span></div>
-        <div class="stat"><b>90+</b><span>variables analysées</span></div>
+      <div class="stats reveal">
+        <a class="stat" href="plateforme.html#apercu"><b class="count" data-to="726">0</b><span>personnes âgées enquêtées</span></a>
+        <a class="stat" href="plateforme.html#carte"><b class="count" data-to="108">0</b><span>structures de santé</span></a>
+        <a class="stat" href="plateforme.html#spatial"><b class="count" data-to="332">0</b><span>cellules d'échantillonnage</span></a>
+        <a class="stat" href="plateforme.html#explor"><b class="count" data-to="90" data-suffix="+">0</b><span>variables analysées</span></a>
       </div>
     </div>
 
-    <div class="panel">
-      <h3>Objectifs de l'étude</h3>
-      <div class="obj"><div class="n">1</div><p>Dresser le <b>profil socio-démographique et économique</b> des personnes du troisième âge.</p></div>
-      <div class="obj"><div class="n">2</div><p>Montrer le <b>niveau d'accessibilité</b> et les <b>motifs de consultation</b> aux soins de santé.</p></div>
-      <div class="obj"><div class="n">3</div><p>Déterminer les <b>facteurs influençant le recours</b> aux soins de santé.</p></div>
+    <div class="panel reveal">
+      <h3>Objectifs de l'étude — cliquez pour explorer</h3>
+      <a class="obj" href="plateforme.html#apercu"><div class="n">1</div><p>Dresser le <b>profil socio-démographique et économique</b> des personnes du troisième âge.</p><div class="go">→</div></a>
+      <a class="obj" href="plateforme.html#spatial"><div class="n">2</div><p>Montrer le <b>niveau d'accessibilité</b> et les <b>motifs de consultation</b> aux soins de santé.</p><div class="go">→</div></a>
+      <a class="obj" href="plateforme.html#determinants"><div class="n">3</div><p>Déterminer les <b>facteurs influençant le recours</b> aux soins de santé.</p><div class="go">→</div></a>
       <div class="feat">
-        <span class="chip">🗺️ Carte interactive</span>
-        <span class="chip">🛰️ Fonds satellite</span>
-        <span class="chip">🧭 Analyse spatiale</span>
-        <span class="chip">🎯 Déterminants</span>
-        <span class="chip">📏 Outils SIG</span>
-        <span class="chip">✏️ Édition des points</span>
+        <a class="chip" href="plateforme.html#carte">🗺️ Carte interactive</a>
+        <a class="chip" href="plateforme.html#carte">🛰️ Fonds satellite</a>
+        <a class="chip" href="plateforme.html#spatial">🧭 Analyse spatiale</a>
+        <a class="chip" href="plateforme.html#determinants">🎯 Déterminants</a>
+        <a class="chip" href="plateforme.html#croise">🔀 Analyse croisée</a>
+        <a class="chip" href="plateforme.html#carte">✏️ Édition des points</a>
       </div>
     </div>
   </div>
 
-  <div class="foot">© Bakusm@p · Junior · Université Félix Houphouët-Boigny de Cocody — Fonds de carte OpenStreetMap, CARTO, Google, Esri.</div>
+  <div class="foot reveal">© Bakusm@p · Junior · Université Félix Houphouët-Boigny de Cocody — Fonds de carte OpenStreetMap, CARTO, Google, Esri.</div>
 </div>
+
+<script>
+// apparition progressive des blocs
+window.addEventListener('load',()=>{
+  document.querySelectorAll('.reveal').forEach((el,i)=>{ el.style.transitionDelay=(i*90)+'ms'; requestAnimationFrame(()=>el.classList.add('show')); });
+  // compteurs animes
+  document.querySelectorAll('.count').forEach(el=>{
+    const to=+el.dataset.to, suf=el.dataset.suffix||''; const dur=1100; const t0=performance.now();
+    const step=now=>{ const p=Math.min(1,(now-t0)/dur); el.textContent=Math.round(to*(1-Math.pow(1-p,3)))+suf; if(p<1)requestAnimationFrame(step); };
+    requestAnimationFrame(step);
+  });
+});
+</script>
 </body>
 </html>

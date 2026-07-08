@@ -1026,4 +1026,8 @@ document.addEventListener('DOMContentLoaded',()=>{
 
   // 7. premier affichage
   refresh();
+
+  // 8. lien profond depuis la page d'accueil : #onglet ouvre directement le bon onglet
+  const h=(location.hash||'').replace('#','');
+  if(h && document.getElementById('tab-'+h)) switchTab(h);
 });
