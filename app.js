@@ -615,16 +615,18 @@ async function loadFullDataFromCloud(){
   const {url,key}=sbCfg(); if(!url||!key) return false;
   try{
     const res=await fetch(url+'/rest/v1/enquetes?select=*&limit=5000',{headers:{'apikey':key,'Authorization':'Bearer '+key}});
-    if(!res.ok) return false;
-    let rows=await res.json(); if(!Array.isArray(rows)||rows.length<10) return false;
+    if(!res.ok){ setCloudInfo('ℹ Table « enquetes » absente ou inaccessible (code '+res.status+'). Données locales utilisées.'); return false; }
+    let rows=await res.json();
+    if(!Array.isArray(rows)||rows.length<10){ setCloudInfo('ℹ Table « enquetes » vide ou policy de lecture manquante. Données locales utilisées.'); return false; }
     // convertir les champs numeriques (au cas ou ils reviennent en texte)
     rows.forEach(r=>NUM_FIELDS.forEach(f=>{ if(r[f]!==null&&r[f]!==undefined&&r[f]!==''){ const n=+r[f]; if(!isNaN(n)) r[f]=n; } }));
     // validation : au moins 80% des points doivent avoir des coordonnees valides
     const ok=rows.filter(r=>typeof r.lat==='number'&&typeof r.lng==='number'&&r.lat).length;
-    if(ok < rows.length*0.8) return false;
+    if(ok < rows.length*0.8){ setCloudInfo('ℹ Données « enquetes » incomplètes (coordonnées). Données locales utilisées.'); return false; }
     DATA.length=0; rows.forEach(r=>DATA.push(r));               // remplace le jeu de donnees
     DATA.forEach(d=>{ d._gLat0=d.gLat; d._gLon0=d.gLon; d._cellId0=d.cellId; d._lat0=d.lat; d._lng0=d.lng; });
     Object.keys(DIMS).forEach(k=>CATS[k]=catsOf(k));            // recalcule les modalites/couleurs
+    setCloudInfo('✓ '+DATA.length+' enquêtés chargés depuis la base en ligne (modifiables via pgAdmin/Supabase).');
     return true;
   }catch(e){ return false; }
 }
@@ -1114,7 +1116,6 @@ document.addEventListener('DOMContentLoaded',async ()=>{
   buildFilters();  // 2. la barre de filtres
   if(cloudFull){
     if(gridLayer) gridLayer.setStyle(styleCell);
-    setEditInfo('Données chargées depuis la base en ligne (modifiables via pgAdmin/Supabase).');
   } else {
     // donnees locales (data.js) + eventuels deplacements enregistres dans ce navigateur
     const nEdits=applySavedEdits(); if(gridLayer) gridLayer.setStyle(styleCell);
