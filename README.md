@@ -14,6 +14,7 @@ Tableau de bord cartographique interactif (WebSIG) construit à partir d'une enq
 - **8 indicateurs clés** recalculés en direct selon les filtres.
 - **Filtres multicritères** (sexe, âge, quartier, revenu, instruction, assurance…) qui s'appliquent à toutes les vues.
 - **Analyse spatiale (SIG)** : 108 établissements de santé de Yopougon superposés, zones de couverture (buffers 500 m / 1 km), et **distance réelle** de chaque enquêté au centre le plus proche (public, privé, premier contact) calculée en projection métrique.
+- **Grille d'échantillonnage (500 m)** : redistribution des 726 enquêtés sur la grille (1H + 1F par cellule, max 4, hors zones industrielles), avec une « vue échantillonnage » qui repositionne chaque personne dans sa cellule, et un choroplèthe du nombre d'enquêtés par cellule.
 - **7 onglets** : Carte, Vue d'ensemble, Recours aux soins, Perceptions & qualité, Analyse spatiale, Analyse croisée (choix libre de deux variables + tableau de contingence), Explorateur (distributions et statistiques, export CSV).
 
 ## Principaux résultats

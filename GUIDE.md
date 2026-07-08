@@ -23,7 +23,7 @@ Six onglets :
 2. **📊 Vue d'ensemble** : profil sociodémographique (sexe, âge, instruction, religion, profession, revenu, quartiers, maladies).
 3. **🏥 Recours aux soins** : le cœur de l'analyse. Premier recours et ses croisements avec l'âge, le sexe, le revenu, l'instruction, l'assurance ; raisons du choix ; accompagnement.
 4. **⭐ Perceptions & qualité** : comparaison Public / Privé / Traditionnel, qualité de la relation médecin, coûts, médicaments, résultats.
-5. **🧭 Analyse spatiale** : accessibilité géographique aux 108 centres de santé. Taux de couverture par rayon (500 m / 1 km / 1,5 km), distance réelle au premier contact, premier recours selon la distance, distance moyenne par quartier, distance déclarée vs réelle. Sur l'onglet **Carte**, activez les centres de santé et les zones de couverture, et colorez les enquêtés par « Distance réelle au 1er contact ».
+5. **🧭 Analyse spatiale** : accessibilité géographique aux 108 centres de santé. Taux de couverture par rayon (500 m / 1 km / 1,5 km), distance réelle au premier contact, premier recours selon la distance, distance moyenne par quartier, distance déclarée vs réelle. Contient aussi la **synthèse du plan d'échantillonnage** (redistribution sur la grille de 500 m : occupation des cellules, distances de déplacement). Sur l'onglet **Carte**, activez les centres de santé, les zones de couverture, la **grille d'échantillonnage** et la **vue échantillonnage** (repositionne chaque enquêté dans sa cellule).
 6. **🔀 Analyse croisée** : **choisissez vous-même deux variables** à croiser (X et Y), le mode d'affichage (barres empilées en %, en effectifs, ou groupées) et lisez le **tableau de contingence** coloré.
 7. **🔎 Explorateur** : sélectionnez n'importe quelle variable pour voir sa distribution détaillée, y compris les variables numériques (histogramme + statistiques). Bouton d'**export CSV** de la sélection filtrée.
 
@@ -47,6 +47,9 @@ Six onglets :
 | `data/data.js` | Données nettoyées + distances SIG (intégrées à l'app) |
 | `data/centres.js` | 108 établissements de santé de Yopougon |
 | `data/yopougon.js` | Limite communale de Yopougon |
+| `data/grille.js` | Grille d'échantillonnage 500 m |
+| `data/affectation_grille.csv` | Affectation de chaque enquêté à sa cellule (Excel) |
+| `../SIG_grille/` | Couches QGIS : points repositionnés + grille comptée (gpkg) |
 | `data/donnees_nettoyees.csv` | Données propres, ouvrables dans Excel |
 | `data/journal_corrections.csv` | Journal des corrections appliquées |
 | `RAPPORT_ANALYSE.md` | Rapport d'analyse rédigé |

@@ -99,9 +99,13 @@ const DIMS = {
 const NUM = { coutConsultation:'Coût de la consultation (FCFA)', coutMax:'Coût max. accepté (FCFA)', loyer:'Loyer mensuel (FCFA)',
   dAny:'Distance au centre le plus proche (m)', dPub:'Distance au centre public le plus proche (m)', dPrim:'Distance au 1er contact le plus proche (m)' };
 
-// Couches spatiales injectees par centres.js et yopougon.js
+// Couches spatiales injectees par centres.js, yopougon.js et grille.js
 const CENTRES = window.CENTRES || [];
 const YOP = window.YOP_BOUNDARY || null;
+const GRID = window.GRID || null;
+// gridView : quand true, on affiche les enquetes a leur position "grille" (gLon/gLat)
+// au lieu de leur position GPS reelle (lat/lng). Voir la case "Vue echantillonnage".
+let gridView=false;
 
 // FILTER_GROUPS = quelles variables apparaissent dans la barre de filtres a
 // gauche, et sous quel intitule de groupe. On ne met pas TOUT pour ne pas
@@ -316,7 +320,8 @@ function renderKPIs(recs){
    ============================================================================ */
 
 let map,baseOSM,baseCarto,markerLayer,clusterLayer;
-let centresLayer,buffer500Layer,buffer1000Layer,boundaryLayer; // couches de l'analyse spatiale
+let centresLayer,buffer500Layer,buffer1000Layer,boundaryLayer,gridLayer; // couches de l'analyse spatiale
+const GRID_COL={1:'#f0cf87',2:'#5fae5f',3:'#e69a34',4:'#d9534f'}; // couleur cellule selon nb d'enquetes
 
 // Couleur d'un centre de sante selon son type simplifie
 const CENTRE_COL={'Hopital':'#b5121b','Clinique privee':'#7a3fa0','Centre de sante (1er contact)':'#0d8a6a','Cabinet / Infirmerie':'#e8813a','Autre / a verifier':'#8a94a6'};
@@ -339,6 +344,14 @@ function initMap(){
   // bascules des couches spatiales : on affiche/masque la couche correspondante
   const tog=(id,layer)=>document.getElementById(id).addEventListener('change',e=>{e.target.checked?layer.addTo(map):map.removeLayer(layer);});
   tog('centresToggle',centresLayer); tog('buffer500Toggle',buffer500Layer); tog('buffer1000Toggle',buffer1000Layer); tog('boundaryToggle',boundaryLayer);
+  // affichage de la grille (par-dessus les fonds mais sous les points)
+  document.getElementById('gridToggle').addEventListener('change',e=>{ if(e.target.checked){gridLayer.addTo(map);gridLayer.bringToBack();boundaryLayer.bringToBack&&boundaryLayer.bringToBack();} else map.removeLayer(gridLayer); });
+  // bascule vue echantillonnage : change la source des coordonnees et redessine
+  document.getElementById('gridViewToggle').addEventListener('change',e=>{
+    gridView=e.target.checked;
+    if(gridView && !document.getElementById('gridToggle').checked){ document.getElementById('gridToggle').checked=true; gridLayer.addTo(map); gridLayer.bringToBack(); }
+    renderMap(filtered());
+  });
 }
 
 // buildSpatialLayers() : construit une fois pour toutes les couches SIG
@@ -364,6 +377,21 @@ function buildSpatialLayers(){
     }
   });
   centresLayer.addTo(map); // affiches par defaut (case cochee)
+
+  // 3) grille d'echantillonnage : cellules colorees selon le nombre d'enquetes affectes
+  if(GRID){
+    const cnt={}; DATA.forEach(d=>{ if(d.cellId!=null) cnt[d.cellId]=(cnt[d.cellId]||0)+1; });
+    gridLayer=L.geoJSON(GRID,{
+      style:f=>{
+        const isNon=(f.properties.acces==='NON'); const n=cnt[f.properties.id]||0;
+        if(isNon) return {color:'#7a828c',weight:.6,fillColor:'#9aa5b1',fillOpacity:.35,dashArray:'2 2'};
+        if(n===0) return {color:'#8794a3',weight:.5,fill:false};
+        return {color:'#5f6b7a',weight:.6,fillColor:GRID_COL[Math.min(n,4)],fillOpacity:.5};
+      },
+      onEachFeature:(f,l)=>{const n=cnt[f.properties.id]||0;
+        l.bindPopup(`<div class="pop"><b>Cellule ${f.properties.id}</b><br>${f.properties.acces==='NON'?'Zone non enquêtée (industrielle)':n+' enquêté(s) affecté(s)'}</div>`);}
+    });
+  } else gridLayer=L.layerGroup();
 }
 
 // popupHtml() : contenu de la fiche affichee quand on clique un point
@@ -382,10 +410,12 @@ function renderMap(recs){
   const cluster=document.getElementById('clusterToggle').checked && L.markerClusterGroup;
   const target = cluster ? (clusterLayer=L.markerClusterGroup({maxClusterRadius:45})) : markerLayer;
   recs.forEach(d=>{
-    if(typeof d.lat!=='number'||typeof d.lng!=='number'||!d.lat) return; // ignorer les points sans coordonnees
+    // position selon le mode : reelle (lat/lng) ou grille d'echantillonnage (gLat/gLon)
+    const la = gridView ? d.gLat : d.lat, ln = gridView ? d.gLon : d.lng;
+    if(typeof la!=='number'||typeof ln!=='number'||!la) return; // ignorer les points sans coordonnees
     const val=(d[key]??'').toString().trim()||'(non renseigné)';
     const col=val==='(non renseigné)'?'#9aa5b1':colorFor(key,val);
-    const mk=L.circleMarker([d.lat,d.lng],{radius:5,color:'#fff',weight:1,fillColor:col,fillOpacity:.85});
+    const mk=L.circleMarker([la,ln],{radius:5,color:'#fff',weight:1,fillColor:col,fillOpacity:.85});
     mk.bindPopup(popupHtml(d)); target.addLayer(mk);
   });
   if(cluster) map.addLayer(clusterLayer);
@@ -536,6 +566,8 @@ function renderTab(recs){
 
 /* --- Rendu de l'onglet Analyse spatiale --- */
 function renderSpatial(recs){
+  renderGridPlan(); // synthese du plan d'echantillonnage (design fixe sur les 726)
+
   // 1) KPIs de couverture (part des enquetes a moins de X m d'un centre)
   const covRate=(field,thr)=>{const v=recs.map(d=>d[field]).filter(x=>typeof x==='number'); return v.length?100*v.filter(x=>x<thr).length/v.length:0;};
   const medOf=(field)=>{const v=recs.map(d=>d[field]).filter(x=>typeof x==='number'); return median(v);};
@@ -582,6 +614,34 @@ function renderSpatial(recs){
 
   // 8) Frequentation du centre public selon la distance reelle
   crossChart('s_freq','bandPrim','frequentation',recs,'pct');
+}
+
+// renderGridPlan() : synthese de la redistribution sur la grille de 500 m.
+// Basee sur l'ensemble des 726 (le plan d'echantillonnage est fixe, il ne depend pas des filtres).
+function renderGridPlan(){
+  const cells={}; DATA.forEach(d=>{ if(d.cellId!=null) cells[d.cellId]=(cells[d.cellId]||0)+1; });
+  const occ={1:0,2:0,3:0,4:0}; Object.values(cells).forEach(n=>{const k=Math.min(n,4);occ[k]=(occ[k]||0)+1;});
+  const nOcc=Object.keys(cells).length;
+  const moved=DATA.filter(d=>d.gMoved===1); const fromNon=DATA.filter(d=>d.gFromNon===1).length;
+  const md=median(moved.map(d=>d.gMoveDist).filter(x=>typeof x==='number'));
+  const pct2=nOcc?100*occ[2]/nOcc:0;
+  const kp=[
+    {v:nOcc,l:'Cellules accessibles occupées'},
+    {v:occ[2],l:'Cellules à 2 enquêtés (1H+1F visé)',s:`${pct2.toFixed(0)}% des cellules occupées`},
+    {v:moved.length,l:'Enquêtés réaffectés à une autre cellule',s:`dont ${fromNon} issus de zones « acces = NON »`},
+    {v:md!=null?Math.round(md)+' m':'—',l:'Déplacement médian des réaffectés'}
+  ];
+  document.getElementById('gridKpis').innerHTML=kp.map(k=>`<div class="kpi"><div class="v">${k.v}</div><div class="l">${k.l}</div>${k.s?`<div class="s">${k.s}</div>`:''}</div>`).join('');
+
+  // occupation : nombre de cellules ayant 1, 2, 3 ou 4 enquetes
+  draw('g_occ',{type:'bar',data:{labels:['1 enquêté','2 (cible)','3','4 (max)'],datasets:[{data:[occ[1],occ[2],occ[3],occ[4]],backgroundColor:[GRID_COL[1],GRID_COL[2],GRID_COL[3],GRID_COL[4]],borderRadius:4}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.parsed.y+' cellules'}}},scales:{y:{title:{display:true,text:'nombre de cellules'}}}}});
+
+  // distribution des distances de deplacement (reaffectes uniquement)
+  const dv=moved.map(d=>d.gMoveDist).filter(x=>typeof x==='number'); const bins=8,size=250; const co=new Array(bins).fill(0);
+  dv.forEach(v=>{let b=Math.min(bins-1,Math.floor(v/size));co[b]++;});
+  draw('g_move',{type:'bar',data:{labels:co.map((_,i)=>`${i*size}–${(i+1)*size}`),datasets:[{data:co,backgroundColor:'#0f5e8f',borderRadius:3}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{title:{display:true,text:'mètres'}},y:{title:{display:true,text:'enquêtés'}}}}});
 }
 
 // structPerception() : graphique special qui compare les trois types de
