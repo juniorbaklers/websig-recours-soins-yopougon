@@ -319,7 +319,7 @@ function renderKPIs(recs){
    7. LA CARTE (Leaflet)
    ============================================================================ */
 
-let map,baseOSM,baseCarto,markerLayer,clusterLayer;
+let map,baseLayers,currentBase,markerLayer,clusterLayer;
 let centresLayer,buffer500Layer,buffer1000Layer,boundaryLayer,gridLayer; // couches de l'analyse spatiale
 const GRID_COL={1:'#f0cf87',2:'#5fae5f',3:'#e69a34',4:'#d9534f'}; // couleur cellule selon nb d'enquetes
 
@@ -329,16 +329,22 @@ const CENTRE_COL={'Hopital':'#b5121b','Clinique privee':'#7a3fa0','Centre de san
 // initMap() : cree la carte une seule fois, centree sur Yopougon
 function initMap(){
   map=L.map('map',{preferCanvas:true}).setView([5.345,-4.075],13);
-  // deux fonds de carte possibles
-  baseOSM=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
-  baseCarto=L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{maxZoom:20,attribution:'© OpenStreetMap © CARTO'});
+  // fonds de carte disponibles (plan, clair, satellite Google, satellite + rues)
+  baseLayers={
+    osm:  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}),
+    carto:L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{maxZoom:20,attribution:'© OpenStreetMap © CARTO'}),
+    gsat: L.tileLayer('https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',{maxZoom:20,subdomains:['mt0','mt1','mt2','mt3'],attribution:'Imagerie © Google'}),
+    ghyb: L.tileLayer('https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',{maxZoom:20,subdomains:['mt0','mt1','mt2','mt3'],attribution:'Imagerie © Google'})
+  };
+  currentBase=baseLayers.osm; currentBase.addTo(map);
   markerLayer=L.layerGroup().addTo(map); // couche qui contiendra les enquetes
 
   buildSpatialLayers(); // cree les couches centres / buffers / limite
 
-  // bascule du fond de carte
-  document.getElementById('basemapToggle').addEventListener('change',e=>{
-    if(e.target.checked){map.removeLayer(baseOSM);baseCarto.addTo(map);}else{map.removeLayer(baseCarto);baseOSM.addTo(map);}});
+  // choix du fond de carte
+  document.getElementById('basemapSelect').addEventListener('change',e=>{
+    map.removeLayer(currentBase); currentBase=baseLayers[e.target.value]||baseLayers.osm; currentBase.addTo(map); currentBase.bringToBack();
+  });
   // bascule du regroupement (cluster)
   document.getElementById('clusterToggle').addEventListener('change',()=>renderMap(filtered()));
   // bascules des couches spatiales : on affiche/masque la couche correspondante
