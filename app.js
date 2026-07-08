@@ -607,6 +607,28 @@ async function cloudLoad(){
   }catch(e){ return 0; }
 }
 
+// loadFullDataFromCloud() : si une table `enquetes` existe dans Supabase, charge TOUTES
+// les donnees depuis elle (au lieu de data.js). Ainsi, toute modification faite dans
+// pgAdmin/Supabase agit directement sur la plateforme. Repli sur data.js si indisponible.
+const NUM_FIELDS=['id','lat','lng','gLat','gLon','cellId','gCount','gMoved','gMoveDist','gFromNon','gHorsCommune','dAny','dPub','dPrim','coutConsultation','coutMax','loyer'];
+async function loadFullDataFromCloud(){
+  const {url,key}=sbCfg(); if(!url||!key) return false;
+  try{
+    const res=await fetch(url+'/rest/v1/enquetes?select=*&limit=5000',{headers:{'apikey':key,'Authorization':'Bearer '+key}});
+    if(!res.ok) return false;
+    let rows=await res.json(); if(!Array.isArray(rows)||rows.length<10) return false;
+    // convertir les champs numeriques (au cas ou ils reviennent en texte)
+    rows.forEach(r=>NUM_FIELDS.forEach(f=>{ if(r[f]!==null&&r[f]!==undefined&&r[f]!==''){ const n=+r[f]; if(!isNaN(n)) r[f]=n; } }));
+    // validation : au moins 80% des points doivent avoir des coordonnees valides
+    const ok=rows.filter(r=>typeof r.lat==='number'&&typeof r.lng==='number'&&r.lat).length;
+    if(ok < rows.length*0.8) return false;
+    DATA.length=0; rows.forEach(r=>DATA.push(r));               // remplace le jeu de donnees
+    DATA.forEach(d=>{ d._gLat0=d.gLat; d._gLon0=d.gLon; d._cellId0=d.cellId; d._lat0=d.lat; d._lng0=d.lng; });
+    Object.keys(DIMS).forEach(k=>CATS[k]=catsOf(k));            // recalcule les modalites/couleurs
+    return true;
+  }catch(e){ return false; }
+}
+
 /* ---------- Mode edition : deplacer les points a la souris ---------- */
 // onDragEnd() : appele quand on lache un point deplace. Met a jour ses coordonnees,
 // recalcule sa cellule, recolorie la grille, enregistre le deplacement.
@@ -1081,17 +1103,25 @@ function switchTab(t){
 }
 
 // Au chargement de la page : on branche tout
-document.addEventListener('DOMContentLoaded',()=>{
+document.addEventListener('DOMContentLoaded',async ()=>{
+  // 0. si une base complete existe en ligne (table `enquetes`), on la charge d'abord
+  //    -> toute modif faite dans pgAdmin/Supabase agit directement sur la plateforme
+  const cloudFull = await loadFullDataFromCloud();
   document.getElementById('nTotal').textContent=DATA.length;
   // memoriser les positions d'origine (pour le bouton Reinitialiser du mode edition)
   DATA.forEach(d=>{ d._gLat0=d.gLat; d._gLon0=d.gLon; d._cellId0=d.cellId; d._lat0=d.lat; d._lng0=d.lng; });
   initMap();       // 1. la carte
   buildFilters();  // 2. la barre de filtres
-  // reappliquer d'eventuels deplacements enregistres dans ce navigateur
-  const nEdits=applySavedEdits(); if(gridLayer) gridLayer.setStyle(styleCell);
-  if(nEdits) document.getElementById('editInfo').textContent=`${nEdits} déplacement(s) restauré(s) depuis ce navigateur.`;
-  // synchronisation depuis le cloud (si configure) : applique les deplacements publies
-  cloudLoad().then(n=>{ if(n){ renderMap(filtered()); if(currentTab==='spatial')renderGridPlan(); setEditInfo(n+' point(s) synchronisé(s) depuis le cloud.'); }});
+  if(cloudFull){
+    if(gridLayer) gridLayer.setStyle(styleCell);
+    setEditInfo('Données chargées depuis la base en ligne (modifiables via pgAdmin/Supabase).');
+  } else {
+    // donnees locales (data.js) + eventuels deplacements enregistres dans ce navigateur
+    const nEdits=applySavedEdits(); if(gridLayer) gridLayer.setStyle(styleCell);
+    if(nEdits) document.getElementById('editInfo').textContent=`${nEdits} déplacement(s) restauré(s) depuis ce navigateur.`;
+  }
+  // dans tous les cas : appliquer les surcharges de positions publiees (points_overrides)
+  cloudLoad().then(n=>{ if(n){ recomputeGridCounts(); if(gridLayer) gridLayer.setStyle(styleCell); renderMap(filtered()); if(currentTab==='spatial')renderGridPlan(); setEditInfo(n+' point(s) synchronisé(s) depuis le cloud.'); }});
 
   // 3. menu "colorer la carte par"
   fillSelect(document.getElementById('colorBy'),['premierRecours','premierRecoursCat','bandPrim','sexe','age','assurance','frequentation','maladieCat','revenu','instruction','professionCat','resultatTraitement','satisfaitMedecin','quartier'],'premierRecours');

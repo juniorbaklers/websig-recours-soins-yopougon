@@ -69,6 +69,21 @@ Par défaut, vos déplacements de points restent sur votre navigateur. Pour qu'i
 
 Ensuite, à chaque ouverture, la plateforme recharge automatiquement les positions publiées.
 
+### Piloter TOUTE la base depuis pgAdmin / Supabase (avancé)
+
+Pour que **n'importe quelle modification** faite dans pgAdmin ou Supabase (pas seulement les positions) agisse sur la plateforme, hébergez la table complète des enquêtés en ligne :
+
+1. Récupérez le fichier **`enquetes_supabase.csv`** (généré dans `C:\Users\Junior\Desktop\test_map\`).
+2. Dans Supabase : **Table Editor** → **New table** → **Import data from CSV** → importez ce fichier, nommez la table **`enquetes`**, et choisissez **`id`** comme clé primaire.
+3. Dans **SQL Editor**, exécutez pour autoriser la lecture publique :
+   ```sql
+   alter table enquetes enable row level security;
+   create policy "lecture publique" on enquetes for select using (true);
+   ```
+4. Rechargez Bakusm@p : un message « Données chargées depuis la base en ligne » s'affiche. **Désormais, éditer la table `enquetes` dans pgAdmin/Supabase modifie directement la plateforme** (au rechargement).
+
+> Tant que la table `enquetes` n'existe pas, la plateforme utilise les données locales `data.js` (aucun risque). La colonne `id` doit rester unique.
+
 > Note : avec la politique ci-dessus, la table est en lecture/écriture publique (adapté à un outil de recherche personnel). Pour un accès restreint, ajoutez une authentification Supabase.
 
 ## Exemples d'analyses à faire
