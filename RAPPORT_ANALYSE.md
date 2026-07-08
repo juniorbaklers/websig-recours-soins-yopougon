@@ -114,16 +114,18 @@ Les distances déclarées dans l'enquête ne coïncident pas exactement avec les
 
 L'échantillon a été conçu sur une **grille de 500 m** (332 cellules, dont 24 en zone industrielle « acces = NON » exclues), à raison de **2 personnes par cellule (1 homme + 1 femme)**, soit un objectif théorique proche de 664. La réalité du terrain a porté l'échantillon à **726**, retenu comme effectif définitif.
 
-La superposition des 726 positions GPS sur la grille montre que le terrain n'a pas respecté le plan : **forte concentration** (65 cellules comptaient 5 personnes ou plus, jusqu'à 20 dans une seule), **160 cellules accessibles vides**, et **12 enquêtés tombés dans des cellules « NON »**. Pour restituer la logique spatiale du plan d'échantillonnage, les 726 enquêtés ont été **réaffectés aux cellules** selon la règle suivante :
+La superposition des 726 positions GPS sur la grille montre que le terrain n'a pas respecté le plan : **forte concentration** (65 cellules comptaient 5 personnes ou plus, jusqu'à 20 dans une seule), et une couverture inégale. Le contrôle géographique a par ailleurs révélé **14 enquêtés dont la position GPS tombe hors des limites de la commune** (erreurs de saisie de terrain) et **12 dans des cellules « NON »** (zones industrielles). Pour restituer la logique spatiale du plan d'échantillonnage, les 726 enquêtés ont été **réaffectés aux cellules** selon les règles suivantes :
 
-- jusqu'à **2 personnes conservées par cellule** (1 homme + 1 femme en priorité) ;
-- le **surplus déplacé vers les cellules accessibles voisines les plus proches** (redistribution locale), avec un **maximum de 4 par cellule** et priorité aux cellules de 2 ;
-- **aucune affectation dans les cellules « NON »** (zones industrielles non enquêtées) ;
-- les **coordonnées GPS réelles sont conservées** dans un champ distinct (traçabilité).
+- affectation aux seules cellules **situées dans la commune de Yopougon** et **habitées** (cellules ayant réellement reçu des enquêtés ou immédiatement voisines), afin de **ne placer personne en dehors de la commune ni en zone de végétation / industrielle inhabitée** ;
+- **aucune affectation dans les cellules « NON »** (zones industrielles) ;
+- jusqu'à **2 personnes conservées par cellule** (1 homme + 1 femme en priorité), le **surplus déplacé vers les cellules habitées voisines les plus proches**, avec un **maximum de 4 par cellule** ;
+- les **coordonnées GPS réelles sont conservées** dans un champ distinct (traçabilité), et les points hors commune sont signalés.
 
-**Résultat** : 283 cellules accessibles occupées, dont **181 à 2 personnes**, 82 à 4, 8 à 3, 12 à 1. **401 enquêtés** ont été rattachés à une autre cellule que leur cellule d'origine (déplacement médian **669 m**, maximum 1,9 km), dont les 12 issus de zones « NON ». L'objectif « 1 homme + 1 femme » a pu être tenu dans une partie des cellules seulement, la composition par sexe des amas de terrain étant parfois déséquilibrée.
+**Résultat** : l'aire d'étude ne compte qu'environ **236 cellules habitables de 500 m** (dans la commune, hors zones industrielles et végétation) pour 726 enquêtés, soit un peu plus de **3 personnes par cellule en moyenne**. Le « 2 par cellule » du plan initial ne peut donc pas être généralisé sans replacer des personnes en zone inhabitée. La redistribution aboutit à **221 cellules occupées** (63 à 2 personnes, 140 à 4, 11 à 3, 7 à 1). **404 enquêtés** ont été rattachés à une autre cellule que celle de leur position GPS (déplacement médian **629 m**, environ **96 % à moins de 1,5 km** ; quelques amas denses de bordure et les 14 points hors commune se déplacent davantage, et sont signalés). Après correction, **aucun point repositionné ne se trouve hors de la commune ni en zone inhabitée**.
 
-Cette redistribution est une **régularisation spatiale du plan d'échantillonnage** (utile pour la carte méthodologique et le respect de la grille). Les analyses statistiques et les distances d'accès du présent rapport reposent, elles, sur les **positions GPS réelles**. Les couches produites (`SIG_grille/points_echantillonnage.gpkg`, `SIG_grille/grille_comptage.gpkg`) sont directement exploitables dans QGIS.
+Cette redistribution est une **régularisation spatiale du plan d'échantillonnage** (utile pour la carte méthodologique et le respect de la grille). Les analyses statistiques et les distances d'accès du présent rapport reposent, elles, sur les **positions GPS réelles**. Les couches produites (`SIG_grille/points_echantillonnage.gpkg`, `SIG_grille/grille_comptage.gpkg`, cette dernière avec un champ `habitable`) sont directement exploitables dans QGIS.
+
+> Limite : faute d'une couche d'occupation du sol, les zones habitées ont été approchées par la proximité aux enquêtés réels. Si tu disposes d'une couche du bâti ou de l'occupation du sol de Yopougon, elle permettrait d'affiner encore l'exclusion des zones non habitées.
 
 ---
 

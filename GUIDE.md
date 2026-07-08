@@ -50,6 +50,7 @@ Six onglets :
 | `data/grille.js` | Grille d'échantillonnage 500 m |
 | `data/affectation_grille.csv` | Affectation de chaque enquêté à sa cellule (Excel) |
 | `../SIG_grille/` | Couches QGIS : points repositionnés + grille comptée (gpkg) |
+| `../WebSIG_base/` | Copie de sauvegarde du tableau de bord avec les **données non modifiées** (positions GPS réelles, sans la grille) |
 | `data/donnees_nettoyees.csv` | Données propres, ouvrables dans Excel |
 | `data/journal_corrections.csv` | Journal des corrections appliquées |
 | `RAPPORT_ANALYSE.md` | Rapport d'analyse rédigé |
