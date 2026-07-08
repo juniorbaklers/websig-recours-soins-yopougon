@@ -5,16 +5,30 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Bakusm@p — Plateforme WebSIG du recours aux soins · Yopougon</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800&family=Inter:wght@400;500;600;700&family=Noto+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{--brand:#0f5e8f;--brand2:#12a08a;--gold:#ffd27a;--ink:#12222f}
 html,body{height:100%}
-body{font-family:"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:#fff;
-  background:radial-gradient(1200px 600px at 80% -10%,rgba(18,160,138,.55),transparent 60%),
-             radial-gradient(900px 500px at 0% 110%,rgba(255,210,122,.22),transparent 55%),
-             linear-gradient(120deg,#0b466b,#0f5e8f 55%,#0d7a68);min-height:100vh}
+body{font-family:'Inter','Noto Sans','Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#fff;
+  background:linear-gradient(120deg,#0b466b,#0f5e8f 45%,#0d7a68 100%);background-size:220% 220%;
+  animation:bgShift 18s ease infinite;min-height:100vh}
+@keyframes bgShift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+h1,.brand b,.cta,.logo,.stat b{font-family:'Manrope','Inter',sans-serif}
+.lead,.sub,.obj p,.chip,.foot,.tag{font-family:'Noto Sans','Inter',sans-serif}
 a{text-decoration:none;color:inherit}
 .hero{position:relative;overflow:hidden;min-height:100vh;display:flex;flex-direction:column}
+/* blobs lumineux flottants (fond anime) */
+.blob{position:absolute;border-radius:50%;filter:blur(60px);opacity:.5;z-index:0;pointer-events:none}
+.blob.b1{width:420px;height:420px;background:#12a08a;top:-90px;right:6%;animation:float1 16s ease-in-out infinite}
+.blob.b2{width:360px;height:360px;background:#ffd27a;bottom:-120px;left:2%;opacity:.28;animation:float2 20s ease-in-out infinite}
+.blob.b3{width:300px;height:300px;background:#1e88c7;top:38%;left:44%;opacity:.32;animation:float1 24s ease-in-out infinite}
+@keyframes float1{0%,100%{transform:translate(0,0)}50%{transform:translate(-40px,34px)}}
+@keyframes float2{0%,100%{transform:translate(0,0)}50%{transform:translate(46px,-30px)}}
+.nav,.wrap,.foot{position:relative;z-index:1}
+@media(prefers-reduced-motion:reduce){body{animation:none}.blob{animation:none}}
 .hero::before{content:"";position:absolute;inset:0;opacity:.13;
   background-image:linear-gradient(rgba(255,255,255,.6) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.6) 1px,transparent 1px);
   background-size:46px 46px;-webkit-mask:radial-gradient(circle at 70% 30%,#000,transparent 75%);mask:radial-gradient(circle at 70% 30%,#000,transparent 75%)}
@@ -29,7 +43,8 @@ a{text-decoration:none;color:inherit}
 .wrap{position:relative;flex:1;max-width:1160px;width:100%;margin:0 auto;padding:14px 6vw 40px;display:grid;grid-template-columns:1.15fr .85fr;gap:40px;align-items:center}
 @media(max-width:900px){.wrap{grid-template-columns:1fr;gap:26px}}
 h1{font-size:44px;line-height:1.08;font-weight:800;letter-spacing:-.5px;margin-bottom:14px}
-h1 .hl{color:var(--gold)}
+h1 .hl{background:linear-gradient(90deg,#ffd27a,#ffe9bd,#12e0bf,#ffd27a);background-size:300% 100%;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;animation:shimmer 6s linear infinite}
+@keyframes shimmer{to{background-position:300% 0}}
 .lead{font-size:16.5px;line-height:1.6;opacity:.94;max-width:620px;margin-bottom:22px}
 .sub{font-size:13px;text-transform:uppercase;letter-spacing:2px;opacity:.8;margin-bottom:10px;font-weight:700}
 .cta{display:inline-flex;align-items:center;gap:10px;background:var(--gold);color:#3a2a06;font-weight:800;font-size:16px;
@@ -59,6 +74,7 @@ h1 .hl{color:var(--gold)}
 </head>
 <body>
 <div class="hero">
+  <div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div>
   <div class="nav reveal">
     <div class="brand"><div class="logo">B<span>@</span></div><div><b>Bakusm@p</b><div class="tag">Plateforme cartographique interactive</div></div></div>
     <a class="cta ghost" href="plateforme.html">Ouvrir la plateforme →</a>

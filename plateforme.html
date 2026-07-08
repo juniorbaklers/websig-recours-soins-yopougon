@@ -18,6 +18,10 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
+<!-- Polices : Manrope (grands titres/boutons), Inter (interface), Noto Sans (le reste) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800&family=Inter:wght@400;500;600;700&family=Noto+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- STYLES : couleurs, mise en page, cartes, tableaux. Les couleurs de base sont dans :root (variables CSS reutilisables). -->
 <style>
 :root{
@@ -28,7 +32,11 @@
 }
 *{box-sizing:border-box}
 html,body{margin:0;padding:0}
-body{font-family:"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);font-size:14px;line-height:1.45}
+body{font-family:'Inter','Noto Sans','Segoe UI',Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);font-size:14px;line-height:1.45}
+/* Manrope : grands titres + boutons importants */
+header.app h1,.card h3,.kpi .v,.tab,.cta,.btn.solid,.gauge text{font-family:'Manrope','Inter',sans-serif}
+/* Noto Sans : textes secondaires (notes, sous-titres, paragraphes) */
+.note,.card .sub,.kpi .l,.kpi .s,.foot,.glabel,p{font-family:'Noto Sans','Inter',sans-serif}
 a{color:var(--brand)}
 header.app{background:linear-gradient(100deg,#0d4f78,#0f5e8f 55%,#12a08a);color:#fff;padding:12px 22px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
 header.app .brand{display:flex;align-items:center;gap:13px;min-width:0}
@@ -84,6 +92,10 @@ details.fg[open]>summary .chev{transform:rotate(90deg)}
 @media(max-width:1100px){.g3{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:760px){.g2,.g3{grid-template-columns:1fr}}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px 15px;transition:box-shadow .15s,transform .15s}
+section.anim .card,section.anim .kpi,section.anim .gauge{animation:fadeUp .45s both}
+section.anim .card:nth-child(2){animation-delay:.05s}
+section.anim .card:nth-child(3){animation-delay:.1s}
+section.anim .card:nth-child(4){animation-delay:.15s}
 .card:hover{box-shadow:0 6px 22px rgba(16,32,50,.10)}
 .card h3{margin:0 0 3px;font-size:13.5px;position:relative;padding-left:11px}
 .card h3::before{content:"";position:absolute;left:0;top:2px;bottom:2px;width:3px;border-radius:2px;background:linear-gradient(180deg,var(--brand),var(--brand2))}
@@ -94,7 +106,11 @@ details.fg[open]>summary .chev{transform:rotate(90deg)}
 .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
 select.sel{padding:7px 9px;border:1px solid var(--line);border-radius:8px;font-size:12.8px;background:#fff;max-width:280px}
 label.lbl{font-size:12px;color:var(--muted);font-weight:600}
-#map{height:560px;border-radius:var(--radius);border:1px solid var(--line);z-index:1}
+#map{height:100%;min-height:600px;border-radius:var(--radius);border:1px solid var(--line);z-index:1}
+.maprow{align-items:stretch}
+.maprow>#map{align-self:stretch}
+.mapctrls{max-height:calc(100vh - 150px);overflow:auto;padding-right:2px}
+@media(max-width:900px){#map{height:560px;min-height:0}.mapctrls{max-height:none;overflow:visible}}
 .legend{background:#fff;padding:8px 10px;border-radius:8px;box-shadow:0 1px 6px rgba(0,0,0,.2);font-size:12px;line-height:1.7;max-height:240px;overflow:auto}
 .legend b{display:block;margin-bottom:4px;font-size:11.5px}
 .legend .li{display:flex;align-items:center;gap:6px}

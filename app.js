@@ -962,9 +962,7 @@ function renderGridPlan(){
   const pct2=nOcc?100*occ[2]/nOcc:0;
   const kp=[
     {v:nOcc,l:'Cellules accessibles occupées'},
-    {v:occ[2],l:'Cellules à 2 enquêtés (1H+1F visé)',s:`${pct2.toFixed(0)}% des cellules occupées`},
-    {v:moved.length,l:'Enquêtés réaffectés à une autre cellule',s:`dont ${fromNon} issus de zones « acces = NON »`},
-    {v:md!=null?Math.round(md)+' m':'—',l:'Déplacement médian des réaffectés'}
+    {v:occ[2],l:'Cellules à 2 enquêtés (1H+1F visé)',s:`${pct2.toFixed(0)}% des cellules occupées`}
   ];
   document.getElementById('gridKpis').innerHTML=kp.map(k=>`<div class="kpi"><div class="v">${k.v}</div><div class="l">${k.l}</div>${k.s?`<div class="s">${k.s}</div>`:''}</div>`).join('');
 
@@ -1077,6 +1075,7 @@ function switchTab(t){
   currentTab=t;
   document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===t));
   ['carte','apercu','recours','determinants','percept','spatial','croise','explor'].forEach(id=>{const el=document.getElementById('tab-'+id);if(el)el.classList.toggle('hidden',id!==t);});
+  const sec=document.getElementById('tab-'+t); if(sec){ sec.classList.remove('anim'); void sec.offsetWidth; sec.classList.add('anim'); } // re-declenche l'animation d'apparition
   renderTab(filtered());
   if(t==='carte') setTimeout(()=>map.invalidateSize(),80); // Leaflet doit recalculer sa taille quand on revient sur la carte
 }
