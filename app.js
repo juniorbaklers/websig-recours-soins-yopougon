@@ -292,6 +292,17 @@ function rate(recs,key,vals){
 }
 // median() : valeur mediane d'un tableau de nombres
 function median(arr){if(!arr.length)return null;const s=[...arr].sort((a,b)=>a-b);const m=Math.floor(s.length/2);return s.length%2?s[m]:(s[m-1]+s[m])/2;}
+// animateCount() : anime un compteur de 0 vers sa valeur finale (ex "56%", "2 000 F", "726")
+function animateCount(el,finalText){
+  const m=(finalText||'').match(/^(\D*)([\d\s.,]+)(.*)$/);
+  if(!m){ el.textContent=finalText; return; }
+  const pre=m[1], suf=m[3], target=parseFloat(m[2].replace(/\s/g,'').replace(',','.'));
+  if(isNaN(target)){ el.textContent=finalText; return; }
+  const dur=650, t0=performance.now();
+  const fmt=v=> target>=1000?Math.round(v).toLocaleString('fr-FR'):Math.round(v);
+  const step=now=>{ const p=Math.min(1,(now-t0)/dur); el.textContent=pre+fmt(target*(1-Math.pow(1-p,3)))+suf; if(p<1)requestAnimationFrame(step); else el.textContent=finalText; };
+  requestAnimationFrame(step);
+}
 
 // renderKPIs() : (re)calcule et affiche les 8 cartes d'indicateurs en haut
 function renderKPIs(recs){
@@ -315,6 +326,7 @@ function renderKPIs(recs){
     {v:kGuer.toFixed(0)+'%',l:'Guérison ou amélioration'}
   ];
   document.getElementById('kpis').innerHTML=kpis.map(k=>`<div class="kpi"><div class="v">${k.v}</div><div class="l">${k.l}</div>${k.s?`<div class="s">${k.s}</div>`:''}</div>`).join('');
+  document.querySelectorAll('#kpis .v').forEach(el=>animateCount(el,el.textContent)); // compteurs animes
 }
 
 
