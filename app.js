@@ -1194,12 +1194,133 @@ function exportCsv(){
 
 
 /* ============================================================================
+   13bis. PANNEAU STATISTIQUE DROIT (etape 3) — regroupe les indicateurs deja
+   presents dans les onglets Vue d'ensemble / Recours / Analyse spatiale dans
+   un panneau unique, visible en permanence, recalcule a chaque filtre.
+   ============================================================================ */
+
+// quartierAgg() : pour chaque quartier de "recs", agrege effectif, couverture
+// (temps de marche) et distance moyenne au centre le plus proche.
+function quartierAgg(recs){
+  const byq={};
+  recs.forEach(d=>{
+    const q=(d.quartier??'').toString().trim(); if(!q) return;
+    const o=byq[q]=byq[q]||{q,n:0,c5:0,c10:0,c15:0,hors:0,distSum:0,distN:0};
+    o.n++;
+    if(d.coverClass==='5 min')o.c5++;
+    else if(d.coverClass==='10 min')o.c10++;
+    else if(d.coverClass==='15 min')o.c15++;
+    else if(d.coverClass==='Hors 15 min')o.hors++;
+    if(typeof d.nearestDist==='number'){ o.distSum+=d.nearestDist; o.distN++; }
+  });
+  return Object.values(byq).map(o=>({
+    q:o.q, n:o.n, hors:o.hors,
+    taux: (o.c5+o.c10+o.c15+o.hors)? 100*(o.c5+o.c10+o.c15)/(o.c5+o.c10+o.c15+o.hors) : null,
+    distMoy: o.distN? o.distSum/o.distN : null
+  }));
+}
+
+// spBadgeColor() : couleur d'une pastille de classement selon la valeur et le sens
+// (bon = vert -> mauvais = rouge, ou l'inverse pour les distances/priorites).
+function spBadgeColor(pct,invert){
+  const p = invert ? 100-pct : pct;
+  if(p>=66) return 'var(--ok, #4c9a4c)';
+  if(p>=33) return '#e8813a';
+  return 'var(--danger, #d9534f)';
+}
+
+// renderRankList() : affiche un classement (top 5) dans un conteneur #id
+function renderRankList(id, items, valueFn, badgeFn){
+  const el=document.getElementById(id); if(!el) return;
+  if(!items.length){ el.innerHTML='<div class="sp-empty">Pas assez de données (min. 3 enquêtés/quartier)</div>'; return; }
+  el.innerHTML=items.map((o,i)=>`<div class="sprow"><span class="rk">${i+1}</span><span class="nm" title="${esc(o.q)}">${o.q}</span><span class="bd" style="background:${badgeFn(o)}">${valueFn(o)}</span></div>`).join('');
+}
+
+// renderStatsPanel() : (re)calcule tous les indicateurs du panneau de droite.
+// Appelee par refresh() a chaque changement de filtre, quel que soit l'onglet actif.
+function renderStatsPanel(recs){
+  const panel=document.getElementById('statsPanel'); if(!panel) return;
+  const setv=(id,val)=>{ const el=document.getElementById(id); if(el) el.textContent=val; };
+  const n=recs.length;
+
+  // --- Population ---
+  setv('sp-n', n);
+  setv('sp-h', recs.filter(d=>d.sexe==='Masculin').length);
+  setv('sp-f', recs.filter(d=>d.sexe==='Feminin').length);
+  const quartiers=new Set(recs.map(d=>(d.quartier??'').toString().trim()).filter(Boolean));
+  setv('sp-quart', quartiers.size);
+  const centresT=document.getElementById('centresToggle');
+  setv('sp-centres', (centresT && centresT.checked) ? CENTRES.length : 0);
+
+  // --- Accessibilite : distances au centre le plus proche (mises a jour par computeNearest) ---
+  const dists=recs.map(d=>d.nearestDist).filter(x=>typeof x==='number');
+  const dMoy=dists.length? dists.reduce((a,b)=>a+b,0)/dists.length : null;
+  setv('sp-dmoy', dMoy!=null?Math.round(dMoy)+' m':'—');
+  setv('sp-dmin', dists.length?Math.round(Math.min(...dists))+' m':'—');
+  setv('sp-dmax', dists.length?Math.round(Math.max(...dists))+' m':'—');
+  const covRadius=thr=> dists.length? 100*dists.filter(x=>x<thr).length/dists.length : 0;
+  setv('sp-cov500', covRadius(500).toFixed(0)+'%');
+  setv('sp-cov1000', covRadius(1000).toFixed(0)+'%');
+  const wc=recs.filter(d=>d.coverClass);
+  const cAt=v=>wc.filter(d=>d.coverClass===v).length;
+  const c5=cAt('5 min'), c10=cAt('10 min'), c15=cAt('15 min'), hors=cAt('Hors 15 min');
+  setv('sp-c5', wc.length?(100*c5/wc.length).toFixed(0)+'%':'—');
+  setv('sp-c10', wc.length?(100*(c5+c10)/wc.length).toFixed(0)+'%':'—');
+  setv('sp-c15', wc.length?(100*(c5+c10+c15)/wc.length).toFixed(0)+'%':'—');
+  setv('sp-hors', hors);
+
+  // --- Recours aux soins ---
+  const recTop=[...countBy(recs,'premierRecoursCat').entries()].sort((a,b)=>b[1]-a[1])[0];
+  setv('sp-rectop', recTop?`${recTop[0]} (${(100*recTop[1]/n||0).toFixed(0)}%)`:'—');
+  setv('sp-pmod', rate(recs,'premierRecoursCat',['Médecine moderne']).toFixed(0)+'%');
+  setv('sp-ptrad', rate(recs,'premierRecoursCat',['Médecine traditionnelle']).toFixed(0)+'%');
+  setv('sp-pauto', rate(recs,'premierRecoursCat',['Automédication']).toFixed(0)+'%');
+  const qSorted=[...countBy(recs,'quartier').entries()].sort((a,b)=>b[1]-a[1]);
+  setv('sp-qmax', qSorted.length?`${qSorted[0][0]} (${qSorted[0][1]})`:'—');
+  setv('sp-qmin', qSorted.length?`${qSorted[qSorted.length-1][0]} (${qSorted[qSorted.length-1][1]})`:'—');
+
+  // --- Classements par quartier (n >= 3 pour eviter le bruit statistique) ---
+  const qa=quartierAgg(recs).filter(o=>o.n>=3);
+
+  renderRankList('sp-rank-pop', [...qa].sort((a,b)=>b.n-a.n).slice(0,5),
+    o=>o.n, o=>'var(--brand)');
+
+  renderRankList('sp-rank-far', qa.filter(o=>o.distMoy!=null).sort((a,b)=>b.distMoy-a.distMoy).slice(0,5),
+    o=>Math.round(o.distMoy)+' m', o=>spBadgeColor(Math.min(100,o.distMoy/15),true));
+
+  renderRankList('sp-rank-best', qa.filter(o=>o.taux!=null).sort((a,b)=>b.taux-a.taux).slice(0,5),
+    o=>o.taux.toFixed(0)+'%', o=>spBadgeColor(o.taux,false));
+
+  renderRankList('sp-rank-worst', qa.filter(o=>o.taux!=null).sort((a,b)=>a.taux-b.taux).slice(0,5),
+    o=>o.taux.toFixed(0)+'%', o=>spBadgeColor(o.taux,false));
+
+  // priorite = quartiers ou le plus de personnes sont hors couverture (population affectee),
+  // departagees par le taux de couverture le plus faible
+  renderRankList('sp-rank-priority', [...qa].filter(o=>o.hors>0).sort((a,b)=>b.hors-a.hors || (a.taux??0)-(b.taux??0)).slice(0,5),
+    o=>o.hors+' pers.', o=>'var(--danger, #d9534f)');
+}
+
+// initStatsPanel() : branche le bouton reduire/agrandir et restaure l'etat memorise
+function initStatsPanel(){
+  const panel=document.getElementById('statsPanel'), wrap=document.querySelector('.wrap'), btn=document.getElementById('spToggle');
+  if(!panel||!wrap||!btn) return;
+  const setCollapsed=c=>{ panel.classList.toggle('collapsed',c); wrap.classList.toggle('sp-collapsed',c);
+    btn.textContent=c?'«':'»'; localStorage.setItem('sp_collapsed',c?'1':'0'); };
+  setCollapsed(localStorage.getItem('sp_collapsed')==='1');
+  btn.addEventListener('click',()=>setCollapsed(!panel.classList.contains('collapsed')));
+  // le changement de visibilite des centres impacte "Centres de sante visibles"
+  const ct=document.getElementById('centresToggle'); if(ct) ct.addEventListener('change',()=>renderStatsPanel(filtered()));
+}
+
+
+/* ============================================================================
    14. ORCHESTRATION ET DEMARRAGE
    ============================================================================ */
 
 // refresh() : LE point central. A chaque changement de filtre, on recalcule la
-// selection puis on met a jour les pastilles, les KPIs et l'onglet visible.
-function refresh(){ const recs=filtered(); renderChips(); renderKPIs(recs); renderTab(recs); }
+// selection puis on met a jour les pastilles, les KPIs, l'onglet visible et le
+// panneau statistique de droite (etape 3, toujours visible quel que soit l'onglet).
+function refresh(){ const recs=filtered(); renderChips(); renderKPIs(recs); renderTab(recs); renderStatsPanel(recs); }
 
 // switchTab() : change d'onglet (affiche/masque les sections, redessine)
 function switchTab(t){
@@ -1302,6 +1423,9 @@ document.addEventListener('DOMContentLoaded',async ()=>{
 
   // 9. apparence : theme clair/sombre + 3 couleurs d'interface + aide + export rapide
   initAppearance();
+
+  // 10. panneau statistique de droite (etape 3)
+  initStatsPanel();
 });
 
 /* ============================================================================

@@ -227,6 +227,46 @@ table.ct td .hm{display:inline-block;padding:2px 6px;border-radius:5px}
 .modal h2{font-size:17px;margin:0 0 10px}
 .modal li{margin:5px 0;font-size:13px}
 @media(max-width:700px){.hactions .hbtn{width:30px;height:30px;font-size:13px}}
+
+/* ============================================================================
+   ETAPE 3 : PANNEAU STATISTIQUE DROIT (permanent, se recalcule a chaque filtre)
+   ============================================================================ */
+.wrap{grid-template-columns:288px 1fr 300px}
+.wrap.sp-collapsed{grid-template-columns:288px 1fr 46px}
+@media(max-width:1180px){.wrap,.wrap.sp-collapsed{grid-template-columns:288px 1fr}.statspanel{grid-column:1/-1}}
+@media(max-width:980px){.wrap,.wrap.sp-collapsed{grid-template-columns:1fr}.statspanel{grid-column:1/-1;position:static;max-height:none}}
+
+.statspanel{position:sticky;top:16px;max-height:calc(100vh - 32px);overflow:auto;background:var(--panel);
+  border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+.statspanel.collapsed .sp-body{display:none}
+.statspanel.collapsed{overflow:visible}
+.sp-head{padding:12px 14px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;
+  position:sticky;top:0;background:var(--panel);z-index:2;gap:6px}
+.sp-head b{font-size:13px;white-space:nowrap}
+.statspanel.collapsed .sp-head b{display:none}
+.sp-toggle{border:1px solid var(--line);background:#fff;color:var(--muted);width:24px;height:24px;border-radius:7px;
+  cursor:pointer;font-weight:700;font-size:12px;flex:none}
+.sp-toggle:hover{border-color:var(--brand);color:var(--brand)}
+[data-theme="dark"] .sp-toggle{background:#1b2836}
+.sp-body{padding:12px 13px 16px}
+.sp-group{margin-bottom:16px}
+.sp-group:last-child{margin-bottom:0}
+.sp-gtitle{font-size:11px;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);font-weight:700;
+  margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.spgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.spstat{position:relative;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:9px 10px 8px;overflow:hidden}
+.spstat::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:linear-gradient(180deg,var(--brand),var(--brand2))}
+.spstat .ic{font-size:12px;opacity:.8;margin-bottom:2px}
+.spstat .v{font-size:17px;font-weight:800;color:var(--brand);line-height:1.15;font-variant-numeric:tabular-nums}
+.spstat .l{font-size:10.5px;color:var(--muted);line-height:1.25;margin-top:1px}
+.spstat.wide{grid-column:1/-1}
+.sprank{display:flex;flex-direction:column;gap:4px}
+.sprow{display:flex;align-items:center;gap:7px;font-size:11.5px;padding:4px 6px;border-radius:7px;background:var(--bg)}
+.sprow .rk{flex:none;width:16px;height:16px;border-radius:5px;background:var(--line);color:var(--muted);
+  font-size:9.5px;font-weight:800;display:flex;align-items:center;justify-content:center}
+.sprow .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink)}
+.sprow .bd{flex:none;font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:999px;color:#fff;white-space:nowrap}
+.sp-empty{font-size:11px;color:var(--muted);padding:4px 2px;font-style:italic}
 </style>
 </head>
 <body>
@@ -520,6 +560,79 @@ table.ct td .hm{display:inline-block;padding:2px 6px;border-radius:5px}
       </div>
     </section>
   </main>
+
+  <!-- ===================== COLONNE DE DROITE : panneau statistique permanent =====================
+       Se recalcule a chaque changement de filtre (voir app.js -> renderStatsPanel), quel que soit
+       l'onglet actif. Contenu genere par app.js, la structure des groupes est ci-dessous. -->
+  <aside class="statspanel" id="statsPanel">
+    <div class="sp-head">
+      <b>📈 Panneau statistique</b>
+      <button class="sp-toggle" id="spToggle" title="Réduire / agrandir le panneau">»</button>
+    </div>
+    <div class="sp-body">
+
+      <div class="sp-group">
+        <div class="sp-gtitle">👥 Population</div>
+        <div class="spgrid">
+          <div class="spstat wide"><div class="ic">👥</div><div class="v" id="sp-n">—</div><div class="l">Enquêtés (sélection)</div></div>
+          <div class="spstat"><div class="ic">♂</div><div class="v" id="sp-h">—</div><div class="l">Hommes</div></div>
+          <div class="spstat"><div class="ic">♀</div><div class="v" id="sp-f">—</div><div class="l">Femmes</div></div>
+          <div class="spstat"><div class="ic">🏘️</div><div class="v" id="sp-quart">—</div><div class="l">Quartiers concernés</div></div>
+          <div class="spstat"><div class="ic">🏥</div><div class="v" id="sp-centres">—</div><div class="l">Centres de santé visibles</div></div>
+        </div>
+      </div>
+
+      <div class="sp-group">
+        <div class="sp-gtitle">🧭 Accessibilité</div>
+        <div class="spgrid">
+          <div class="spstat"><div class="ic">📏</div><div class="v" id="sp-dmoy">—</div><div class="l">Distance moyenne au + proche</div></div>
+          <div class="spstat"><div class="ic">📉</div><div class="v" id="sp-dmin">—</div><div class="l">Distance minimale</div></div>
+          <div class="spstat"><div class="ic">📈</div><div class="v" id="sp-dmax">—</div><div class="l">Distance maximale</div></div>
+          <div class="spstat"><div class="ic">🚩</div><div class="v" id="sp-hors">—</div><div class="l">Personnes hors couverture</div></div>
+          <div class="spstat"><div class="ic">⭕</div><div class="v" id="sp-cov500">—</div><div class="l">Couverts à 500 m</div></div>
+          <div class="spstat"><div class="ic">⭕</div><div class="v" id="sp-cov1000">—</div><div class="l">Couverts à 1 km</div></div>
+          <div class="spstat"><div class="ic">🚶</div><div class="v" id="sp-c5">—</div><div class="l">Couverts à 5 min</div></div>
+          <div class="spstat"><div class="ic">🚶</div><div class="v" id="sp-c10">—</div><div class="l">Couverts à 10 min</div></div>
+          <div class="spstat wide"><div class="ic">🚶</div><div class="v" id="sp-c15">—</div><div class="l">Couverts à 15 min de marche</div></div>
+        </div>
+      </div>
+
+      <div class="sp-group">
+        <div class="sp-gtitle">🏥 Recours aux soins</div>
+        <div class="spgrid">
+          <div class="spstat wide"><div class="ic">🏆</div><div class="v" id="sp-rectop" style="font-size:13px">—</div><div class="l">Premier recours dominant</div></div>
+          <div class="spstat"><div class="ic">💊</div><div class="v" id="sp-pmod">—</div><div class="l">Médecine moderne</div></div>
+          <div class="spstat"><div class="ic">🌿</div><div class="v" id="sp-ptrad">—</div><div class="l">Médecine traditionnelle</div></div>
+          <div class="spstat"><div class="ic">🏠</div><div class="v" id="sp-pauto">—</div><div class="l">Automédication</div></div>
+          <div class="spstat wide"><div class="ic">🥇</div><div class="v" id="sp-qmax" style="font-size:12.5px">—</div><div class="l">Quartier le plus représenté</div></div>
+          <div class="spstat wide"><div class="ic">🥉</div><div class="v" id="sp-qmin" style="font-size:12.5px">—</div><div class="l">Quartier le moins représenté</div></div>
+        </div>
+      </div>
+
+      <div class="sp-group">
+        <div class="sp-gtitle">📶 Classements par quartier</div>
+        <div class="sp-gtitle" style="margin-bottom:4px;font-size:10.5px">Quartiers les plus représentés</div>
+        <div class="sprank" id="sp-rank-pop"></div>
+      </div>
+      <div class="sp-group">
+        <div class="sp-gtitle" style="margin-bottom:4px;font-size:10.5px">Quartiers les plus éloignés des centres</div>
+        <div class="sprank" id="sp-rank-far"></div>
+      </div>
+      <div class="sp-group">
+        <div class="sp-gtitle" style="margin-bottom:4px;font-size:10.5px">Quartiers les mieux couverts</div>
+        <div class="sprank" id="sp-rank-best"></div>
+      </div>
+      <div class="sp-group">
+        <div class="sp-gtitle" style="margin-bottom:4px;font-size:10.5px">Quartiers les moins couverts</div>
+        <div class="sprank" id="sp-rank-worst"></div>
+      </div>
+      <div class="sp-group">
+        <div class="sp-gtitle" style="margin-bottom:4px;font-size:10.5px">🎯 Quartiers prioritaires (offre sanitaire)</div>
+        <div class="sprank" id="sp-rank-priority"></div>
+      </div>
+
+    </div>
+  </aside>
 </div>
 
 <div class="foot">
