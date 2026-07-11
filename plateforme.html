@@ -282,6 +282,30 @@ table.ct tr.rowclick:hover td{background:#eaf2f8}
 .sprow .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink)}
 .sprow .bd{flex:none;font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:999px;color:#fff;white-space:nowrap}
 .sp-empty{font-size:11px;color:var(--muted);padding:4px 2px;font-style:italic}
+
+/* Assistant conversationnel flottant (etape 5d) */
+.chat-widget{position:fixed;right:18px;bottom:18px;z-index:2000}
+.chat-fab{width:52px;height:52px;border-radius:50%;background:var(--brand);color:#fff;border:none;font-size:21px;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.28)}
+.chat-fab:hover{background:#0d527d}
+.chat-widget.collapsed .chat-panel{display:none}
+.chat-widget:not(.collapsed) .chat-fab{display:none}
+.chat-panel{position:fixed;right:18px;bottom:18px;width:340px;max-width:92vw;height:480px;max-height:78vh;
+  background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:0 8px 30px rgba(0,0,0,.28);
+  display:flex;flex-direction:column;overflow:hidden}
+.chat-head{background:var(--brand);color:#fff;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;font-size:13px;flex:none}
+.chat-head .chat-close{background:none;border:none;color:#fff;cursor:pointer;font-size:15px;line-height:1}
+.chat-body{flex:1;overflow:auto;padding:10px;display:flex;flex-direction:column;gap:8px}
+.chat-msg{max-width:85%;padding:7px 10px;border-radius:10px;font-size:12.3px;line-height:1.48}
+.chat-msg.bot{background:var(--bg);border:1px solid var(--line);align-self:flex-start}
+.chat-msg.user{background:var(--brand);color:#fff;align-self:flex-end}
+.chat-quick{display:flex;flex-wrap:wrap;gap:5px;padding:0 10px 8px;max-height:92px;overflow:auto;flex:none}
+.chat-chip{background:#eaf2f8;color:var(--brand);border:1px solid #cfe2ef;border-radius:999px;padding:4px 9px;font-size:10.6px;cursor:pointer}
+.chat-chip:hover{background:#dcecf7}
+.chat-input-row{display:flex;gap:6px;padding:8px;border-top:1px solid var(--line);flex:none}
+.chat-input{flex:1;padding:7px 9px;border:1px solid var(--line);border-radius:8px;font-size:12.5px;background:#fff;color:var(--ink)}
+[data-theme="dark"] .chat-chip{background:#12303c;border-color:#1d4757}
+[data-theme="dark"] .chat-msg.bot{background:#16212e}
+[data-theme="dark"] .chat-input{background:#16212e}
 </style>
 </head>
 <body>
@@ -737,6 +761,26 @@ table.ct tr.rowclick:hover td{background:#eaf2f8}
 
     </div>
   </aside>
+</div>
+
+<!-- ===================== ASSISTANT CONVERSATIONNEL (etape 5d) =====================
+     Panneau flottant, visible sur tous les onglets. Mode local a regles (pas d'API IA) :
+     les reponses sont generees par app.js a partir des memes agregations que le reste
+     du tableau de bord (voir section "16. ASSISTANT..."). -->
+<div class="chat-widget collapsed" id="chatWidget">
+  <button class="chat-fab" id="chatToggle" title="Assistant Bakusm@p">💬</button>
+  <div class="chat-panel" id="chatPanel">
+    <div class="chat-head">
+      <b>🤖 Assistant Bakusm@p</b>
+      <button class="chat-close" id="chatClose" title="Réduire">✕</button>
+    </div>
+    <div class="chat-body" id="chatBody"></div>
+    <div class="chat-quick" id="chatQuick"></div>
+    <div class="chat-input-row">
+      <input class="chat-input" id="chatInput" placeholder="Posez une question sur la carte, les stats…">
+      <button class="btn solid" id="chatSend">➤</button>
+    </div>
+  </div>
 </div>
 
 <div class="foot">

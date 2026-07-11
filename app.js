@@ -1767,6 +1767,9 @@ document.addEventListener('DOMContentLoaded',async ()=>{
 
   // 12. gestion des donnees importees (etape 5c)
   initImportUI();
+
+  // 13. assistant conversationnel a regles (etape 5d)
+  initChatWidget();
 });
 
 // initMapStyleUI() : synchronise les controles du panneau « Style cartographique »
@@ -2040,6 +2043,135 @@ function initImportUI(){
   document.getElementById('importExportBtn').addEventListener('click',exportImportedData);
   document.getElementById('importResetBtn').addEventListener('click',resetImportedData);
   restoreImportedData();
+}
+
+
+/* ============================================================================
+   16. ASSISTANT CONVERSATIONNEL A REGLES (etape 5d)
+   Panneau flottant, pas d'API IA : chaque reponse est generee localement en
+   reappelant les memes fonctions d'agregation que le reste du tableau de bord
+   (quartierAgg, quartierMatrixAgg, countBy, rate...), evaluees sur la
+   selection courante (filtered()) pour rester coherentes avec ce que l'utilisateur voit.
+   ============================================================================ */
+const CHAT_QUICK_QUESTIONS = [
+  "Quel quartier est le moins bien couvert ?",
+  "Quel quartier est prioritaire pour l'intervention ?",
+  "Quel est le recours aux soins dominant ?",
+  "Combien de personnes sont hors couverture à 15 min ?",
+  "Quelle est la distance moyenne au centre le plus proche ?",
+  "Quel quartier est le plus représenté ?",
+  "Quel est le niveau de satisfaction envers le médecin ?",
+  "Résume la sélection actuelle"
+];
+
+function ansWorstCoverage(recs){
+  const qa=quartierAgg(recs).filter(o=>o.n>=3 && o.taux!=null).sort((a,b)=>a.taux-b.taux);
+  if(!qa.length) return "Pas assez de données par quartier sur la sélection actuelle (minimum 3 enquêtés/quartier).";
+  const w=qa[0];
+  return `Sur la sélection actuelle, <b>${esc(w.q)}</b> est le quartier le moins bien couvert : seulement <b>${w.taux.toFixed(0)}%</b> des personnes y sont couvertes à 15 min de marche (${w.n} enquêté(s), distance moyenne ${Math.round(w.distMoy||0)} m). Voir l'onglet <b>Analyse spatiale</b> pour le détail.`;
+}
+function ansPriority(recs){
+  const qa=quartierMatrixAgg(recs).filter(o=>o.n>=3).sort((a,b)=>b.vulnerabilite-a.vulnerabilite);
+  if(!qa.length) return "Pas assez de données par quartier sur la sélection actuelle (minimum 3 enquêtés/quartier).";
+  const p=qa[0];
+  return `<b>${esc(p.q)}</b> ressort comme le quartier le plus prioritaire (score de vulnérabilité <b>${p.vulnerabilite.toFixed(0)}/100</b>, priorité « ${p.priorite} »), combinant faible couverture, distance élevée, population et faible recours à la médecine moderne. Détail dans l'onglet <b>Tableau matrice</b>, mode « Aide à la décision ».`;
+}
+function ansDominantRecourse(recs){
+  const m=countBy(recs,'premierRecoursCat'); const top=[...m.entries()].sort((a,b)=>b[1]-a[1])[0];
+  if(!top) return "Aucune donnée de recours aux soins sur la sélection actuelle.";
+  const n=recs.length;
+  const pMod=rate(recs,'premierRecoursCat',['Médecine moderne']), pTrad=rate(recs,'premierRecoursCat',['Médecine traditionnelle']), pAuto=rate(recs,'premierRecoursCat',['Automédication']);
+  return `Le recours dominant est <b>${esc(top[0])}</b> (${(100*top[1]/n).toFixed(0)}% de la sélection). Répartition : médecine moderne <b>${pMod.toFixed(0)}%</b>, médecine traditionnelle <b>${pTrad.toFixed(0)}%</b>, automédication <b>${pAuto.toFixed(0)}%</b>.`;
+}
+function ansHorsCouverture(recs){
+  const wc=recs.filter(d=>d.coverClass); const hors=wc.filter(d=>d.coverClass==='Hors 15 min').length;
+  if(!wc.length) return "Aucune donnée de couverture sur la sélection actuelle.";
+  return `<b>${hors}</b> personne(s) sur ${wc.length} sont situées hors de la zone des 15 min de marche (${(100*hors/wc.length).toFixed(0)}%).`;
+}
+function ansDistance(recs){
+  const dists=recs.map(d=>d.nearestDist).filter(x=>typeof x==='number');
+  if(!dists.length) return "Aucune distance calculée sur la sélection actuelle.";
+  const moy=dists.reduce((a,b)=>a+b,0)/dists.length;
+  const qa=quartierAgg(recs).filter(o=>o.n>=3 && o.distMoy!=null).sort((a,b)=>b.distMoy-a.distMoy);
+  const far=qa[0];
+  return `La distance moyenne au centre de santé le plus proche est de <b>${Math.round(moy)} m</b> sur la sélection actuelle.${far?` Le quartier le plus éloigné en moyenne est <b>${esc(far.q)}</b> (${Math.round(far.distMoy)} m).`:''}`;
+}
+function ansTopQuartier(recs){
+  const m=countBy(recs,'quartier'); const top=[...m.entries()].sort((a,b)=>b[1]-a[1])[0];
+  if(!top) return "Aucune donnée de quartier sur la sélection actuelle.";
+  return `Le quartier le plus représenté est <b>${esc(top[0])}</b> avec <b>${top[1]}</b> enquêté(s) sur ${recs.length}.`;
+}
+function ansSatisfaction(recs){
+  const p=rate(recs,'satisfaitMedecin',['Oui']);
+  return `<b>${p.toFixed(0)}%</b> des personnes de la sélection actuelle se disent satisfaites de leur médecin traitant.`;
+}
+function ansSummary(recs){
+  const n=recs.length;
+  const quartiers=new Set(recs.map(d=>(d.quartier??'').toString().trim()).filter(Boolean)).size;
+  const m=countBy(recs,'premierRecoursCat'); const top=[...m.entries()].sort((a,b)=>b[1]-a[1])[0];
+  const wc=recs.filter(d=>d.coverClass); const c15=wc.filter(d=>d.coverClass!=='Hors 15 min').length;
+  const qa=quartierMatrixAgg(recs).filter(o=>o.n>=3).sort((a,b)=>b.vulnerabilite-a.vulnerabilite);
+  return `Sur la sélection actuelle : <b>${n}</b> enquêté(s) répartis dans <b>${quartiers}</b> quartier(s). Recours dominant : <b>${top?esc(top[0]):'—'}</b>. Couverture à 15 min : <b>${wc.length?(100*c15/wc.length).toFixed(0):'—'}%</b>. Quartier le plus prioritaire : <b>${qa.length?esc(qa[0].q):'—'}</b>.`;
+}
+function chatFallback(){
+  return "Je n'ai pas de réponse automatique toute prête à cette question. Essayez une des questions rapides ci-dessous, ou reformulez avec des mots comme « couverture », « distance », « recours », « quartier », « priorité » ou « satisfaction ».";
+}
+
+// deaccent() : enleve les accents pour une recherche de mots-cles plus tolerante
+function deaccent(s){ return (s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,''); }
+
+// CHAT_RULES : chaque regle porte une liste de mots-cles (deja sans accents) et une
+// fonction reponse(recs). Evaluees dans l'ordre, la premiere qui matche l'emporte.
+const CHAT_RULES = [
+  { kws:['moins bien couvert','pire couverture','faible couverture','mal desservi','moins desservi','moins couvert'], fn:ansWorstCoverage },
+  { kws:['prioritaire','priorite','vulnerable'], fn:ansPriority },
+  { kws:['recours dominant','recours aux soins','type de recours','quel recours','premier recours'], fn:ansDominantRecourse },
+  { kws:['hors couverture','non couvert','non desservi','pas couvert'], fn:ansHorsCouverture },
+  { kws:['distance moyenne','distance','loin','eloigne'], fn:ansDistance },
+  { kws:['plus represente','plus nombreux','population','quartier le plus'], fn:ansTopQuartier },
+  { kws:['satisfaction','satisfait'], fn:ansSatisfaction },
+  { kws:['resume','synthese',"vue d'ensemble",'general'], fn:ansSummary }
+].map(r=>({ kws:r.kws.map(deaccent), fn:r.fn }));
+
+// answerChat() : trouve la premiere regle dont un mot-cle apparait dans le texte, sinon repli
+function answerChat(text){
+  const norm=deaccent(text);
+  const recs=filtered();
+  for(const rule of CHAT_RULES){ if(rule.kws.some(k=>norm.includes(k))) return rule.fn(recs); }
+  return chatFallback();
+}
+
+// addChatMsg() : ajoute une bulle au fil de discussion et fait defiler vers le bas
+function addChatMsg(role,html){
+  const body=document.getElementById('chatBody');
+  const div=document.createElement('div'); div.className='chat-msg '+role; div.innerHTML=html;
+  body.appendChild(div); body.scrollTop=body.scrollHeight;
+}
+// sendChat() : affiche la question de l'utilisateur puis la reponse generee localement
+function sendChat(text){
+  text=(text||'').trim(); if(!text) return;
+  addChatMsg('user', esc(text));
+  const answer=answerChat(text);
+  setTimeout(()=>addChatMsg('bot', answer), 200); // petit delai pour un effet de "reflexion"
+}
+
+// initChatWidget() : branche le panneau flottant (ouverture/fermeture memorisee, questions rapides, saisie libre)
+function initChatWidget(){
+  const widget=document.getElementById('chatWidget'), body=document.getElementById('chatBody');
+  const setOpen=o=>{
+    widget.classList.toggle('collapsed',!o); localStorage.setItem('chat_open',o?'1':'0');
+    if(o && !body.dataset.greeted){
+      addChatMsg('bot',"Bonjour 👋 Je suis l'assistant de Bakusm@p. Posez-moi une question sur la carte, les statistiques, les graphiques ou les tableaux — je réponds à partir des données actuellement filtrées. Vous pouvez aussi cliquer une question rapide ci-dessous.");
+      body.dataset.greeted='1';
+    }
+  };
+  document.getElementById('chatToggle').addEventListener('click',()=>setOpen(widget.classList.contains('collapsed')));
+  document.getElementById('chatClose').addEventListener('click',()=>setOpen(false));
+  document.getElementById('chatQuick').innerHTML=CHAT_QUICK_QUESTIONS.map(q=>`<button class="chat-chip" data-q="${esc(q)}">${q}</button>`).join('');
+  document.getElementById('chatQuick').querySelectorAll('.chat-chip').forEach(b=>b.addEventListener('click',()=>sendChat(b.dataset.q)));
+  document.getElementById('chatSend').addEventListener('click',()=>{ const inp=document.getElementById('chatInput'); sendChat(inp.value); inp.value=''; });
+  document.getElementById('chatInput').addEventListener('keydown',e=>{ if(e.key==='Enter'){ sendChat(e.target.value); e.target.value=''; } });
+  setOpen(localStorage.getItem('chat_open')==='1');
 }
 
 
