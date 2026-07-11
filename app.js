@@ -94,7 +94,9 @@ const DIMS = {
   recommandeTradi:"Recommandé d'aller voir un tradipraticien", retourneMemeStructure:'Retournerait dans la même structure',
   // Variables issues de l'analyse spatiale (distances reelles au centre le plus proche)
   bandPrim:'Distance réelle au 1er contact', bandAny:'Distance réelle (tout centre)',
-  coverClass:'Couverture (temps de marche)'
+  coverClass:'Couverture (temps de marche)',
+  // Centre de sante le plus proche (calcule par computeNearest(), voir section 1bis)
+  nearestName:'Centre de santé le plus proche'
 };
 
 // NUM = les variables numeriques (montants + distances calculees en SIG). Traitees a part car on calcule
@@ -116,28 +118,90 @@ const EDIT_KEY='websig_edits_v1'; // cle de sauvegarde des deplacements dans le 
 // FILTER_GROUPS = quelles variables apparaissent dans la barre de filtres a
 // gauche, et sous quel intitule de groupe. On ne met pas TOUT pour ne pas
 // surcharger ; les 70+ variables restent accessibles dans les onglets.
+// Etape 5a : le premier groupe reunit les filtres consideres comme essentiels
+// (quartier, sexe, age, type de recours, distance, revenu, cout du transport,
+// mode de deplacement, centre de sante, satisfaction, perception de la
+// distance, accessibilite), les groupes suivants reprennent le detail.
 const FILTER_GROUPS = [
-  { g:'Profil', keys:['sexe','age','nationalite','ethnie','matrimonial','religion','instruction','professionCat','cadreProfession'] },
-  { g:'Localisation', keys:['quartier','lieuNaissance'] },
-  { g:'Ménage & économie', keys:['statutLogement','typeConstruction','nbPieces','revenu','depenses','nbEnfantsCat','personnesCharge','autreRevenu'] },
-  { g:'Accès aux soins', keys:['existenceCentre','frequentation','coverClass','distancePublique','bandPrim','tempsMis','opinionDistance','coutTransport'] },
-  { g:'Recours & assurance', keys:['premierRecours','premierRecoursCat','assurance','seulAccompagne'] },
-  { g:'Santé & résultats', keys:['maladieCat','resultatTraitement','retourneMemeStructure','satisfaitMedecin'] }
+  { g:'🎯 Filtres essentiels', keys:['quartier','sexe','age','premierRecoursCat','bandPrim','revenu','coutTransport','locomotion','nearestName','satisfaitMedecin','opinionDistance','coverClass'] },
+  { g:'Profil', keys:['nationalite','ethnie','matrimonial','religion','instruction','professionCat','cadreProfession'] },
+  { g:'Localisation', keys:['lieuNaissance'] },
+  { g:'Ménage & économie', keys:['statutLogement','typeConstruction','nbPieces','depenses','nbEnfantsCat','personnesCharge','autreRevenu'] },
+  { g:'Accès aux soins (détail)', keys:['existenceCentre','frequentation','distancePublique','tempsMis'] },
+  { g:'Recours & assurance', keys:['premierRecours','assurance','seulAccompagne'] },
+  { g:'Santé & résultats', keys:['maladieCat','resultatTraitement','retourneMemeStructure'] }
 ];
+
+/* ============================================================================
+   1bis. CAMPAGNE D'ENQUETE / ANALYSE TEMPORELLE (etape 5a)
+   Detecte automatiquement un champ temporel dans les donnees. Ce jeu de
+   donnees provient d'une enquete unique : le champ n'existe pas, et l'appli
+   doit le signaler proprement plutot que de planter ou d'afficher un filtre vide.
+   ============================================================================ */
+const TEMPORAL_CANDIDATES=['annee','date_enquete','periode','campagne','vague_enquete','mois_enquete'];
+function detectTemporalField(){
+  if(!DATA.length) return null;
+  const keys=Object.keys(DATA[0]);
+  for(const cand of TEMPORAL_CANDIDATES){
+    const found=keys.find(k=>k.toLowerCase()===cand);
+    if(found){
+      const vals=new Set(DATA.map(d=>(d[found]??'').toString().trim()).filter(Boolean));
+      if(vals.size>0) return found; // le champ existe ET contient au moins une valeur renseignee
+    }
+  }
+  return null;
+}
+const TEMPORAL_FIELD=detectTemporalField();
+if(TEMPORAL_FIELD){
+  if(!DIMS[TEMPORAL_FIELD]) DIMS[TEMPORAL_FIELD]="Campagne / période d'enquête";
+  FILTER_GROUPS.push({ g:"🕐 Campagne d'enquête / Analyse temporelle", keys:[TEMPORAL_FIELD] });
+}
 
 
 /* ============================================================================
    2. PALETTE DE COULEURS
    ============================================================================ */
 
-// Palette categorielle, choisie pour rester lisible (y compris pour la plupart
-// des daltoniens) et coherente entre la carte et les graphiques.
+// Palette categorielle par defaut, choisie pour rester lisible (y compris pour
+// la plupart des daltoniens) et coherente entre la carte et les graphiques.
 const PAL = ['#0f5e8f','#e8813a','#12a08a','#b0568f','#4c9a4c','#d9534f','#6f7fb3','#e6b84c','#7a5c48','#4bb1c9','#9a4c78','#8aa14c'];
+
+// MAP_PALETTES (etape 5b) : jeux de couleurs categoriels nommes, selectionnables
+// dans « Style cartographique ». "daltonienne" reprend la palette Okabe-Ito,
+// reconnue pour rester distinguable pour la plupart des types de daltonisme.
+const MAP_PALETTES = {
+  bleu:       ['#0b3d59','#1a6f9c','#2b8cbf','#5fb0d9','#0f5e8f','#3a86b8','#6bb0d6','#8fcbe8','#b8dff0','#123f5c'],
+  vert:       ['#1e4d2b','#2e6b3e','#3f8a51','#57a765','#0d8a6a','#3fae8c','#12a08a','#6cc4ac','#7fc48a','#a8dab0'],
+  jor:        ['#7f0000','#b30000','#d7301f','#ef6548','#e8813a','#fc8d59','#fdbb84','#fdd49e','#f4a460','#fee8c8'],
+  violet:     ['#3f007d','#54278f','#6a51a3','#807dba','#b0568f','#8a4c9a','#9e9ac8','#c084c0','#bcbddc','#dadaeb'],
+  turquoise:  ['#004c4c','#00696b','#00838a','#00a1a8','#12a08a','#4bb1c9','#3fc1c9','#2ba9a0','#7fd8dd','#b3e8ea'],
+  rouge:      ['#4d0000','#7a0000','#a30000','#c62828','#d9534f','#b5121b','#e57373','#c94f4f','#ef9a9a','#f4b6b6'],
+  sombre:     ['#1c1c1c','#2e2e2e','#404040','#525252','#3a3a3a','#646464','#4c4c4c','#767676','#5e5e5e','#888888'],
+  claire:     ['#6b9abb','#79a4c1','#87adc8','#95b6ce','#a3bfd4','#b1c9db','#bfd2e1','#cddbe8','#dbe4ee','#e8eef4'],
+  daltonienne:['#0173b2','#de8f05','#029e73','#d55e00','#cc78bc','#ca9161','#56b4e9','#949494','#ece133','#fbafe4']
+};
 
 // Cas particulier des reponses Oui/Non : vert = Oui, rouge = Non (plus intuitif).
 const YESNO = { 'Oui':'#4c9a4c','Non':'#d9534f','OUI':'#4c9a4c','NON':'#d9534f' };
 // Couleurs des classes d'accessibilite (marche) : du vert (proche) au rouge (hors zone)
 const COVER_COL = { '5 min':'#1a9850','10 min':'#91cf60','15 min':'#fee08b','Hors 15 min':'#d73027' };
+
+// mapStyle (etape 5b) : etat central du style cartographique, memorise dans le
+// navigateur (localStorage) et applique a la carte (palette, opacite, taille
+// des points, couleurs des couches). DEFAULT_MAP_STYLE sert de reference pour
+// le bouton « Réinitialiser le style ».
+const DEFAULT_MAP_STYLE = { palette:'bleu', layerOpacity:0.5, pointSize:5.5,
+  colorCentres:'#0d8a6a', colorQuartier:'#0f5e8f', colorCouverture:'#0d8a6a', colorGrille:'#5f6b7a', colorIsochrones:'#2e7d32' };
+let mapStyle = Object.assign({}, DEFAULT_MAP_STYLE);
+try{ const savedStyle=JSON.parse(localStorage.getItem('map_style_v1')||'null'); if(savedStyle) Object.assign(mapStyle,savedStyle); }catch(e){}
+// opacityMult() : multiplicateur applique aux opacites de base des couches (500 -> 1x, 0-100 -> 0x-2x)
+function opacityMult(){ return mapStyle.layerOpacity/0.5; }
+// shade()/shades3() : eclaircit (amt>0) ou assombrit (amt<0) une couleur hex, pour derouler dynamiquement
+// 3 teintes (isochrones 5/10/15 min) a partir d'une seule couleur choisie par l'utilisateur.
+function hexToRgb(hex){ hex=(hex||'#888888').replace('#',''); if(hex.length===3) hex=hex.split('').map(c=>c+c).join(''); const n=parseInt(hex,16)||0x888888; return [n>>16&255,n>>8&255,n&255]; }
+function rgbToHex(r,g,b){ return '#'+[r,g,b].map(v=>Math.max(0,Math.min(255,Math.round(v))).toString(16).padStart(2,'0')).join(''); }
+function shade(hex,amt){ const [r,g,b]=hexToRgb(hex); return rgbToHex(r+amt,g+amt,b+amt); }
+function shades3(hex){ return [shade(hex,45),hex,shade(hex,-55)]; }
 // Vitesse de marche retenue pour les personnes agees : 4,8 km/h = 80 m/min
 const WALK_M_MIN = 80;
 // haversine() : distance en metres entre deux points (lat/lon degres)
@@ -187,7 +251,8 @@ function colorFor(key,val){
   if(key==='coverClass' && COVER_COL[(val||'').trim()]) return COVER_COL[val.trim()]; // classes de marche
   const cats=CATS[key]||catsOf(key);
   if(cats.every(c=>YESNO[c.trim()]!==undefined || ['Oui','Non','OUI','NON'].includes(c.trim())) && YESNO[val.trim()]) return YESNO[val.trim()];
-  const i=cats.indexOf(val); return PAL[(i<0?0:i)%PAL.length];
+  const pal=MAP_PALETTES[mapStyle.palette]||PAL;
+  const i=cats.indexOf(val); return pal[(i<0?0:i)%pal.length];
 }
 
 
@@ -369,12 +434,12 @@ const GRID_COL={1:'#f0cf87',2:'#5fae5f',3:'#e69a34',4:'#d9534f'}; // couleur cel
 
 // recomputeGridCounts() : recompte les enquetes par cellule (d'apres cellId)
 function recomputeGridCounts(){ gridCounts={}; DATA.forEach(d=>{ if(d.cellId!=null) gridCounts[d.cellId]=(gridCounts[d.cellId]||0)+1; }); }
-// styleCell() : style d'une cellule de la grille selon son effectif
+// styleCell() : style d'une cellule de la grille selon son effectif (couleur/opacite pilotees par mapStyle, etape 5b)
 function styleCell(f){
-  const isNon=(f.properties.acces==='NON'); const n=gridCounts[f.properties.id]||0;
-  if(isNon) return {color:'#7a828c',weight:.6,fillColor:'#9aa5b1',fillOpacity:.35,dashArray:'2 2'};
-  if(n===0)  return {color:'#8794a3',weight:.5,fill:false};
-  return {color:'#5f6b7a',weight:.6,fillColor:GRID_COL[Math.min(n,4)],fillOpacity:.5};
+  const isNon=(f.properties.acces==='NON'); const n=gridCounts[f.properties.id]||0; const om=opacityMult();
+  if(isNon) return {color:'#7a828c',weight:.6,fillColor:'#9aa5b1',fillOpacity:Math.min(1,.35*om),dashArray:'2 2'};
+  if(n===0)  return {color:mapStyle.colorGrille,weight:.5,fill:false};
+  return {color:mapStyle.colorGrille,weight:.6,fillColor:GRID_COL[Math.min(n,4)],fillOpacity:Math.min(1,.5*om)};
 }
 // pointInGeom() : test point-dans-polygone (x=lng, y=lat) pour retrouver la cellule d'un point
 function pointInGeom(x,y,geom){
@@ -435,17 +500,22 @@ function initMap(){
   });
 }
 
-// buildSpatialLayers() : construit une fois pour toutes les couches SIG
+// buildSpatialLayers() : construit les couches SIG. Rejouable (etape 5b, changement
+// de style) : on VIDE et REPEUPLE les MEMES objets layerGroup plutot que d'en creer
+// de nouveaux, pour ne pas casser les cases a cocher deja branchees dessus (tog()).
 function buildSpatialLayers(){
-  // 1) limite communale de Yopougon (contour)
-  if(YOP){ boundaryLayer=L.geoJSON(YOP,{style:{color:'#0f5e8f',weight:2,fill:false,dashArray:'4 3'}}).addTo(map); }
-  else boundaryLayer=L.layerGroup();
+  // 1) limite communale de Yopougon (contour) — creee une seule fois, pas de restylage prevu ici
+  if(!boundaryLayer){ boundaryLayer = YOP ? L.geoJSON(YOP,{style:{color:'#0f5e8f',weight:2,fill:false,dashArray:'4 3'}}) : L.layerGroup(); boundaryLayer.addTo(map); }
 
-  // 2) centres de sante : petit carre colore selon le type
-  centresLayer=L.layerGroup();
-  buffer500Layer=L.layerGroup(); buffer1000Layer=L.layerGroup();
+  // 2) centres de sante + zones de couverture (couleurs pilotees par mapStyle)
+  const firstBuild=!centresLayer;
+  if(!centresLayer) centresLayer=L.layerGroup();
+  if(!buffer500Layer) buffer500Layer=L.layerGroup();
+  if(!buffer1000Layer) buffer1000Layer=L.layerGroup();
+  centresLayer.clearLayers(); buffer500Layer.clearLayers(); buffer1000Layer.clearLayers();
+  const om=opacityMult();
   CENTRES.forEach(c=>{
-    const col=CENTRE_COL[c.type]||'#8a94a6';
+    const col=mapStyle.colorCentres;
     // symbologie cartographique standard d'un point de sante : rond + croix blanche a l'interieur
     const icon=L.divIcon({className:'centre-ico',iconSize:[20,20],iconAnchor:[10,10],
       html:`<svg width="20" height="20" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" fill="${col}" stroke="#fff" stroke-width="1.6"/><path d="M10 5.2V14.8M5.2 10H14.8" stroke="#fff" stroke-width="2.1" stroke-linecap="round"/></svg>`});
@@ -455,21 +525,23 @@ function buildSpatialLayers(){
     centresLayer.addLayer(mk);
     // zones de couverture autour des centres de PREMIER CONTACT uniquement
     if(c.type==='Centre de sante (1er contact)'){
-      buffer500Layer.addLayer(L.circle([c.lat,c.lon],{radius:500,color:'#0d8a6a',weight:1,fillColor:'#0d8a6a',fillOpacity:.08}));
-      buffer1000Layer.addLayer(L.circle([c.lat,c.lon],{radius:1000,color:'#12a08a',weight:1,fillColor:'#12a08a',fillOpacity:.05}));
+      buffer500Layer.addLayer(L.circle([c.lat,c.lon],{radius:500,color:mapStyle.colorCouverture,weight:1,fillColor:mapStyle.colorCouverture,fillOpacity:Math.min(1,.08*om)}));
+      buffer1000Layer.addLayer(L.circle([c.lat,c.lon],{radius:1000,color:mapStyle.colorCouverture,weight:1,fillColor:mapStyle.colorCouverture,fillOpacity:Math.min(1,.05*om)}));
     }
   });
-  centresLayer.addTo(map); // affiches par defaut (case cochee)
+  if(firstBuild) centresLayer.addTo(map); // affiches par defaut (case cochee), une seule fois
 
   // 3) grille d'echantillonnage : cellules colorees selon le nombre d'enquetes affectes
   if(GRID){
     recomputeGridCounts();
-    gridLayer=L.geoJSON(GRID,{
-      style:styleCell,
-      onEachFeature:(f,l)=>{ l.on('click',()=>{ const n=gridCounts[f.properties.id]||0;
-        l.bindPopup(`<div class="pop"><b>Cellule ${f.properties.id}</b><br>${f.properties.acces==='NON'?'Zone non enquêtée (industrielle)':n+' enquêté(s) affecté(s)'}</div>`).openPopup(); }); }
-    });
-  } else gridLayer=L.layerGroup();
+    if(!gridLayer){
+      gridLayer=L.geoJSON(GRID,{
+        style:styleCell,
+        onEachFeature:(f,l)=>{ l.on('click',()=>{ const n=gridCounts[f.properties.id]||0;
+          l.bindPopup(`<div class="pop"><b>Cellule ${f.properties.id}</b><br>${f.properties.acces==='NON'?'Zone non enquêtée (industrielle)':n+' enquêté(s) affecté(s)'}</div>`).openPopup(); }); }
+      });
+    } else { gridLayer.clearLayers(); gridLayer.addData(GRID); }
+  } else if(!gridLayer) gridLayer=L.layerGroup();
 }
 
 // popupHtml() : fiche d'information affichee quand on clique un point enquete
@@ -501,6 +573,7 @@ function renderMap(recs){
   markerLayer.clearLayers(); if(clusterLayer){map.removeLayer(clusterLayer);clusterLayer=null;}
   const cluster=document.getElementById('clusterToggle').checked && L.markerClusterGroup;
   const target = cluster ? (clusterLayer=L.markerClusterGroup({maxClusterRadius:45})) : markerLayer;
+  const baseR=mapStyle.pointSize, hoverR=baseR+3, editOuter=Math.round(baseR*2.9), editInner=Math.max(6,Math.round(baseR*2.36)); // taille des points (etape 5b)
   recs.forEach(d=>{
     // position selon le mode : reelle (lat/lng) ou grille d'echantillonnage (gLat/gLon)
     const la = gridView ? d.gLat : d.lat, ln = gridView ? d.gLon : d.lng;
@@ -509,14 +582,14 @@ function renderMap(recs){
     const col=val==='(non renseigné)'?'#9aa5b1':colorFor(key,val);
     let mk;
     if(editMode){ // mode edition : point deplacable a la souris
-      mk=L.marker([la,ln],{draggable:true,icon:L.divIcon({className:'',iconSize:[16,16],iconAnchor:[8,8],
-        html:`<div style="width:13px;height:13px;border-radius:50%;background:${col};border:2px solid #fff;box-shadow:0 0 3px rgba(0,0,0,.7);cursor:move"></div>`})});
+      mk=L.marker([la,ln],{draggable:true,icon:L.divIcon({className:'',iconSize:[editOuter,editOuter],iconAnchor:[editOuter/2,editOuter/2],
+        html:`<div style="width:${editInner}px;height:${editInner}px;border-radius:50%;background:${col};border:2px solid #fff;box-shadow:0 0 3px rgba(0,0,0,.7);cursor:move"></div>`})});
       mk.on('dragend',()=>onDragEnd(d,mk));
     } else {
-      mk=L.circleMarker([la,ln],{radius:5.5,color:'#ffffff',weight:1.4,fillColor:col,fillOpacity:.9});
+      mk=L.circleMarker([la,ln],{radius:baseR,color:'#ffffff',weight:1.4,fillColor:col,fillOpacity:.9});
       // interactivite : survol qui met en avant le point
-      mk.on('mouseover',function(){ this.setStyle({radius:8.5,weight:2,fillOpacity:1}); this.bringToFront&&this.bringToFront(); });
-      mk.on('mouseout', function(){ this.setStyle({radius:5.5,weight:1.4,fillOpacity:.9}); });
+      mk.on('mouseover',function(){ this.setStyle({radius:hoverR,weight:2,fillOpacity:1}); this.bringToFront&&this.bringToFront(); });
+      mk.on('mouseout', function(){ this.setStyle({radius:baseR,weight:1.4,fillOpacity:.9}); });
     }
     mk.bindPopup(popupHtml(d),{maxWidth:260}); target.addLayer(mk);
   });
@@ -546,6 +619,26 @@ function renderLegend(key,recs){
   document.getElementById('legendTitle').textContent=DIMS[key]||NUM[key]||key;
   box.innerHTML=cats.map(c=>`<div class="li"><span class="sw" style="background:${colorFor(key,c)}"></span><span style="flex:1">${c}</span><span class="cnt">${m.get(c)||0}</span></div>`).join('')
     +(m.size?'':'<div class="muted">Aucune donnée pour la sélection</div>');
+}
+
+// applyMapStyle() : reconstruit les couches SIG stylees (centres/couverture/grille) et
+// redessine les points avec les reglages courants, puis memorise le style (etape 5b).
+function applyMapStyle(){
+  buildSpatialLayers();
+  renderMap(filtered());
+  localStorage.setItem('map_style_v1', JSON.stringify(mapStyle));
+}
+
+// highlightQuartier() : surligne temporairement l'emprise d'un quartier sur la carte
+// (utilise par le tableau matrice, etape 4, quand on clique une ligne « quartier »).
+let quartierHiLayer=null, quartierHiTimer=null;
+function highlightQuartier(lat,lng,radiusM){
+  if(!quartierHiLayer) quartierHiLayer=L.layerGroup();
+  quartierHiLayer.clearLayers();
+  L.circle([lat,lng],{radius:radiusM,color:mapStyle.colorQuartier,weight:2,fillColor:mapStyle.colorQuartier,fillOpacity:.10,dashArray:'6 4'}).addTo(quartierHiLayer);
+  if(!map.hasLayer(quartierHiLayer)) quartierHiLayer.addTo(map);
+  clearTimeout(quartierHiTimer);
+  quartierHiTimer=setTimeout(()=>{ quartierHiLayer.clearLayers(); },6000); // s'efface au bout de 6 s
 }
 
 /* ---------- Outils SIG (echelle, coordonnees, plein ecran, mesure) ---------- */
@@ -616,7 +709,7 @@ function setIsoInfo(t){ const el=document.getElementById('isoInfo'); if(el) el.i
 async function computeIsochrone(c){
   isoLayer.clearLayers(); if(!map.hasLayer(isoLayer)) isoLayer.addTo(map);
   const key=(localStorage.getItem('ors_key')||'').trim();
-  const cols=['#2e7d32','#f9a825','#c62828']; // 5, 10, 15 min
+  const cols=shades3(mapStyle.colorIsochrones); // 5, 10, 15 min — 3 teintes derivees de la couleur choisie (etape 5b)
   if(key){
     setIsoInfo(`Calcul des isochrones réseau autour de « ${c.nom} »…`);
     try{
@@ -630,7 +723,7 @@ async function computeIsochrone(c){
         const v=f.properties.value, idx=v<=300?0:v<=600?1:2;
         L.geoJSON(f,{style:{color:cols[idx],weight:1.6,fillColor:cols[idx],fillOpacity:.2}}).addTo(isoLayer); });
       L.marker([c.lat,c.lon]).addTo(isoLayer);
-      setIsoInfo(`<b>${c.nom}</b> — isochrones à pied : <span style="color:#2e7d32">5 min</span> · <span style="color:#f9a825">10 min</span> · <span style="color:#c62828">15 min</span>.`);
+      setIsoInfo(`<b>${c.nom}</b> — isochrones à pied : <span style="color:${cols[0]}">5 min</span> · <span style="color:${cols[1]}">10 min</span> · <span style="color:${cols[2]}">15 min</span>.`);
     }catch(e){ approxIso(c,cols); setIsoInfo(`API indisponible (${e.message}). Zones approximatives affichées. Vérifiez votre clé.`); }
   } else { approxIso(c,cols);
     setIsoInfo(`<b>${c.nom}</b> — zones approximatives (marche ~4,8 km/h) : 5/10/15 min. Ajoutez une clé OpenRouteService pour des isochrones réseau précises.`); }
@@ -819,7 +912,10 @@ function buildFilters(){
       const opts=cats.map(c=>`<label class="opt"><input type="checkbox" data-k="${key}" value="${esc(c)}"><span>${c}</span><span class="cnt">${m.get(c)||0}</span></label>`).join('');
       return `<details class="fg"><summary>${DIMS[key]||key}<span class="chev">▶</span></summary><div class="opts">${many?`<input class="search" placeholder="Filtrer…" data-search="${key}">`:''}<div data-optbox="${key}">${opts}</div></div></details>`;
     }).join('');
-  }).join('');
+  }).join('') + (TEMPORAL_FIELD ? '' :
+    // etape 5a : aucun champ temporel detecte -> message discret plutot qu'un filtre vide
+    `<details class="fg"><summary>🕐 Campagne d'enquête / Analyse temporelle<span class="chev">▶</span></summary>`+
+    `<div class="opts"><div class="note" style="margin:2px 0 4px">Données issues d'une campagne d'enquête unique. Aucun filtre temporel disponible pour le moment.</div></div></details>`);
   // quand on coche/decoche : on met a jour l'ensemble filters puis on rafraichit tout
   body.querySelectorAll('input[type=checkbox]').forEach(cb=>cb.addEventListener('change',()=>{
     const k=cb.dataset.k; if(!filters[k])filters[k]=new Set();
@@ -1283,8 +1379,9 @@ function zoomToQuartier(q){
   const pts=filtered().filter(d=>((d.quartier??'').toString().trim())===q && typeof d.lat==='number' && d.lat);
   if(!pts.length) return;
   const lat=pts.reduce((a,d)=>a+d.lat,0)/pts.length, lng=pts.reduce((a,d)=>a+d.lng,0)/pts.length;
+  const radius=Math.max(200, Math.max(...pts.map(d=>haversine(lat,lng,d.lat,d.lng))));
   switchTab('carte');
-  setTimeout(()=>map.setView([lat,lng],16),120);
+  setTimeout(()=>{ map.setView([lat,lng],16); highlightQuartier(lat,lng,radius); },120);
 }
 
 // applyComboFilter() : clic sur une cellule du tableau croise/heatmap -> filtre
@@ -1664,7 +1761,41 @@ document.addEventListener('DOMContentLoaded',async ()=>{
 
   // 10. panneau statistique de droite (etape 3)
   initStatsPanel();
+
+  // 11. style cartographique (etape 5b)
+  initMapStyleUI();
 });
+
+// initMapStyleUI() : synchronise les controles du panneau « Style cartographique »
+// avec l'etat courant de mapStyle (deja charge depuis localStorage), puis les branche.
+function initMapStyleUI(){
+  const $=id=>document.getElementById(id);
+  $('mapPalette').value=mapStyle.palette;
+  $('mapOpacity').value=Math.round(mapStyle.layerOpacity*100); $('mapOpacityVal').textContent=$('mapOpacity').value;
+  $('mapPointSize').value=mapStyle.pointSize; $('mapPointSizeVal').textContent=mapStyle.pointSize;
+  $('colCentres').value=mapStyle.colorCentres; $('colQuartier').value=mapStyle.colorQuartier;
+  $('colCouverture').value=mapStyle.colorCouverture; $('colGrille').value=mapStyle.colorGrille; $('colIsochrones').value=mapStyle.colorIsochrones;
+  $('mapDarkToggle').checked = document.documentElement.getAttribute('data-theme')==='dark';
+
+  $('mapPalette').addEventListener('change',e=>{ mapStyle.palette=e.target.value; applyMapStyle(); });
+  $('mapDarkToggle').addEventListener('change',e=>{ applyAppearance(e.target.checked?'dark':'light', document.documentElement.getAttribute('data-accent')); });
+  $('mapOpacity').addEventListener('input',e=>{ mapStyle.layerOpacity=(+e.target.value)/100; $('mapOpacityVal').textContent=e.target.value; applyMapStyle(); });
+  $('mapPointSize').addEventListener('input',e=>{ mapStyle.pointSize=+e.target.value; $('mapPointSizeVal').textContent=e.target.value; renderMap(filtered()); localStorage.setItem('map_style_v1',JSON.stringify(mapStyle)); });
+  [['colCentres','colorCentres'],['colQuartier','colorQuartier'],['colCouverture','colorCouverture'],['colGrille','colorGrille'],['colIsochrones','colorIsochrones']].forEach(([id,key])=>{
+    $(id).addEventListener('input',e=>{ mapStyle[key]=e.target.value; applyMapStyle(); });
+  });
+  $('resetMapStyle').addEventListener('click',()=>{
+    Object.assign(mapStyle, DEFAULT_MAP_STYLE);
+    localStorage.removeItem('map_style_v1');
+    $('mapPalette').value=mapStyle.palette;
+    $('mapOpacity').value=Math.round(mapStyle.layerOpacity*100); $('mapOpacityVal').textContent=$('mapOpacity').value;
+    $('mapPointSize').value=mapStyle.pointSize; $('mapPointSizeVal').textContent=mapStyle.pointSize;
+    $('colCentres').value=mapStyle.colorCentres; $('colQuartier').value=mapStyle.colorQuartier;
+    $('colCouverture').value=mapStyle.colorCouverture; $('colGrille').value=mapStyle.colorGrille; $('colIsochrones').value=mapStyle.colorIsochrones;
+    applyAppearance('light', document.documentElement.getAttribute('data-accent'));
+    applyMapStyle();
+  });
+}
 
 /* ============================================================================
    APPARENCE : theme (clair/sombre) + accent (cyan/vert/alerte), memorises
@@ -1675,6 +1806,7 @@ function applyAppearance(theme,accent){
   localStorage.setItem('ui_theme',theme); localStorage.setItem('ui_accent',accent);
   const tb=document.getElementById('themeBtn'); if(tb) tb.textContent = theme==='dark' ? '☀' : '🌙';
   document.querySelectorAll('.acc').forEach(b=>b.classList.toggle('on',b.dataset.acc===accent));
+  const mdt=document.getElementById('mapDarkToggle'); if(mdt) mdt.checked = theme==='dark'; // synchro avec le panneau Style cartographique (etape 5b)
 }
 function initAppearance(){
   const theme=localStorage.getItem('ui_theme')||'light';

@@ -111,6 +111,8 @@ section.anim .card:nth-child(4){animation-delay:.15s}
 .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
 select.sel{padding:7px 9px;border:1px solid var(--line);border-radius:8px;font-size:12.8px;background:#fff;max-width:280px}
 label.lbl{font-size:12px;color:var(--muted);font-weight:600}
+input.colorpick{width:32px;height:24px;padding:1px;border:1px solid var(--line);border-radius:5px;cursor:pointer;background:none;flex:none}
+input[type=range]{accent-color:var(--brand)}
 #map{height:100%;min-height:600px;border-radius:var(--radius);border:1px solid var(--line);z-index:1}
 .maprow{align-items:stretch}
 .maprow>#map{align-self:stretch}
@@ -376,6 +378,34 @@ table.ct tr.rowclick:hover td{background:#eaf2f8}
                 <option value="ghyb">Satellite + rues (Google)</option>
                 <option value="esri">Satellite (Esri World Imagery)</option>
               </select></div>
+            <hr style="border:none;border-top:1px solid var(--line);margin:8px 0">
+            <!-- Style cartographique (etape 5b) : palette, mode, opacite, taille des points, couleurs des couches -->
+            <div style="font-weight:600;font-size:12px;margin-bottom:4px">🎨 Style cartographique</div>
+            <div style="margin:6px 0"><label class="lbl" for="mapPalette">Palette de couleurs</label>
+              <select class="sel" id="mapPalette" style="width:100%;margin-top:3px">
+                <option value="bleu">Bleu</option>
+                <option value="vert">Vert</option>
+                <option value="jor">Jaune-orange-rouge</option>
+                <option value="violet">Violet</option>
+                <option value="turquoise">Turquoise</option>
+                <option value="rouge">Rouge</option>
+                <option value="sombre">Sombre</option>
+                <option value="claire">Claire</option>
+                <option value="daltonienne">Daltonienne (accessible)</option>
+              </select></div>
+            <div class="switch"><input type="checkbox" id="mapDarkToggle"><label for="mapDarkToggle">Mode sombre (interface)</label></div>
+            <div style="margin:6px 0"><label class="lbl" for="mapOpacity">Opacité des couches (<span id="mapOpacityVal">50</span>%)</label>
+              <input type="range" id="mapOpacity" min="0" max="100" value="50" style="width:100%"></div>
+            <div style="margin:6px 0"><label class="lbl" for="mapPointSize">Taille des points (<span id="mapPointSizeVal">5.5</span> px)</label>
+              <input type="range" id="mapPointSize" min="2" max="12" step="0.5" value="5.5" style="width:100%"></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:6px 0 2px">
+              <label class="lbl" style="display:flex;align-items:center;gap:5px">🏥 Centres <input type="color" class="colorpick" id="colCentres" value="#0d8a6a"></label>
+              <label class="lbl" style="display:flex;align-items:center;gap:5px">🏘️ Quartiers <input type="color" class="colorpick" id="colQuartier" value="#0f5e8f"></label>
+              <label class="lbl" style="display:flex;align-items:center;gap:5px">⭕ Couverture <input type="color" class="colorpick" id="colCouverture" value="#0d8a6a"></label>
+              <label class="lbl" style="display:flex;align-items:center;gap:5px">▦ Grille <input type="color" class="colorpick" id="colGrille" value="#5f6b7a"></label>
+              <label class="lbl" style="display:flex;align-items:center;gap:5px;grid-column:1/-1">🕒 Isochrones <input type="color" class="colorpick" id="colIsochrones" value="#2e7d32"></label>
+            </div>
+            <button class="btn" id="resetMapStyle" style="width:100%;margin-top:2px">↺ Réinitialiser le style</button>
             <hr style="border:none;border-top:1px solid var(--line);margin:8px 0">
             <div class="switch"><input type="checkbox" id="centresToggle" checked><label for="centresToggle">🏥 Centres de santé (108)</label></div>
             <div class="switch"><input type="checkbox" id="buffer500Toggle"><label for="buffer500Toggle">Zone de couverture 500 m</label></div>
