@@ -309,8 +309,8 @@ Chart.defaults.font.size=11.5; Chart.defaults.color='#334155';
 // courant apres un changement de theme pour que les graphiques deja affiches se corrigent.
 function applyChartTheme(theme){
   const dark=theme==='dark';
-  Chart.defaults.color = dark ? '#c3d1de' : '#334155';
-  Chart.defaults.borderColor = dark ? '#2a3948' : '#e5e9f0';
+  Chart.defaults.color = dark ? '#e6edf5' : '#334155'; // meme teinte que --ink en sombre : contraste maximal
+  Chart.defaults.borderColor = dark ? '#344657' : '#e5e9f0';
 }
 
 // charts = registre des graphiques crees, indexe par l'id du <canvas>.
@@ -1337,24 +1337,42 @@ function heat(p){const a=Math.min(1,p/100);return `rgba(15,94,143,${(0.08+0.72*a
    (filtre la carte et les graphiques sur la combinaison choisie).
    ============================================================================ */
 
-let mxMode='croise', mxColorblind=false, mxSearch='';
+let mxMode='croise', mxSearch='';
 let mxSort={key:null,dir:1}; // colonne triee (0 = libelle de ligne) et sens (1 asc, -1 desc)
 let mxLastTable={headers:[],rows:[]}; // derniere table affichee, en texte brut (pour l'export)
 
-// heatColor() : couleur diverging selon un pourcentage 0-100.
+// HEATMAP_PALETTES : jeux de couleurs selectionnables pour le tableau matrice (mode heatmap et
+// tableau d'aide a la decision). Chaque palette est definie par 3 teintes (basse/moyenne/haute) ;
+// heatColor() degrade lineairement entre elles selon le pourcentage.
+const HEATMAP_PALETTES = {
+  rougevert:  { label:'Rouge → Vert (par défaut)',      stops:[[217,83,79],[232,168,58],[76,154,76]] },
+  daltonienne:{ label:'Daltonienne (bleu → orange)',     stops:[[1,115,178],[255,255,255],[222,143,5]] },
+  bleu:       { label:'Bleu (séquentiel)',               stops:[[222,235,245],[100,160,195],[15,94,143]] },
+  vert:       { label:'Vert (séquentiel)',               stops:[[224,242,224],[110,190,120],[27,120,55]] },
+  violet:     { label:'Violet (séquentiel)',             stops:[[237,225,245],[170,120,190],[106,45,140]] },
+  rouge:      { label:'Rouge (séquentiel)',              stops:[[250,224,224],[220,120,110],[178,34,34]] },
+  gris:       { label:'Gris (séquentiel)',               stops:[[232,232,232],[160,160,160],[70,70,70]] }
+};
+let mxPalette='rougevert';
+try{ const saved=localStorage.getItem('mx_palette_v1'); if(saved && HEATMAP_PALETTES[saved]) mxPalette=saved; }catch(e){}
+
+// heatColor() : couleur diverging selon un pourcentage 0-100, degradee sur la palette choisie.
 // invert=true si une valeur HAUTE est defavorable (ex: distance, personnes hors couverture).
-// colorblind=true : palette bleu -> orange (Okabe-Ito) au lieu de rouge -> vert.
-function heatColor(pct,invert,colorblind){
+function heatColor(pct,invert,paletteKey){
   const p=Math.max(0,Math.min(100, invert?100-pct:pct));
-  if(colorblind){
-    const lo=[1,115,178], hi=[222,143,5]; // bleu -> orange
-    const t=p/100, c=lo.map((l,i)=>Math.round(l+(hi[i]-l)*t));
-    return `rgba(${c[0]},${c[1]},${c[2]},0.82)`;
-  }
-  const stops=[[217,83,79],[232,168,58],[76,154,76]]; // rouge -> jaune -> vert
+  const stops=(HEATMAP_PALETTES[paletteKey]||HEATMAP_PALETTES.rougevert).stops;
   const [a,b,t] = p<50 ? [stops[0],stops[1],p/50] : [stops[1],stops[2],(p-50)/50];
   const c=a.map((v,i)=>Math.round(v+(b[i]-v)*t));
-  return `rgba(${c[0]},${c[1]},${c[2]},0.82)`;
+  return `rgba(${c[0]},${c[1]},${c[2]},0.85)`;
+}
+// heatContrastText() : texte noir ou blanc selon la luminosite du fond, pour rester lisible quelle
+// que soit la palette choisie ou le theme clair/sombre (les couleurs de heatColor() ne changent pas
+// avec le theme, contrairement au texte des cellules qui heriterait sinon de var(--ink)).
+function heatContrastText(bg){
+  const m=/rgba?\(\s*(\d+),\s*(\d+),\s*(\d+)/.exec(bg||''); if(!m) return '';
+  const r=+m[1],g=+m[2],b=+m[3];
+  const lum=(0.299*r+0.587*g+0.114*b)/255;
+  return lum>0.58 ? '#1c2530' : '#ffffff';
 }
 
 // computeCrossGrid() : meme grille de contingence que crossChart(), sans dessiner de graphique
@@ -1434,7 +1452,7 @@ function renderMatriceTable(containerId, headers, rows, opts={}){
   rr.forEach((r,ri)=>{
     html+=`<tr${r.onRowClick?' class="rowclick"':''} data-ri="${ri}"><td class="rowh" title="${esc(r.label)}">${r.label}</td>`;
     r.cells.forEach((c,ci)=>{
-      const style=c.bg?` style="background:${c.bg}"`:''; const cls=c.onClick?' class="clickable"':'';
+      const style=c.bg?` style="background:${c.bg};color:${heatContrastText(c.bg)}"`:''; const cls=c.onClick?' class="clickable"':'';
       html+=`<td${style}${cls} data-ri="${ri}" data-ci="${ci}" title="${esc(c.title||c.text)}">${c.html!=null?c.html:c.text}</td>`;
     });
     html+='</tr>';
@@ -1484,7 +1502,7 @@ function renderMatriceCroise(recs,heatMode){
   const rows=catsX.map(x=>{
     const cells=catsY.map(y=>{
       const v=grid[x][y], p=totX[x]?100*v/totX[x]:0;
-      const bg = heatMode ? heatColor(p,false,mxColorblind) : (v?heat(p):undefined);
+      const bg = heatMode ? heatColor(p,false,mxPalette) : (v?heat(p):undefined);
       return { text:`${v} (${p.toFixed(0)}%)`, sortVal:v,
         title:`${DIMS[kx]||kx} : ${x}  |  ${DIMS[ky]||ky} : ${y}  |  Effectif : ${v}  |  ${p.toFixed(1)}% de la ligne`,
         bg, onClick:()=>applyComboFilter(kx,x,ky,y) };
@@ -1509,12 +1527,12 @@ function renderMatriceQuartier(recs){
       { text:o.n, sortVal:o.n },
       { text:o.distMoy!=null?Math.round(o.distMoy)+' m':'—', sortVal:o.distMoy??-1 },
       { text:o.walkMoy!=null?Math.round(o.walkMoy)+' min':'—', sortVal:o.walkMoy??-1 },
-      { text:o.c5pct.toFixed(0)+'%', sortVal:o.c5pct, bg:heatColor(o.c5pct,false,mxColorblind) },
-      { text:o.taux!=null?o.taux.toFixed(0)+'%':'—', sortVal:o.taux??-1, bg:o.taux!=null?heatColor(o.taux,false,mxColorblind):undefined },
-      { text:o.hors, sortVal:o.hors, bg:heatColor(horsPct,true,mxColorblind), title:`${o.hors} personne(s) hors couverture 15 min (${horsPct.toFixed(0)}% du quartier)` },
+      { text:o.c5pct.toFixed(0)+'%', sortVal:o.c5pct, bg:heatColor(o.c5pct,false,mxPalette) },
+      { text:o.taux!=null?o.taux.toFixed(0)+'%':'—', sortVal:o.taux??-1, bg:o.taux!=null?heatColor(o.taux,false,mxPalette):undefined },
+      { text:o.hors, sortVal:o.hors, bg:heatColor(horsPct,true,mxPalette), title:`${o.hors} personne(s) hors couverture 15 min (${horsPct.toFixed(0)}% du quartier)` },
       { text:o.recDom, sortVal:o.recDom },
-      { text:o.satisfaction!=null?o.satisfaction.toFixed(0)+'%':'—', sortVal:o.satisfaction??-1, bg:o.satisfaction!=null?heatColor(o.satisfaction,false,mxColorblind):undefined },
-      { text:o.vulnerabilite.toFixed(0), sortVal:o.vulnerabilite, bg:heatColor(o.vulnerabilite,true,mxColorblind), title:'Combine couverture, distance, population et recours à la médecine moderne' },
+      { text:o.satisfaction!=null?o.satisfaction.toFixed(0)+'%':'—', sortVal:o.satisfaction??-1, bg:o.satisfaction!=null?heatColor(o.satisfaction,false,mxPalette):undefined },
+      { text:o.vulnerabilite.toFixed(0), sortVal:o.vulnerabilite, bg:heatColor(o.vulnerabilite,true,mxPalette), title:'Combine couverture, distance, population et recours à la médecine moderne' },
       { html:`<span class="mx-badge" style="background:${o.prioColor}">${o.priorite}</span>`, text:o.priorite, sortVal:o.vulnerabilite }
     ];
     return { label:o.q, cells, onRowClick:()=>zoomToQuartier(o.q) };
@@ -1528,7 +1546,10 @@ function renderMatrice(recs){
   const mode=document.getElementById('mxMode').value; mxMode=mode;
   const showXY=mode!=='quartier';
   ['mxXlabel','mx','mxYlabel','my'].forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display=showXY?'':'none'; });
-  const cbWrap=document.getElementById('mxColorblind'); if(cbWrap&&cbWrap.closest('.switch')) cbWrap.closest('.switch').style.display=mode==='croise'?'none':'';
+  const showPalette=mode!=='croise';
+  const palSel=document.getElementById('mxPalette'), palLbl=document.getElementById('mxPaletteLabel');
+  if(palSel) palSel.style.display=showPalette?'':'none';
+  if(palLbl) palLbl.style.display=showPalette?'':'none';
   if(mode==='croise') renderMatriceCroise(recs,false);
   else if(mode==='heat') renderMatriceCroise(recs,true);
   else renderMatriceQuartier(recs);
@@ -1780,7 +1801,9 @@ document.addEventListener('DOMContentLoaded',async ()=>{
   document.getElementById('mx').value='quartier'; document.getElementById('my').value='coverClass';
   ['mx','my'].forEach(id=>document.getElementById(id).addEventListener('change',()=>renderMatrice(filtered())));
   document.getElementById('mxMode').addEventListener('change',()=>{ mxSort={key:null,dir:1}; renderMatrice(filtered()); });
-  document.getElementById('mxColorblind').addEventListener('change',e=>{ mxColorblind=e.target.checked; renderMatrice(filtered()); });
+  const mxPalSel=document.getElementById('mxPalette');
+  mxPalSel.innerHTML=Object.entries(HEATMAP_PALETTES).map(([k,p])=>`<option value="${k}"${k===mxPalette?' selected':''}>${p.label}</option>`).join('');
+  mxPalSel.addEventListener('change',e=>{ mxPalette=e.target.value; localStorage.setItem('mx_palette_v1',mxPalette); renderMatrice(filtered()); });
   document.getElementById('mxSearch').addEventListener('input',e=>{ mxSearch=e.target.value; renderMatrice(filtered()); });
   document.getElementById('mxExportCsv').addEventListener('click',exportMatriceCsv);
   document.getElementById('mxExportXlsx').addEventListener('click',exportMatriceXlsx);
