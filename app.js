@@ -587,9 +587,10 @@ function renderMap(recs){
       mk.on('dragend',()=>onDragEnd(d,mk));
     } else {
       mk=L.circleMarker([la,ln],{radius:baseR,color:'#ffffff',weight:1.4,fillColor:col,fillOpacity:.9});
-      // interactivite : survol qui met en avant le point
+      // interactivite : survol qui met en avant le point, clic qui le fait "pulser" brievement (etape 5g)
       mk.on('mouseover',function(){ this.setStyle({radius:hoverR,weight:2,fillOpacity:1}); this.bringToFront&&this.bringToFront(); });
       mk.on('mouseout', function(){ this.setStyle({radius:baseR,weight:1.4,fillOpacity:.9}); });
+      mk.on('click',function(){ pulseMarker(this); });
     }
     mk.bindPopup(popupHtml(d),{maxWidth:260}); target.addLayer(mk);
   });
@@ -632,13 +633,27 @@ function applyMapStyle(){
 // highlightQuartier() : surligne temporairement l'emprise d'un quartier sur la carte
 // (utilise par le tableau matrice, etape 4, quand on clique une ligne « quartier »).
 let quartierHiLayer=null, quartierHiTimer=null;
+// highlightRenderer : la carte utilise preferCanvas (perf, 726 points), mais un canvas ne peut pas
+// recevoir d'animation CSS par forme individuelle. On force donc ce petit cercle de surlignage en SVG
+// (etape 5g) pour pouvoir lui appliquer une pulsation CSS (voir .quartier-highlight-pulse).
+const highlightRenderer=L.svg({padding:2});
 function highlightQuartier(lat,lng,radiusM){
   if(!quartierHiLayer) quartierHiLayer=L.layerGroup();
   quartierHiLayer.clearLayers();
-  L.circle([lat,lng],{radius:radiusM,color:mapStyle.colorQuartier,weight:2,fillColor:mapStyle.colorQuartier,fillOpacity:.10,dashArray:'6 4'}).addTo(quartierHiLayer);
+  L.circle([lat,lng],{radius:radiusM,color:mapStyle.colorQuartier,weight:2,fillColor:mapStyle.colorQuartier,fillOpacity:.10,dashArray:'6 4',
+    className:'quartier-highlight-pulse',renderer:highlightRenderer}).addTo(quartierHiLayer);
   if(!map.hasLayer(quartierHiLayer)) quartierHiLayer.addTo(map);
   clearTimeout(quartierHiTimer);
   quartierHiTimer=setTimeout(()=>{ quartierHiLayer.clearLayers(); },6000); // s'efface au bout de 6 s
+}
+// pulseMarker() : mise en evidence breve d'un point enquete au clic (etape 5g). Les marqueurs sont en
+// canvas (perf) donc pas de CSS possible ici : on anime le style Leaflet lui-meme, pas par CSS.
+function pulseMarker(mk){
+  if(!mk || !mk.setStyle) return;
+  const orig={radius:mk.options.radius,weight:mk.options.weight,fillOpacity:mk.options.fillOpacity};
+  const steps=[{radius:orig.radius+6,weight:3,fillOpacity:1},orig,{radius:orig.radius+4,weight:2.6,fillOpacity:1},orig];
+  let i=0; const run=()=>{ if(i>=steps.length) return; mk.setStyle(steps[i]); i++; setTimeout(run,150); };
+  run();
 }
 
 /* ---------- Outils SIG (echelle, coordonnees, plein ecran, mesure) ---------- */
@@ -1381,7 +1396,7 @@ function zoomToQuartier(q){
   const lat=pts.reduce((a,d)=>a+d.lat,0)/pts.length, lng=pts.reduce((a,d)=>a+d.lng,0)/pts.length;
   const radius=Math.max(200, Math.max(...pts.map(d=>haversine(lat,lng,d.lat,d.lng))));
   switchTab('carte');
-  setTimeout(()=>{ map.setView([lat,lng],16); highlightQuartier(lat,lng,radius); },120);
+  setTimeout(()=>{ map.flyTo([lat,lng],16,{duration:1.1}); highlightQuartier(lat,lng,radius); },120); // flyTo : zoom fluide (etape 5g)
 }
 
 // applyComboFilter() : clic sur une cellule du tableau croise/heatmap -> filtre
@@ -1661,6 +1676,7 @@ function switchTab(t){
 
 // Au chargement de la page : on branche tout
 document.addEventListener('DOMContentLoaded',async ()=>{
+  showLoading('Chargement de Bakusm@p…'); // ecran de chargement (etape 5g), ferme a la toute fin de l'init
   // 0. si une base complete existe en ligne (table `enquetes`), on la charge d'abord
   //    -> toute modif faite dans pgAdmin/Supabase agit directement sur la plateforme
   const cloudFull = await loadFullDataFromCloud();
@@ -1783,6 +1799,11 @@ document.addEventListener('DOMContentLoaded',async ()=>{
 
   // 15. exports professionnels (etape 5f)
   initExportsUI();
+
+  // 16. mode Analyse / Presentation (etape 5g)
+  initPresentationMode();
+
+  hideLoading(); // fin du chargement initial (etape 5g)
 });
 
 // initMapStyleUI() : synchronise les controles du panneau « Style cartographique »
@@ -2356,14 +2377,15 @@ function buildExportMapImage(baseCanvas){
 }
 
 async function exportMapPng(){
-  exportStatus('Capture de la carte en cours…');
+  exportStatus('Capture de la carte en cours…'); showLoading('Capture de la carte…');
   try{ const out=buildExportMapImage(await captureMapCanvas());
     const a=document.createElement('a'); a.href=out.toDataURL('image/png'); a.download='carte_bakusmap.png'; a.click();
     exportStatus('✓ Carte exportée en PNG.');
   }catch(err){ exportStatus('Échec de l\'export de la carte : '+err.message,true); }
+  finally{ hideLoading(); }
 }
 async function exportMapPdf(){
-  exportStatus('Capture de la carte en cours…');
+  exportStatus('Capture de la carte en cours…'); showLoading('Capture de la carte…');
   try{
     const out=buildExportMapImage(await captureMapCanvas());
     const {jsPDF}=window.jspdf;
@@ -2376,6 +2398,7 @@ async function exportMapPdf(){
     doc.save('carte_bakusmap.pdf');
     exportStatus('✓ Carte exportée en PDF.');
   }catch(err){ exportStatus('Échec de l\'export de la carte : '+err.message,true); }
+  finally{ hideLoading(); }
 }
 
 // exportDonneesXlsx() : donnees filtrees (memes colonnes que exportCsv) en Excel
@@ -2461,7 +2484,7 @@ function exportTableauxPdf(){
 // exportRapportComplet() : rapport PDF automatique (indicateurs, interpretation, carte, quartiers prioritaires)
 async function exportRapportComplet(){
   const status=document.getElementById('exportRapportStatus');
-  status.textContent='Génération du rapport en cours…';
+  status.textContent='Génération du rapport en cours…'; showLoading('Génération du rapport de synthèse…');
   try{
     const recs=filtered();
     const {jsPDF}=window.jspdf;
@@ -2513,6 +2536,7 @@ async function exportRapportComplet(){
     doc.save('rapport_synthese_bakusmap.pdf');
     status.textContent='✓ Rapport généré et téléchargé.';
   }catch(err){ status.innerHTML=`<span style="color:var(--danger)">⚠ Échec de la génération du rapport : ${err.message}</span>`; }
+  finally{ hideLoading(); }
 }
 
 // initExportsUI() : bascule le panneau selon la portee choisie, branche tous les boutons
@@ -2537,6 +2561,32 @@ function initExportsUI(){
   document.getElementById('exportTableauxXlsx').addEventListener('click',exportTableauxXlsx);
   document.getElementById('exportTableauxPdf').addEventListener('click',exportTableauxPdf);
   document.getElementById('exportRapportBtn').addEventListener('click',exportRapportComplet);
+}
+
+
+/* ============================================================================
+   19. CHARGEMENT VISUEL + MODE ANALYSE / PRESENTATION (etape 5g)
+   ============================================================================ */
+
+// showLoading()/hideLoading() : ecran de chargement reutilisable (demarrage, capture carte, rapport PDF...)
+function showLoading(msg){ const el=document.getElementById('loadingOverlay'); if(!el) return; const t=document.getElementById('loadingText'); if(t) t.textContent=msg||'Chargement…'; el.classList.remove('hidden'); }
+function hideLoading(){ const el=document.getElementById('loadingOverlay'); if(el) el.classList.add('hidden'); }
+
+// applyPresentationMode() : bascule l'interface epuree (carte + indicateurs + graphiques essentiels)
+// ou complete (Mode Analyse : filtres, outils SIG, tableaux, tous les onglets).
+function applyPresentationMode(on){
+  document.body.classList.toggle('presentation-mode',on);
+  localStorage.setItem('ui_presentation',on?'1':'0');
+  const btn=document.getElementById('modeBtn');
+  if(btn){ btn.textContent = on ? '📊' : '🎓'; btn.title = on ? 'Revenir en Mode Analyse (tout visible)' : 'Passer en Mode Présentation (interface épurée)'; }
+  const hiddenTabs=['matrice','croise','explor','donnees','exports'];
+  if(on && hiddenTabs.includes(currentTab)) switchTab('carte');
+  if(map) setTimeout(()=>map.invalidateSize(),220); // la carte change de largeur -> Leaflet doit recalculer sa taille
+}
+function initPresentationMode(){
+  const btn=document.getElementById('modeBtn'); if(!btn) return;
+  btn.addEventListener('click',()=>applyPresentationMode(!document.body.classList.contains('presentation-mode')));
+  applyPresentationMode(localStorage.getItem('ui_presentation')==='1');
 }
 
 

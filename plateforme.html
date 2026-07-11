@@ -320,9 +320,45 @@ table.ct tr.rowclick:hover td{background:#eaf2f8}
 .story-dots{display:flex;gap:5px}
 .story-dots span{width:7px;height:7px;border-radius:50%;background:var(--line);display:inline-block}
 .story-dots span.on{background:var(--brand)}
+
+/* Ecran de chargement (etape 5g) — masque au premier rendu, filet de securite CSS a 6s si le JS ne le ferme pas */
+.loading-overlay{position:fixed;inset:0;z-index:5000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;
+  background:rgba(255,255,255,.78);backdrop-filter:blur(2px);animation:loadingAutoHide .01s linear 6s forwards}
+.loading-overlay.hidden{display:none}
+.loading-spinner{width:40px;height:40px;border:4px solid var(--line);border-top-color:var(--brand);border-radius:50%;animation:spin .8s linear infinite}
+.loading-text{font-size:12.5px;color:var(--muted);font-weight:600}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes loadingAutoHide{to{display:none}}
+[data-theme="dark"] .loading-overlay{background:rgba(11,26,38,.8)}
+
+/* Surlignage anime d'un quartier selectionne (etape 5g) — necessite le rendu SVG (voir highlightQuartier) */
+@keyframes quartierPulse{0%{stroke-opacity:.9;fill-opacity:.2}50%{stroke-opacity:.3;fill-opacity:.05}100%{stroke-opacity:.9;fill-opacity:.2}}
+.quartier-highlight-pulse{animation:quartierPulse 1.6s ease-in-out infinite}
+@media(prefers-reduced-motion:reduce){.quartier-highlight-pulse{animation:none}.loading-overlay{animation:none;display:none}}
+
+/* Mode Presentation (etape 5g) — interface epuree : carte + indicateurs + graphiques essentiels */
+body.presentation-mode .sidebar,
+body.presentation-mode .statspanel,
+body.presentation-mode .mapctrls,
+body.presentation-mode #chatWidget,
+body.presentation-mode .accents,
+body.presentation-mode #resetAppearance,
+body.presentation-mode #exportBtn,
+body.presentation-mode #helpBtn,
+body.presentation-mode .tab[data-tab="matrice"],
+body.presentation-mode .tab[data-tab="croise"],
+body.presentation-mode .tab[data-tab="explor"],
+body.presentation-mode .tab[data-tab="donnees"],
+body.presentation-mode .tab[data-tab="exports"]{display:none!important}
+body.presentation-mode .wrap,
+body.presentation-mode .wrap.sp-collapsed{grid-template-columns:1fr}
+body.presentation-mode .maprow{grid-template-columns:1fr}
 </style>
 </head>
 <body>
+<!-- Ecran de chargement (etape 5g) : masque au tout premier rendu et lors des operations longues -->
+<div class="loading-overlay" id="loadingOverlay"><div class="loading-spinner"></div><div class="loading-text" id="loadingText">Chargement de Bakusm@p…</div></div>
+
 <!-- ===================== EN-TETE : titre de l'etude ===================== -->
 <header class="app">
   <div class="brand">
@@ -340,6 +376,7 @@ table.ct tr.rowclick:hover td{background:#eaf2f8}
       <button class="acc" data-acc="green" title="Vert santé"></button>
       <button class="acc" data-acc="alert" title="Orange / rouge doux"></button>
     </div>
+    <button class="hbtn" id="modeBtn" title="Basculer Mode Analyse / Mode Présentation">🎓</button>
     <button class="hbtn" id="themeBtn" title="Thème clair / sombre">🌙</button>
     <button class="hbtn" id="resetAppearance" title="Réinitialiser l'apparence">↺</button>
     <button class="hbtn" id="exportBtn" title="Exporter les données filtrées (CSV)">⬇</button>
