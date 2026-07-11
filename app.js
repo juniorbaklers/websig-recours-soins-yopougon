@@ -102,7 +102,8 @@ const DIMS = {
 // NUM = les variables numeriques (montants + distances calculees en SIG). Traitees a part car on calcule
 // des statistiques (mediane, moyenne) et un histogramme, pas des categories.
 const NUM = { coutConsultation:'Coût de la consultation (FCFA)', coutMax:'Coût max. accepté (FCFA)', loyer:'Loyer mensuel (FCFA)',
-  dAny:'Distance au centre le plus proche (m)', dPub:'Distance au centre public le plus proche (m)', dPrim:'Distance au 1er contact le plus proche (m)' };
+  dAny:'Distance au centre le plus proche (m)', dPub:'Distance au centre public le plus proche (m)', dPrim:'Distance au 1er contact le plus proche (m)',
+  nearestDist:'Distance au centre le plus proche — calculée (m)' };
 
 // Couches spatiales injectees par centres.js, yopougon.js et grille.js
 const CENTRES = window.CENTRES || [];
@@ -568,18 +569,65 @@ function centrePopupHtml(c){
 }
 
 // renderMap() : (re)dessine les points selon la selection et la variable choisie
+// NUMERIC_COLOR_KEYS (etape 6b) : variables quantitatives selectionnables dans "Colorer les points par",
+// classees automatiquement (au lieu d'une couleur par modalite comme les variables categorielles).
+const NUMERIC_COLOR_KEYS=['nearestDist','coutConsultation'];
+function isNumericColorKey(key){ return NUMERIC_COLOR_KEYS.includes(key); }
+// computeNiceBreaks() : bornes de classes "rondes" et lisibles (ex. 0-500 m, 500-1000 m...)
+function computeNiceBreaks(vals,nClasses){
+  const clean=vals.filter(v=>typeof v==='number' && !isNaN(v));
+  if(!clean.length) return [];
+  const min=Math.min(...clean), max=Math.max(...clean);
+  if(min===max) return [[min,max]];
+  const rawStep=(max-min)/nClasses;
+  const mag=Math.pow(10,Math.floor(Math.log10(rawStep||1)));
+  const niceMults=[1,2,2.5,5,10]; let step=mag*10;
+  for(const mlt of niceMults){ if(mag*mlt>=rawStep){ step=mag*mlt; break; } }
+  const niceMin=Math.floor(min/step)*step;
+  const breaks=[]; let v=niceMin;
+  while(v<max){ breaks.push([v,v+step]); v+=step; }
+  if(breaks.length) breaks[breaks.length-1][1]=Math.max(breaks[breaks.length-1][1],max);
+  return breaks;
+}
+// numericClassColor() : degrade sequentiel (clair -> couleur pleine) derive de la palette carto courante (etape 5b)
+function numericClassColor(idx,n){
+  const base=(MAP_PALETTES[mapStyle.palette]||MAP_PALETTES.bleu)[0];
+  // t demarre a 0.22 (pas de blanc pur) pour que meme la classe la plus faible reste visible sur la carte/legende
+  const t = n<=1 ? 1 : 0.22+0.78*(idx/(n-1));
+  const [r,g,b]=hexToRgb(base);
+  return rgbToHex(255+(r-255)*t,255+(g-255)*t,255+(b-255)*t);
+}
+// numericClassLabel() : indication faible/moyen/fort selon la position de la classe
+function numericClassLabel(idx,n){ return idx<n/3?'Faible':idx<2*n/3?'Moyen':'Fort'; }
+// fmtBreakVal() : formatage lisible d'une borne selon la variable
+function fmtBreakVal(key,v){
+  if(key==='nearestDist') return Math.round(v)+' m';
+  if(key==='coutConsultation') return Math.round(v).toLocaleString('fr-FR')+' F';
+  return Math.round(v);
+}
+function numericBreaksFor(key,recs){ return computeNiceBreaks(recs.map(d=>d[key]).filter(v=>typeof v==='number'),5); }
+function numericClassIndex(val,breaks){ let idx=breaks.findIndex(b=>val>=b[0]&&val<=b[1]); return idx<0?breaks.length-1:idx; }
+
 function renderMap(recs){
   const key=document.getElementById('colorBy').value;      // variable qui donne la couleur
   markerLayer.clearLayers(); if(clusterLayer){map.removeLayer(clusterLayer);clusterLayer=null;}
   const cluster=document.getElementById('clusterToggle').checked && L.markerClusterGroup;
   const target = cluster ? (clusterLayer=L.markerClusterGroup({maxClusterRadius:45})) : markerLayer;
   const baseR=mapStyle.pointSize, hoverR=baseR+3, editOuter=Math.round(baseR*2.9), editInner=Math.max(6,Math.round(baseR*2.36)); // taille des points (etape 5b)
+  const numeric=isNumericColorKey(key); // etape 6b : variable quantitative -> classes automatiques
+  const breaks=numeric?numericBreaksFor(key,recs):null;
   recs.forEach(d=>{
     // position selon le mode : reelle (lat/lng) ou grille d'echantillonnage (gLat/gLon)
     const la = gridView ? d.gLat : d.lat, ln = gridView ? d.gLon : d.lng;
     if(typeof la!=='number'||typeof ln!=='number'||!la) return; // ignorer les points sans coordonnees
-    const val=(d[key]??'').toString().trim()||'(non renseigné)';
-    const col=val==='(non renseigné)'?'#9aa5b1':colorFor(key,val);
+    let col;
+    if(numeric){
+      const v=d[key];
+      col=(typeof v!=='number'||isNaN(v)||!breaks.length) ? '#9aa5b1' : numericClassColor(numericClassIndex(v,breaks),breaks.length);
+    } else {
+      const val=(d[key]??'').toString().trim()||'(non renseigné)';
+      col=val==='(non renseigné)'?'#9aa5b1':colorFor(key,val);
+    }
     let mk;
     if(editMode){ // mode edition : point deplacable a la souris
       mk=L.marker([la,ln],{draggable:true,icon:L.divIcon({className:'',iconSize:[editOuter,editOuter],iconAnchor:[editOuter/2,editOuter/2],
@@ -616,8 +664,20 @@ function renderUnderserved(recs){
 let legendCollapsed=false;
 function renderLegend(key,recs){
   const box=document.getElementById('legendBody'); if(!box) return;
-  const m=countBy(recs,key); const cats=ordered(key,m);
   document.getElementById('legendTitle').textContent=DIMS[key]||NUM[key]||key;
+  if(isNumericColorKey(key)){ // etape 6b : classes automatiques pour les variables quantitatives
+    const breaks=numericBreaksFor(key,recs);
+    if(!breaks.length){ box.innerHTML='<div class="muted">Aucune donnée numérique pour la sélection</div>'; return; }
+    const vals=recs.map(d=>d[key]).filter(v=>typeof v==='number');
+    box.innerHTML=breaks.map((b,i)=>{
+      const n=vals.filter(v=>v>=b[0]&&v<=b[1]).length; const lbl=numericClassLabel(i,breaks.length);
+      return `<div class="li"><span class="sw" style="background:${numericClassColor(i,breaks.length)}"></span>`+
+        `<span style="flex:1">${fmtBreakVal(key,b[0])} – ${fmtBreakVal(key,b[1])}</span>`+
+        `<span class="cnt">${n}</span><span class="mag mag-${lbl.toLowerCase()}">${lbl}</span></div>`;
+    }).join('');
+    return;
+  }
+  const m=countBy(recs,key); const cats=ordered(key,m);
   box.innerHTML=cats.map(c=>`<div class="li"><span class="sw" style="background:${colorFor(key,c)}"></span><span style="flex:1">${c}</span><span class="cnt">${m.get(c)||0}</span></div>`).join('')
     +(m.size?'':'<div class="muted">Aucune donnée pour la sélection</div>');
 }
@@ -1010,6 +1070,7 @@ function renderTab(recs){
     const m=countBy(recs,'quartier'); const top=[...m.entries()].sort((a,b)=>b[1]-a[1]).slice(0,20);
     draw('c_quart',{type:'bar',data:{labels:top.map(t=>t[0]),datasets:[{data:top.map(t=>t[1]),backgroundColor:'#0f5e8f',borderRadius:4}]},
       options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{ticks:{autoSkip:false}}}}});
+    renderTemporalEvolution(recs); // etape 6a : graphique conditionne a un champ de campagne d'enquete
   }
 
   if(currentTab==='recours'){ // le coeur de l'analyse : le recours aux soins
@@ -1697,7 +1758,7 @@ document.addEventListener('DOMContentLoaded',async ()=>{
   cloudLoad().then(n=>{ if(n){ computeNearest(); recomputeGridCounts(); if(gridLayer) gridLayer.setStyle(styleCell); renderMap(filtered()); if(currentTab==='spatial')renderGridPlan(); setEditInfo(n+' point(s) synchronisé(s) depuis le cloud.'); }});
 
   // 3. menu "colorer la carte par"
-  fillSelect(document.getElementById('colorBy'),['coverClass','premierRecours','premierRecoursCat','bandPrim','sexe','age','assurance','frequentation','maladieCat','revenu','instruction','professionCat','resultatTraitement','satisfaitMedecin','quartier'],'coverClass');
+  fillSelect(document.getElementById('colorBy'),['coverClass','premierRecours','premierRecoursCat','bandPrim','sexe','age','assurance','frequentation','maladieCat','revenu','instruction','professionCat','resultatTraitement','satisfaitMedecin','quartier','nearestDist','coutConsultation'],'coverClass');
   document.getElementById('colorBy').addEventListener('change',()=>renderMap(filtered()));
 
   // 4. menus de l'analyse croisee (valeurs de depart : age x premier recours)
@@ -1802,6 +1863,11 @@ document.addEventListener('DOMContentLoaded',async ()=>{
 
   // 16. mode Analyse / Presentation (etape 5g)
   initPresentationMode();
+
+  // 17. fenetres flottantes : graphiques, tableaux, chat deplacable (etape 6a)
+  initChartPopouts();
+  initTablePopouts();
+  initChatDrag();
 
   hideLoading(); // fin du chargement initial (etape 5g)
 });
@@ -2587,6 +2653,130 @@ function initPresentationMode(){
   const btn=document.getElementById('modeBtn'); if(!btn) return;
   btn.addEventListener('click',()=>applyPresentationMode(!document.body.classList.contains('presentation-mode')));
   applyPresentationMode(localStorage.getItem('ui_presentation')==='1');
+}
+
+// renderTemporalEvolution() : evolution selon le champ de campagne d'enquete detecte en 5a.
+// Sur ce jeu de donnees (enquete unique) TEMPORAL_FIELD est vide : message discret, pas de plantage.
+function renderTemporalEvolution(recs){
+  const box=document.getElementById('temporalBody'); if(!box) return;
+  if(!TEMPORAL_FIELD){ box.innerHTML=`<div class="note">Données issues d'une campagne d'enquête unique. Aucune évolution temporelle disponible pour le moment.</div>`; return; }
+  box.innerHTML='<div class="chartbox"><canvas id="c_temporal"></canvas></div>';
+  const m=countBy(recs,TEMPORAL_FIELD); const cats=ordered(TEMPORAL_FIELD,m);
+  draw('c_temporal',{type:'line',data:{labels:cats,datasets:[{data:cats.map(c=>m.get(c)||0),borderColor:'#0f5e8f',backgroundColor:'rgba(15,94,143,.15)',fill:true,tension:.3,pointRadius:3}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{title:{display:true,text:'Effectif'}}}}});
+}
+
+
+/* ============================================================================
+   20. FENETRES FLOTTANTES GENERIQUES (etape 6a)
+   Systeme reutilisable — ouvrable/fermable/repliable/deplacable a la souris —
+   pour les graphiques, les tableaux d'analyse et (bientot) tout autre panneau.
+   Principe : on DEPLACE l'element existant (canvas Chart.js ou tableau HTML)
+   dans la fenetre flottante plutot que de le dupliquer : les mises a jour
+   normales (filtres, onglet, etc.) continuent de cibler le meme id et
+   s'appliquent donc automatiquement, ou que l'element se trouve dans le DOM.
+   ============================================================================ */
+let fwZTop=3000;
+// createFloatingWindow() : cree (ou refocalise) une fenetre flottante generique
+function createFloatingWindow({id,title,x,y,width,onClose}){
+  const layer=document.getElementById('floatingLayer'); if(!layer) return null;
+  let win=document.getElementById(id);
+  if(win){ win.style.zIndex=++fwZTop; win.classList.remove('fw-collapsed'); return win.__ctrl; }
+  win=document.createElement('div'); win.className='floating-window'; win.id=id;
+  win.style.left=(x??(70+Math.random()*140))+'px'; win.style.top=(y??(84+Math.random()*90))+'px';
+  if(width) win.style.width=width+'px';
+  win.style.zIndex=++fwZTop;
+  win.innerHTML=`<div class="fw-head"><span class="fw-title">${esc(title||'Fenêtre')}</span><span class="fw-actions">
+    <button class="fw-btn" data-act="min" title="Réduire / agrandir">–</button>
+    <button class="fw-btn" data-act="close" title="Fermer">✕</button></span></div>
+    <div class="fw-toolbar"></div><div class="fw-body"></div>`;
+  layer.appendChild(win);
+  const head=win.querySelector('.fw-head'), body=win.querySelector('.fw-body'), toolbar=win.querySelector('.fw-toolbar');
+  // deplacement a la souris/au doigt (Pointer Events, fonctionne souris + tactile)
+  let dragging=false,dx=0,dy=0;
+  head.addEventListener('pointerdown',e=>{
+    if(e.target.closest('.fw-btn')) return;
+    dragging=true; dx=e.clientX-win.offsetLeft; dy=e.clientY-win.offsetTop; win.style.zIndex=++fwZTop;
+    head.setPointerCapture(e.pointerId);
+  });
+  head.addEventListener('pointermove',e=>{ if(!dragging) return;
+    win.style.left=Math.max(0,Math.min(window.innerWidth-40,e.clientX-dx))+'px';
+    win.style.top=Math.max(0,Math.min(window.innerHeight-40,e.clientY-dy))+'px'; });
+  head.addEventListener('pointerup',()=>{ dragging=false; });
+  head.addEventListener('pointercancel',()=>{ dragging=false; });
+  win.addEventListener('pointerdown',()=>{ win.style.zIndex=++fwZTop; });
+  win.querySelector('[data-act="min"]').addEventListener('click',()=>win.classList.toggle('fw-collapsed'));
+  win.querySelector('[data-act="close"]').addEventListener('click',()=>{ const cb=win.__ctrl&&win.__ctrl._onClose; win.remove(); if(cb) cb(); });
+  const ctrl={ el:win, body, toolbar, _onClose:onClose,
+    addToolbarButton(label,fn,title){ const b=document.createElement('button'); b.className='btn'; b.textContent=label; if(title)b.title=title; b.addEventListener('click',fn); toolbar.appendChild(b); return b; },
+    close(){ win.remove(); if(onClose) onClose(); } };
+  win.__ctrl=ctrl;
+  return ctrl;
+}
+
+// exportElementCanvasPng() : exporte le <canvas> Chart.js contenu dans un conteneur, en PNG
+function exportElementCanvasPng(container,filename){
+  const c=container.querySelector('canvas'); if(!c) return;
+  const a=document.createElement('a'); a.href=c.toDataURL('image/png'); a.download=(filename||'graphique')+'.png'; a.click();
+}
+
+// popOutElement() : deplace un element existant (graphique ou tableau) dans une fenetre flottante ;
+// laisse un repere a sa place d'origine, et le remet en place a la fermeture.
+function popOutElement(sourceEl,{id,title,exportName,width}={}){
+  if(!sourceEl || sourceEl.dataset.poppedOut==='1') return;
+  const placeholder=document.createElement('div'); placeholder.className='popout-placeholder';
+  placeholder.innerHTML=`<span>🗗 Actuellement affiché dans une fenêtre flottante</span><button class="btn" type="button">↩ Revenir ici</button>`;
+  sourceEl.parentNode.insertBefore(placeholder,sourceEl);
+  sourceEl.dataset.poppedOut='1';
+  const winId='fw-'+id;
+  const ctrl=createFloatingWindow({ id:winId, title, width,
+    onClose:()=>{ placeholder.replaceWith(sourceEl); sourceEl.dataset.poppedOut='0'; } });
+  ctrl.body.appendChild(sourceEl);
+  if(exportName) ctrl.addToolbarButton('⬇ PNG',()=>exportElementCanvasPng(sourceEl,exportName),'Exporter ce graphique en image');
+  placeholder.querySelector('button').addEventListener('click',()=>ctrl.close());
+}
+
+// initChartPopouts() : ajoute un bouton 🗗 sur chaque carte-graphique existante (tous onglets confondus,
+// la HTML de chaque onglet existe des le chargement, seule sa visibilite change) pour l'ouvrir en fenetre flottante.
+function initChartPopouts(){
+  document.querySelectorAll('.card').forEach(card=>{
+    const box=card.querySelector('.chartbox'); const h3=card.querySelector('h3');
+    if(!box || !h3 || !box.querySelector('canvas') || h3.querySelector('.popout-btn')) return;
+    const canvas=box.querySelector('canvas');
+    const btn=document.createElement('button');
+    btn.className='popout-btn'; btn.type='button'; btn.title='Ouvrir dans une fenêtre flottante'; btn.textContent='🗗';
+    btn.addEventListener('click',e=>{ e.stopPropagation();
+      const titleTxt=(h3.childNodes[0]&&h3.childNodes[0].textContent||h3.textContent).trim();
+      popOutElement(box,{id:canvas.id||('chart'+Math.random().toString(36).slice(2)),title:titleTxt,exportName:canvas.id,width:440});
+    });
+    h3.appendChild(btn);
+  });
+}
+// initTablePopouts() : boutons dedies pour les tableaux d'analyse (Analyse croisee, Tableau matrice)
+function initTablePopouts(){
+  const ct=document.getElementById('popoutCrossTable');
+  if(ct) ct.addEventListener('click',()=>popOutElement(document.getElementById('crossTable'),{id:'crossTable',title:'Tableau de contingence',width:560}));
+  const mt=document.getElementById('popoutMatriceTable');
+  if(mt) mt.addEventListener('click',()=>popOutElement(document.getElementById('matriceTable'),{id:'matriceTable',title:'Tableau matrice',width:620}));
+}
+// initChatDrag() : rend le panneau de l'assistant deplaçable a la souris, coherent avec les fenetres flottantes
+function initChatDrag(){
+  const panel=document.getElementById('chatPanel'), head=document.querySelector('#chatWidget .chat-head');
+  if(!panel||!head) return;
+  let dragging=false,dx=0,dy=0,moved=false;
+  head.addEventListener('pointerdown',e=>{
+    if(e.target.closest('.chat-close')) return;
+    dragging=true; moved=false;
+    const r=panel.getBoundingClientRect();
+    panel.style.left=r.left+'px'; panel.style.top=r.top+'px'; panel.style.right='auto'; panel.style.bottom='auto';
+    dx=e.clientX-r.left; dy=e.clientY-r.top;
+    head.setPointerCapture(e.pointerId);
+  });
+  head.addEventListener('pointermove',e=>{ if(!dragging) return; moved=true;
+    panel.style.left=Math.max(0,Math.min(window.innerWidth-60,e.clientX-dx))+'px';
+    panel.style.top=Math.max(0,Math.min(window.innerHeight-60,e.clientY-dy))+'px'; });
+  head.addEventListener('pointerup',()=>{ dragging=false; });
+  head.addEventListener('pointercancel',()=>{ dragging=false; });
 }
 
 

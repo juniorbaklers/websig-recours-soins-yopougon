@@ -220,6 +220,13 @@ table.ct tr.rowclick:hover td{background:#eaf2f8}
 .legendbox .lgh span{cursor:pointer;font-weight:800;line-height:1}
 .legendbox .lgbody{padding:8px 10px;max-height:230px;overflow:auto;color:var(--ink)}
 .legendbox.collapsed .lgbody{display:none}
+.legendbox .li{display:flex;align-items:center;gap:6px;padding:2px 0;font-size:11.8px}
+.legendbox .sw{width:12px;height:12px;border-radius:3px;flex:none;border:1px solid rgba(0,0,0,.15)}
+.legendbox .cnt{color:var(--muted);font-size:11px;font-variant-numeric:tabular-nums}
+.legendbox .mag{font-size:9px;font-weight:700;padding:1px 6px;border-radius:999px;margin-left:2px;white-space:nowrap;flex:none}
+.legendbox .mag-faible{background:#e8f5e9;color:#2e7d32}
+.legendbox .mag-moyen{background:#fff3e0;color:#c9700e}
+.legendbox .mag-fort{background:#fdeaea;color:#c62828}
 
 /* --- Popups : vraies fiches d'information --- */
 .leaflet-popup-content-wrapper{border-radius:12px;box-shadow:0 10px 32px rgba(0,0,0,.28);padding:0}
@@ -353,11 +360,36 @@ body.presentation-mode .tab[data-tab="exports"]{display:none!important}
 body.presentation-mode .wrap,
 body.presentation-mode .wrap.sp-collapsed{grid-template-columns:1fr}
 body.presentation-mode .maprow{grid-template-columns:1fr}
+
+/* Fenetres flottantes generiques (etape 6a) : graphiques, tableaux, deplacables/fermables/repliables */
+#floatingLayer{position:fixed;inset:0;pointer-events:none;z-index:3000}
+.floating-window{position:absolute;pointer-events:auto;width:420px;max-width:92vw;
+  background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:0 10px 34px rgba(0,0,0,.3);
+  display:flex;flex-direction:column;overflow:hidden}
+.fw-head{background:linear-gradient(120deg,var(--brand),var(--brand2));color:#fff;padding:8px 10px;
+  display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:move;touch-action:none;flex:none}
+.fw-title{font-size:12.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fw-actions{display:flex;gap:4px;flex:none}
+.fw-btn{width:20px;height:20px;border:none;border-radius:5px;background:rgba(255,255,255,.22);color:#fff;cursor:pointer;font-size:12px;line-height:1;display:flex;align-items:center;justify-content:center}
+.fw-btn:hover{background:rgba(255,255,255,.38)}
+.fw-toolbar{display:flex;gap:6px;padding:6px 8px;border-bottom:1px solid var(--line);flex:none}
+.fw-toolbar:empty{display:none}
+.fw-body{padding:10px;overflow:auto;max-height:60vh}
+.floating-window.fw-collapsed .fw-toolbar,
+.floating-window.fw-collapsed .fw-body{display:none}
+.floating-window .chartbox{height:280px}
+.popout-placeholder{border:1px dashed var(--line);border-radius:10px;padding:16px;text-align:center;
+  color:var(--muted);font-size:11.5px;display:flex;flex-direction:column;align-items:center;gap:8px}
+.popout-btn{background:none;border:none;cursor:pointer;font-size:12px;opacity:.55;margin-left:6px;vertical-align:middle}
+.popout-btn:hover{opacity:1}
 </style>
 </head>
 <body>
 <!-- Ecran de chargement (etape 5g) : masque au tout premier rendu et lors des operations longues -->
 <div class="loading-overlay" id="loadingOverlay"><div class="loading-spinner"></div><div class="loading-text" id="loadingText">Chargement de Bakusm@p…</div></div>
+
+<!-- Conteneur des fenetres flottantes (etape 6a) : graphiques, tableaux, chat, legende deplacables -->
+<div id="floatingLayer"></div>
 
 <!-- ===================== EN-TETE : titre de l'etude ===================== -->
 <header class="app">
@@ -544,6 +576,7 @@ body.presentation-mode .maprow{grid-template-columns:1fr}
         <div class="card"><h3>Catégorie de maladie (dernière consultation)</h3><div class="chartbox"><canvas id="c_mal"></canvas></div></div>
         <div class="card wide"><h3>Répartition par quartier (Top 20)</h3><div class="chartbox tall"><canvas id="c_quart"></canvas></div></div>
       </div>
+      <div class="card wide" style="margin-top:16px"><h3>Évolution temporelle</h3><div class="sub">Nécessite un champ de campagne/période d'enquête (voir Filtres → « Campagne d'enquête »)</div><div id="temporalBody"></div></div>
     </section>
 
     <!-- TAB: RECOURS -->
@@ -661,7 +694,7 @@ body.presentation-mode .maprow{grid-template-columns:1fr}
         <div class="note" id="crossInfo"></div>
       </div>
       <div class="card" style="margin-top:16px">
-        <h3>Tableau de contingence</h3>
+        <h3>Tableau de contingence <button class="popout-btn" id="popoutCrossTable" title="Ouvrir dans une fenêtre flottante">🗗</button></h3>
         <div class="sub">Effectifs, avec en couleur le % en ligne (part de chaque colonne dans la ligne). Dernière colonne = total de la ligne.</div>
         <div id="crossTable"></div>
       </div>
@@ -688,6 +721,7 @@ body.presentation-mode .maprow{grid-template-columns:1fr}
           <button class="btn" id="mxExportCsv">⬇ CSV</button>
           <button class="btn" id="mxExportXlsx">⬇ Excel</button>
           <button class="btn" id="mxExportPdf">⬇ PDF</button>
+          <button class="btn" id="popoutMatriceTable" title="Ouvrir dans une fenêtre flottante">🗗 Fenêtre flottante</button>
           <span class="note" id="mxInfo" style="margin:0 0 0 auto"></span>
         </div>
         <div id="matriceTable"></div>
