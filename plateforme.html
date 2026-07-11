@@ -14,6 +14,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Bakusm@p — Recours aux soins des personnes du 3e âge · Yopougon</title>
+<!-- Applique le theme/accent memorises AVANT le rendu, pour eviter un flash de couleur -->
+<script>(function(){try{
+  document.documentElement.setAttribute('data-theme',localStorage.getItem('ui_theme')||'light');
+  document.documentElement.setAttribute('data-accent',localStorage.getItem('ui_accent')||'cyan');
+}catch(e){}})();</script>
 <!-- Bibliotheques externes (chargees depuis internet) : Leaflet = la carte, MarkerCluster = le regroupement des points -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
@@ -144,6 +149,84 @@ table.ct td .hm{display:inline-block;padding:2px 6px;border-radius:5px}
 .isolegend span{display:flex;align-items:center;gap:4px}
 .isolegend i{width:11px;height:11px;border-radius:3px;display:inline-block}
 .foot{padding:10px 20px 30px;color:var(--muted);font-size:11.5px}
+
+/* ============================================================================
+   APPARENCE : 2e design (thème sombre sanitaire) + 3 couleurs d'interface
+   - data-theme = "light" | "dark"   (posé sur <html>)
+   - data-accent = "cyan" | "green" | "alert"
+   Toutes les couleurs passent par les variables CSS, donc rien d'autre à changer.
+   ============================================================================ */
+/* --- Couleurs d'accent (thème clair) --- */
+:root[data-accent="cyan"] { --brand:#0e6f92; --brand2:#12a08a }
+:root[data-accent="green"]{ --brand:#127a5b; --brand2:#4caf7d }
+:root[data-accent="alert"]{ --brand:#b95a2b; --brand2:#e0894f }
+/* --- Thème sombre : fond bleu nuit, panneaux gris bleutés, texte blanc doux --- */
+:root[data-theme="dark"]{
+  --bg:#0d1620; --panel:#16212e; --ink:#e6edf5; --muted:#93a6ba; --line:#26333f;
+  --shadow:0 1px 3px rgba(0,0,0,.45),0 8px 26px rgba(0,0,0,.35);
+}
+:root[data-theme="dark"][data-accent="cyan"] { --brand:#3ec8e0; --brand2:#34d399 }
+:root[data-theme="dark"][data-accent="green"]{ --brand:#34d399; --brand2:#7dd3a8 }
+:root[data-theme="dark"][data-accent="alert"]{ --brand:#f0a06a; --brand2:#f2c17a }
+/* --- Composants dont la couleur était figée : on les rend compatibles sombre --- */
+[data-theme="dark"] header.app{background:linear-gradient(100deg,#0b1a26,#0e2b3a 55%,#10382f)}
+[data-theme="dark"] .btn,[data-theme="dark"] .tab,
+[data-theme="dark"] select.sel,[data-theme="dark"] .fg .search,
+[data-theme="dark"] input[type=text],[data-theme="dark"] input:not([type=checkbox]){background:#1b2836;color:var(--ink);border-color:var(--line)}
+[data-theme="dark"] .tab{color:var(--muted)}
+[data-theme="dark"] .tab.active{color:#08131b}
+[data-theme="dark"] .btn:hover{color:var(--brand)}
+[data-theme="dark"] .opt:hover{background:#20303f}
+[data-theme="dark"] .chip{background:#12303c;color:var(--brand);border-color:#1d4757}
+[data-theme="dark"] table.ct th{background:#1b2836}
+[data-theme="dark"] table.ct td.rowh{background:#16212e}
+[data-theme="dark"] .gis-coord{background:rgba(22,33,46,.92);color:var(--ink)}
+[data-theme="dark"] .leaflet-bar a{background:#1b2836;color:var(--ink);border-color:var(--line)}
+[data-theme="dark"] .leaflet-popup-content-wrapper,[data-theme="dark"] .leaflet-popup-tip{background:var(--panel);color:var(--ink)}
+[data-theme="dark"] .leaflet-control-scale-line{background:rgba(22,33,46,.75);color:var(--ink);border-color:var(--line)}
+
+/* --- Barre supérieure : actions (thème, accents, export, aide) --- */
+.hactions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.hbtn{width:34px;height:34px;border-radius:10px;border:1.4px solid rgba(255,255,255,.45);background:rgba(255,255,255,.12);
+  color:#fff;font-size:15px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:.15s;text-decoration:none}
+.hbtn:hover{background:rgba(255,255,255,.24);transform:translateY(-1px)}
+.accents{display:flex;gap:5px;padding:4px 6px;border-radius:10px;background:rgba(255,255,255,.12);border:1.4px solid rgba(255,255,255,.35)}
+.acc{width:18px;height:18px;border-radius:50%;border:2px solid transparent;cursor:pointer;padding:0}
+.acc[data-acc="cyan"]{background:#3ec8e0}
+.acc[data-acc="green"]{background:#34d399}
+.acc[data-acc="alert"]{background:#f0a06a}
+.acc.on{border-color:#fff;box-shadow:0 0 0 2px rgba(255,255,255,.35)}
+
+/* --- Légende flottante moderne sur la carte --- */
+.legendbox{background:color-mix(in srgb,var(--panel) 88%,transparent);backdrop-filter:blur(6px);
+  border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);min-width:170px;max-width:230px;overflow:hidden}
+.legendbox .lgh{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 10px;
+  background:linear-gradient(120deg,var(--brand),var(--brand2));color:#fff;font-size:11.5px;font-weight:800}
+.legendbox .lgh span{cursor:pointer;font-weight:800;line-height:1}
+.legendbox .lgbody{padding:8px 10px;max-height:230px;overflow:auto;color:var(--ink)}
+.legendbox.collapsed .lgbody{display:none}
+
+/* --- Popups : vraies fiches d'information --- */
+.leaflet-popup-content-wrapper{border-radius:12px;box-shadow:0 10px 32px rgba(0,0,0,.28);padding:0}
+.leaflet-popup-content{margin:0!important;width:auto!important}
+.pop{min-width:225px;animation:fadeUp .22s both}
+.pop .ttl{display:block;background:linear-gradient(120deg,var(--brand),var(--brand2));color:#fff;
+  padding:9px 12px;font-size:12.5px;font-weight:800;line-height:1.25}
+.pop .badge{display:inline-block;margin-top:4px;padding:1px 7px;border-radius:999px;font-size:10.5px;background:rgba(255,255,255,.25)}
+.pop table{font-size:12px;border-collapse:collapse;margin:8px 12px 10px;width:calc(100% - 24px)}
+.pop td{padding:3px 0;vertical-align:top;border-bottom:1px solid var(--line)}
+.pop tr:last-child td{border-bottom:none}
+.pop td.k{color:var(--muted);padding-right:10px;white-space:nowrap}
+.pop td.v{text-align:right;font-weight:600;color:var(--ink)}
+
+/* --- Fenêtre d'aide --- */
+.modal{position:fixed;inset:0;background:rgba(4,10,16,.6);display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px}
+.modal.hidden{display:none}
+.modal .box{background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);
+  max-width:640px;width:100%;max-height:80vh;overflow:auto;padding:20px 22px}
+.modal h2{font-size:17px;margin:0 0 10px}
+.modal li{margin:5px 0;font-size:13px}
+@media(max-width:700px){.hactions .hbtn{width:30px;height:30px;font-size:13px}}
 </style>
 </head>
 <body>
@@ -156,8 +239,39 @@ table.ct td .hm{display:inline-block;padding:2px 6px;border-radius:5px}
       <p class="sub">WebSIG · Recours aux soins de santé des personnes du 3<sup>e</sup> âge — commune de Yopougon</p>
     </div>
   </div>
-  <div class="hmeta"><b id="nTotal"></b> enquêtés géolocalisés<br><a href="index.html">← Accueil</a></div>
+  <div class="hactions">
+    <div class="hmeta"><b id="nTotal"></b> enquêtés géolocalisés</div>
+    <!-- Choix des 3 couleurs d'interface -->
+    <div class="accents" title="Couleur d'interface">
+      <button class="acc" data-acc="cyan" title="Cyan / bleu clair"></button>
+      <button class="acc" data-acc="green" title="Vert santé"></button>
+      <button class="acc" data-acc="alert" title="Orange / rouge doux"></button>
+    </div>
+    <button class="hbtn" id="themeBtn" title="Thème clair / sombre">🌙</button>
+    <button class="hbtn" id="resetAppearance" title="Réinitialiser l'apparence">↺</button>
+    <button class="hbtn" id="exportBtn" title="Exporter les données filtrées (CSV)">⬇</button>
+    <button class="hbtn" id="helpBtn" title="Aide">?</button>
+    <a class="hbtn" href="index.html" title="Retour à l'accueil">⌂</a>
+  </div>
 </header>
+
+<!-- Fenêtre d'aide -->
+<div class="modal hidden" id="helpModal">
+  <div class="box">
+    <h2>Aide — utiliser Bakusm@p</h2>
+    <ul>
+      <li><b>Filtres (colonne de gauche)</b> : cochez des modalités pour restreindre l'échantillon. Tout se met à jour (carte, indicateurs, graphiques, tableaux).</li>
+      <li><b>Onglets</b> : Carte, Vue d'ensemble, Recours aux soins, Déterminants, Perceptions &amp; qualité, Analyse spatiale, Analyse croisée, Explorateur.</li>
+      <li><b>Carte</b> : choisissez la variable de coloration, le fond de carte, affichez les centres de santé, les zones de couverture, la grille et les isochrones.</li>
+      <li><b>Isochrones</b> : cochez « Isochrones » puis choisissez ou cliquez un centre pour voir les zones atteignables à 5 / 10 / 15 min de marche.</li>
+      <li><b>Zones faiblement desservies</b> : met en évidence les personnes situées hors de la zone des 15 minutes.</li>
+      <li><b>Mode édition</b> : déplacez un point mal placé ; ses coordonnées et sa cellule se mettent à jour, puis publiez en ligne.</li>
+      <li><b>Apparence</b> : bouton 🌙 pour le thème sombre, les 3 pastilles pour la couleur d'interface, ↺ pour revenir au style par défaut.</li>
+      <li><b>Export</b> : le bouton ⬇ télécharge les données correspondant aux filtres actifs.</li>
+    </ul>
+    <button class="btn solid" id="helpClose" style="margin-top:12px">Fermer</button>
+  </div>
+</div>
 
 <div class="wrap">
   <!-- ===================== COLONNE DE GAUCHE : les filtres =====================
@@ -203,6 +317,7 @@ table.ct td .hm{display:inline-block;padding:2px 6px;border-radius:5px}
               <select class="sel" id="basemapSelect" style="width:100%;margin-top:3px">
                 <option value="osm">Plan (OpenStreetMap)</option>
                 <option value="carto">Clair (CARTO)</option>
+                <option value="cartodark">Sombre (CARTO)</option>
                 <option value="gsat">Satellite (Google)</option>
                 <option value="ghyb">Satellite + rues (Google)</option>
                 <option value="esri">Satellite (Esri World Imagery)</option>
@@ -247,7 +362,7 @@ table.ct td .hm{display:inline-block;padding:2px 6px;border-radius:5px}
             <div id="cloudInfo" class="note" style="min-height:14px;color:var(--brand);font-weight:600"></div>
             <div class="note">Une fois configuré (projet Supabase gratuit, voir GUIDE), tes déplacements sont sauvegardés en ligne et rechargés automatiquement sur tous les appareils, sans exporter. Sans configuration, tout reste local.</div>
           </div>
-          <div class="card"><div class="legend" id="mapLegend"></div></div>
+          <!-- La légende est désormais un bloc flottant sur la carte (voir addGisTools). -->
         </div>
       </div>
     </section>

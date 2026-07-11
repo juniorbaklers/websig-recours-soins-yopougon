@@ -402,6 +402,7 @@ function initMap(){
   baseLayers={
     osm:  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}),
     carto:L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{maxZoom:20,attribution:'© OpenStreetMap © CARTO'}),
+    cartodark:L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{maxZoom:20,attribution:'© OpenStreetMap © CARTO'}),
     gsat: L.tileLayer('https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',{maxZoom:20,subdomains:['mt0','mt1','mt2','mt3'],attribution:'Imagerie © Google'}),
     ghyb: L.tileLayer('https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',{maxZoom:20,subdomains:['mt0','mt1','mt2','mt3'],attribution:'Imagerie © Google'}),
     esri: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:'Imagerie © Esri, Maxar, Earthstar Geographics'})
@@ -449,7 +450,7 @@ function buildSpatialLayers(){
     const icon=L.divIcon({className:'centre-ico',iconSize:[20,20],iconAnchor:[10,10],
       html:`<svg width="20" height="20" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" fill="${col}" stroke="#fff" stroke-width="1.6"/><path d="M10 5.2V14.8M5.2 10H14.8" stroke="#fff" stroke-width="2.1" stroke-linecap="round"/></svg>`});
     const mk=L.marker([c.lat,c.lon],{icon});
-    mk.bindPopup(`<div class="pop"><b>${c.nom}</b><table><tr><td class="k">Catégorie</td><td>${c.categorie}</td></tr><tr><td class="k">Niveau</td><td>${c.niveau}</td></tr><tr><td class="k">Secteur</td><td>${c.secteur}</td></tr></table></div>`);
+    mk.bindPopup(()=>centrePopupHtml(c),{maxWidth:270}); // fiche calculee a l'ouverture (compte les personnes les + proches a jour)
     mk.on('click',()=>{ if(isoMode) computeIsochrone(c); }); // isochrones a la demande
     centresLayer.addLayer(mk);
     // zones de couverture autour des centres de PREMIER CONTACT uniquement
@@ -471,15 +472,27 @@ function buildSpatialLayers(){
   } else gridLayer=L.layerGroup();
 }
 
-// popupHtml() : contenu de la fiche affichee quand on clique un point
+// popupHtml() : fiche d'information affichee quand on clique un point enquete
 function popupHtml(d){
-  const rows=[['Quartier',d.quartier],['Sexe',d.sexe],['Âge',d.age],['Profession',d.professionRaw],
-    ['Instruction',d.instruction],['Revenu',d.revenu],['Assurance',d.assurance],
-    ['1er recours',d.premierRecours],['Maladie',d.maladieCat],['Résultat',d.resultatTraitement],
-    ['Centre le + proche',d.nearestName||'—'],
-    ['Distance / marche',d.nearestDist!=null?`${d.nearestDist} m · ~${d.walkMin} min`:'—'],
-    ['Couverture',d.coverClass||'—']];
-  return `<div class="pop"><b>Enquêté n°${d.id}</b><table>${rows.map(r=>`<tr><td class="k">${r[0]}</td><td>${r[1]||'—'}</td></tr>`).join('')}</table></div>`;
+  const rows=[['Quartier',d.quartier],['Sexe',d.sexe],['Âge',d.age],
+    ['Recours aux soins',d.premierRecours],['Centre le + proche',d.nearestName],
+    ['Distance estimée',d.nearestDist!=null?d.nearestDist+' m':null],
+    ['Temps de marche',d.walkMin!=null?'~'+d.walkMin+' min':null],
+    ['Statut de couverture',d.coverClass],
+    ['Mode de déplacement',d.locomotion],['Coût du transport',d.coutTransport],
+    ['Perception distance',d.opinionDistance],['Maladie',d.maladieCat],['Résultat',d.resultatTraitement]]
+    .filter(r=>r[1]!=null && r[1]!=='');
+  const badgeCol=COVER_COL[d.coverClass]||'rgba(255,255,255,.25)';
+  return `<div class="pop"><span class="ttl">Enquêté n°${d.id}${d.coverClass?` <span class="badge" style="background:${badgeCol}">${d.coverClass}</span>`:''}</span>
+    <table>${rows.map(r=>`<tr><td class="k">${r[0]}</td><td class="v">${r[1]}</td></tr>`).join('')}</table></div>`;
+}
+// centrePopupHtml() : fiche d'information pour un centre de sante
+function centrePopupHtml(c){
+  const near=DATA.filter(d=>d.nearestName===c.nom);
+  const c5=near.filter(d=>d.coverClass==='5 min').length, c10=near.filter(d=>d.coverClass==='10 min').length, c15=near.filter(d=>d.coverClass==='15 min').length;
+  const rows=[['Type',c.categorie],['Niveau',c.niveau],['Secteur',c.secteur],['Quartier',c.quartier||'—'],
+    ['Personnes âgées les + proches',near.length],['Couvertes à 5 min',c5],['Couvertes à 10 min',c10],['Couvertes à 15 min',c15]];
+  return `<div class="pop"><span class="ttl">${c.nom}</span><table>${rows.map(r=>`<tr><td class="k">${r[0]}</td><td class="v">${r[1]}</td></tr>`).join('')}</table></div>`;
 }
 
 // renderMap() : (re)dessine les points selon la selection et la variable choisie
@@ -524,17 +537,34 @@ function renderUnderserved(recs){
   if(!map.hasLayer(underLayer)) underLayer.addTo(map);
 }
 
-// renderLegend() : legende des couleurs de la carte, avec effectifs
+// renderLegend() : legende dynamique flottante (creee une fois par legendCtl, mise a jour ici).
+// S'adapte au type de variable : classes de valeurs pour le quantitatif, categories pour le qualitatif.
+let legendCollapsed=false;
 function renderLegend(key,recs){
+  const box=document.getElementById('legendBody'); if(!box) return;
   const m=countBy(recs,key); const cats=ordered(key,m);
-  document.getElementById('mapLegend').innerHTML=
-    `<b>${DIMS[key]||key}</b>`+cats.map(c=>`<div class="li"><span class="sw" style="background:${colorFor(key,c)}"></span>${c} <span class="cnt" style="margin-left:auto;color:#94a3b8">${m.get(c)||0}</span></div>`).join('')
-    +(m.size?'':'<div class="muted">Aucune donnée</div>');
+  document.getElementById('legendTitle').textContent=DIMS[key]||NUM[key]||key;
+  box.innerHTML=cats.map(c=>`<div class="li"><span class="sw" style="background:${colorFor(key,c)}"></span><span style="flex:1">${c}</span><span class="cnt">${m.get(c)||0}</span></div>`).join('')
+    +(m.size?'':'<div class="muted">Aucune donnée pour la sélection</div>');
 }
 
 /* ---------- Outils SIG (echelle, coordonnees, plein ecran, mesure) ---------- */
 function addGisTools(){
   L.control.scale({imperial:false,maxWidth:150}).addTo(map); // barre d'echelle metrique
+
+  // legende dynamique flottante (bas droite) : titre + liste, bouton afficher/masquer
+  const LegendCtl=L.Control.extend({options:{position:'bottomright'},
+    onAdd:function(){
+      const d=L.DomUtil.create('div','legendbox');
+      d.innerHTML=`<div class="lgh"><span id="legendTitle">Légende</span><span id="legendToggle">▾</span></div><div class="lgbody" id="legendBody"></div>`;
+      L.DomEvent.disableClickPropagation(d);
+      return d; }});
+  map.addControl(new LegendCtl());
+  document.getElementById('legendToggle').addEventListener('click',()=>{
+    legendCollapsed=!legendCollapsed;
+    document.querySelector('.legendbox').classList.toggle('collapsed',legendCollapsed);
+    document.getElementById('legendToggle').textContent=legendCollapsed?'▸':'▾';
+  });
 
   // coordonnees sous le curseur (bas gauche)
   const CoordCtl=L.Control.extend({options:{position:'bottomleft'},
@@ -1269,4 +1299,31 @@ document.addEventListener('DOMContentLoaded',async ()=>{
   // 8. lien profond depuis la page d'accueil : #onglet ouvre directement le bon onglet
   const h=(location.hash||'').replace('#','');
   if(h && document.getElementById('tab-'+h)) switchTab(h);
+
+  // 9. apparence : theme clair/sombre + 3 couleurs d'interface + aide + export rapide
+  initAppearance();
 });
+
+/* ============================================================================
+   APPARENCE : theme (clair/sombre) + accent (cyan/vert/alerte), memorises
+   ============================================================================ */
+function applyAppearance(theme,accent){
+  document.documentElement.setAttribute('data-theme',theme);
+  document.documentElement.setAttribute('data-accent',accent);
+  localStorage.setItem('ui_theme',theme); localStorage.setItem('ui_accent',accent);
+  const tb=document.getElementById('themeBtn'); if(tb) tb.textContent = theme==='dark' ? '☀' : '🌙';
+  document.querySelectorAll('.acc').forEach(b=>b.classList.toggle('on',b.dataset.acc===accent));
+}
+function initAppearance(){
+  const theme=localStorage.getItem('ui_theme')||'light';
+  const accent=localStorage.getItem('ui_accent')||'cyan';
+  applyAppearance(theme,accent);
+  const tb=document.getElementById('themeBtn');
+  if(tb) tb.addEventListener('click',()=>applyAppearance(document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark',document.documentElement.getAttribute('data-accent')));
+  document.querySelectorAll('.acc').forEach(b=>b.addEventListener('click',()=>applyAppearance(document.documentElement.getAttribute('data-theme'),b.dataset.acc)));
+  const ra=document.getElementById('resetAppearance'); if(ra) ra.addEventListener('click',()=>applyAppearance('light','cyan'));
+  const eb=document.getElementById('exportBtn'); if(eb) eb.addEventListener('click',exportCsv); // export rapide des donnees filtrees
+  const hb=document.getElementById('helpBtn'), hm=document.getElementById('helpModal'), hc=document.getElementById('helpClose');
+  if(hb&&hm){ hb.addEventListener('click',()=>hm.classList.remove('hidden')); hc.addEventListener('click',()=>hm.classList.add('hidden'));
+    hm.addEventListener('click',e=>{ if(e.target===hm) hm.classList.add('hidden'); }); }
+}
