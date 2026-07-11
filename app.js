@@ -866,7 +866,7 @@ function fillSelect(el,keys,sel){el.innerHTML=keys.map(k=>`<option value="${k}"$
 function optgroupedDims(){
   return `<optgroup label="Profil">`+['sexe','age','nationalite','ethnie','lieuNaissance','matrimonial','religion','instruction','professionCat','cadreProfession','quartier'].map(o=>`<option value="${o}">${DIMS[o]}</option>`).join('')+`</optgroup>`+
   `<optgroup label="Ménage & économie">`+['statutLogement','typeConstruction','nbPieces','locomotion','revenu','depenses','nbEnfantsCat','personnesCharge','autreRevenu'].map(o=>`<option value="${o}">${DIMS[o]}</option>`).join('')+`</optgroup>`+
-  `<optgroup label="Accès & recours">`+['existenceCentre','frequentation','distancePublique','tempsMis','opinionDistance','coutTransport','opinionTransport','premierRecours','premierRecoursCat','assurance','seulAccompagne','accompagnePar'].map(o=>`<option value="${o}">${DIMS[o]}</option>`).join('')+`</optgroup>`+
+  `<optgroup label="Accès & recours">`+['existenceCentre','frequentation','coverClass','bandPrim','distancePublique','tempsMis','opinionDistance','coutTransport','opinionTransport','premierRecours','premierRecoursCat','assurance','seulAccompagne','accompagnePar'].map(o=>`<option value="${o}">${DIMS[o]}</option>`).join('')+`</optgroup>`+
   `<optgroup label="Coût & médicaments">`+['opinionCout','coutVsTradi','prixVsPharmacie','acheteTousMedic','acheteSurPlace','prixMedicConvient','iraitPlusSouvent'].map(o=>`<option value="${o}">${DIMS[o]}</option>`).join('')+`</optgroup>`+
   `<optgroup label="Perceptions & qualité">`+['personnelAccueil','tempsAttente','competents','propretePublique','equipPublique','perfPublique','medecinTemps','expliquerMedic','infoRegulier','respecte','dialogue','satisfaitMedecin','personnelGentil','prisConstantes','oriente','recommandeTradi'].map(o=>`<option value="${o}">${DIMS[o]}</option>`).join('')+`</optgroup>`+
   `<optgroup label="Santé & résultats">`+['maladieCat','resultatTraitement','retourneMemeStructure'].map(o=>`<option value="${o}">${DIMS[o]}</option>`).join('')+`</optgroup>`;
@@ -935,6 +935,7 @@ function renderTab(recs){
   if(currentTab==='determinants'){ renderDeterminants(recs); } // objectif 3 : facteurs du recours
   if(currentTab==='spatial'){ renderSpatial(recs); } // analyse spatiale (distances SIG)
   if(currentTab==='croise'){ renderCross(recs); }   // analyse croisee libre
+  if(currentTab==='matrice'){ renderMatrice(recs); } // tableau matrice (etape 4)
   if(currentTab==='explor'){ renderExplorer(recs); } // explorateur de variable
 }
 
@@ -1150,6 +1151,231 @@ function heat(p){const a=Math.min(1,p/100);return `rgba(15,94,143,${(0.08+0.72*a
 
 
 /* ============================================================================
+   11bis. TABLEAU MATRICE (etape 4) — croise / heatmap / aide a la decision
+   Complement synthetique a l'Analyse croisee : meme donnees, mais tri,
+   recherche, export CSV/Excel/PDF, clic-ligne (zoom quartier) et clic-cellule
+   (filtre la carte et les graphiques sur la combinaison choisie).
+   ============================================================================ */
+
+let mxMode='croise', mxColorblind=false, mxSearch='';
+let mxSort={key:null,dir:1}; // colonne triee (0 = libelle de ligne) et sens (1 asc, -1 desc)
+let mxLastTable={headers:[],rows:[]}; // derniere table affichee, en texte brut (pour l'export)
+
+// heatColor() : couleur diverging selon un pourcentage 0-100.
+// invert=true si une valeur HAUTE est defavorable (ex: distance, personnes hors couverture).
+// colorblind=true : palette bleu -> orange (Okabe-Ito) au lieu de rouge -> vert.
+function heatColor(pct,invert,colorblind){
+  const p=Math.max(0,Math.min(100, invert?100-pct:pct));
+  if(colorblind){
+    const lo=[1,115,178], hi=[222,143,5]; // bleu -> orange
+    const t=p/100, c=lo.map((l,i)=>Math.round(l+(hi[i]-l)*t));
+    return `rgba(${c[0]},${c[1]},${c[2]},0.82)`;
+  }
+  const stops=[[217,83,79],[232,168,58],[76,154,76]]; // rouge -> jaune -> vert
+  const [a,b,t] = p<50 ? [stops[0],stops[1],p/50] : [stops[1],stops[2],(p-50)/50];
+  const c=a.map((v,i)=>Math.round(v+(b[i]-v)*t));
+  return `rgba(${c[0]},${c[1]},${c[2]},0.82)`;
+}
+
+// computeCrossGrid() : meme grille de contingence que crossChart(), sans dessiner de graphique
+function computeCrossGrid(keyX,keyY,recs){
+  const catsX=ordered(keyX,countBy(recs,keyX));
+  const catsY=ordered(keyY,countBy(recs,keyY));
+  const grid={}; catsX.forEach(x=>{grid[x]={}; catsY.forEach(y=>grid[x][y]=0);});
+  const totX={}; catsX.forEach(x=>totX[x]=0);
+  recs.forEach(d=>{const x=(d[keyX]??'').toString().trim(),y=(d[keyY]??'').toString().trim(); if(grid[x]&&y&&grid[x][y]!==undefined){grid[x][y]++;totX[x]++;}});
+  return {catsX,catsY,grid,totX};
+}
+
+// quartierMatrixAgg() : agregation par quartier pour le tableau d'aide a la decision.
+// Etend quartierAgg() (panneau de droite) avec temps de marche, recours dominant,
+// satisfaction, et un score de vulnerabilite -> niveau de priorite d'intervention.
+function quartierMatrixAgg(recs){
+  const byq={};
+  recs.forEach(d=>{
+    const q=(d.quartier??'').toString().trim(); if(!q) return;
+    const o=byq[q]=byq[q]||{q,n:0,c5:0,c10:0,c15:0,hors:0,distSum:0,distN:0,walkSum:0,walkN:0,satOui:0,satN:0,modOui:0,recN:0,recCount:{}};
+    o.n++;
+    if(d.coverClass==='5 min')o.c5++;
+    else if(d.coverClass==='10 min')o.c10++;
+    else if(d.coverClass==='15 min')o.c15++;
+    else if(d.coverClass==='Hors 15 min')o.hors++;
+    if(typeof d.nearestDist==='number'){ o.distSum+=d.nearestDist; o.distN++; }
+    if(typeof d.walkMin==='number'){ o.walkSum+=d.walkMin; o.walkN++; }
+    const sat=(d.satisfaitMedecin??'').toString().trim(); if(sat){ o.satN++; if(sat==='Oui'||sat==='OUI') o.satOui++; }
+    const rec=(d.premierRecoursCat??'').toString().trim(); if(rec){ o.recN++; o.recCount[rec]=(o.recCount[rec]||0)+1; if(rec==='Médecine moderne') o.modOui++; }
+  });
+  const maxN=Math.max(1,...Object.values(byq).map(o=>o.n));
+  return Object.values(byq).map(o=>{
+    const taux=(o.c5+o.c10+o.c15+o.hors)?100*(o.c5+o.c10+o.c15)/(o.c5+o.c10+o.c15+o.hors):null;
+    const distMoy=o.distN?o.distSum/o.distN:null;
+    const walkMoy=o.walkN?o.walkSum/o.walkN:null;
+    const satisfaction=o.satN?100*o.satOui/o.satN:null;
+    const tauxMod=o.recN?100*o.modOui/o.recN:null;
+    const recDom=Object.entries(o.recCount).sort((a,b)=>b[1]-a[1])[0];
+    // score de vulnerabilite (0-100) : faible couverture + distance elevee + population importante + faible recours moderne
+    const covScore = taux!=null? 100-taux : 50;
+    const distScore = distMoy!=null? Math.min(100, 100*distMoy/3000) : 50; // plafond a 3 km
+    const popScore = 100*o.n/maxN;
+    const modScore = tauxMod!=null? 100-tauxMod : 50;
+    const vulnerabilite = 0.35*covScore + 0.25*distScore + 0.20*modScore + 0.20*popScore;
+    let priorite='Faible', prioColor='var(--ok, #4c9a4c)';
+    if(vulnerabilite>=66){ priorite='Critique'; prioColor='var(--danger, #d9534f)'; }
+    else if(vulnerabilite>=50){ priorite='Élevée'; prioColor='#d9534f'; }
+    else if(vulnerabilite>=33){ priorite='Modérée'; prioColor='#e8813a'; }
+    return { q:o.q, n:o.n, distMoy, walkMoy, hors:o.hors, taux,
+      c5pct: o.n?100*o.c5/o.n:0, c10pct: o.n?100*(o.c5+o.c10)/o.n:0,
+      recDom: recDom?`${recDom[0]} (${recDom[1]})`:'—', satisfaction, vulnerabilite, priorite, prioColor };
+  });
+}
+
+// renderMatriceTable() : moteur generique — tri par colonne, recherche, clic
+// cellule/ligne. "rows" = [{label, cells:[{text, sortVal, bg, title, html, onClick}], onRowClick}]
+function renderMatriceTable(containerId, headers, rows, opts={}){
+  opts=Object.assign({searchable:true, sortable:true}, opts);
+  let rr=rows;
+  const q=(mxSearch||'').toLowerCase().trim();
+  if(q) rr=rr.filter(r=> r.label.toLowerCase().includes(q) || r.cells.some(c=>(''+c.text).toLowerCase().includes(q)));
+  if(opts.sortable && mxSort.key!=null){
+    rr=[...rr].sort((a,b)=>{
+      const va = mxSort.key===0 ? a.label : (a.cells[mxSort.key-1]?.sortVal ?? a.cells[mxSort.key-1]?.text ?? '');
+      const vb = mxSort.key===0 ? b.label : (b.cells[mxSort.key-1]?.sortVal ?? b.cells[mxSort.key-1]?.text ?? '');
+      const c = (typeof va==='number' && typeof vb==='number') ? va-vb : (''+va).localeCompare(''+vb,'fr');
+      return c*mxSort.dir;
+    });
+  }
+  let html='<table class="ct"><thead><tr>';
+  headers.forEach((h,i)=>{
+    if(!opts.sortable){ html+=`<th>${h}</th>`; return; }
+    const sorted=mxSort.key===i; const arrow=sorted?(mxSort.dir===1?'▲':'▼'):'⇅';
+    html+=`<th class="sortable${sorted?' sorted':''}" data-col="${i}">${h}<span class="arrow">${arrow}</span></th>`;
+  });
+  html+='</tr></thead><tbody>';
+  rr.forEach((r,ri)=>{
+    html+=`<tr${r.onRowClick?' class="rowclick"':''} data-ri="${ri}"><td class="rowh" title="${esc(r.label)}">${r.label}</td>`;
+    r.cells.forEach((c,ci)=>{
+      const style=c.bg?` style="background:${c.bg}"`:''; const cls=c.onClick?' class="clickable"':'';
+      html+=`<td${style}${cls} data-ri="${ri}" data-ci="${ci}" title="${esc(c.title||c.text)}">${c.html!=null?c.html:c.text}</td>`;
+    });
+    html+='</tr>';
+  });
+  html+='</tbody></table>';
+  const el=document.getElementById(containerId); if(!el) return;
+  el.innerHTML=html;
+  if(opts.sortable) el.querySelectorAll('th.sortable').forEach(th=>th.addEventListener('click',()=>{
+    const col=+th.dataset.col;
+    if(mxSort.key===col) mxSort.dir*=-1; else { mxSort.key=col; mxSort.dir=1; }
+    renderMatriceTable(containerId,headers,rows,opts);
+  }));
+  el.querySelectorAll('td[data-ci]').forEach(td=>{
+    const ri=+td.dataset.ri, ci=+td.dataset.ci, r=rr[ri], c=r&&r.cells[ci];
+    if(c && c.onClick) td.addEventListener('click',()=>c.onClick());
+  });
+  el.querySelectorAll('tr.rowclick').forEach(tr=>{
+    const ri=+tr.dataset.ri, r=rr[ri];
+    tr.addEventListener('click',e=>{ if(e.target.closest('td.clickable'))return; r.onRowClick(); });
+  });
+  mxLastTable={ headers, rows: rr.map(r=>[r.label, ...r.cells.map(c=>c.text)]) };
+}
+
+// zoomToQuartier() : centre la carte sur le centroide des points du quartier (bascule sur l'onglet Carte)
+function zoomToQuartier(q){
+  const pts=filtered().filter(d=>((d.quartier??'').toString().trim())===q && typeof d.lat==='number' && d.lat);
+  if(!pts.length) return;
+  const lat=pts.reduce((a,d)=>a+d.lat,0)/pts.length, lng=pts.reduce((a,d)=>a+d.lng,0)/pts.length;
+  switchTab('carte');
+  setTimeout(()=>map.setView([lat,lng],16),120);
+}
+
+// applyComboFilter() : clic sur une cellule du tableau croise/heatmap -> filtre
+// la carte, les KPIs et les graphiques sur cette combinaison X=..., Y=...
+function applyComboFilter(kx,xVal,ky,yVal){
+  filters[kx]=new Set([xVal]); filters[ky]=new Set([yVal]);
+  syncChecks(); refresh();
+  const info=document.getElementById('mxInfo'); if(info) info.textContent=`Filtré sur ${DIMS[kx]||kx} = « ${xVal} » et ${DIMS[ky]||ky} = « ${yVal} »`;
+}
+
+// renderMatriceCroise() : tableau croise classique (heat=false) ou heatmap colore (heat=true)
+function renderMatriceCroise(recs,heatMode){
+  const kx=document.getElementById('mx').value, ky=document.getElementById('my').value;
+  const {catsX,catsY,grid,totX}=computeCrossGrid(kx,ky,recs);
+  const headers=[`${DIMS[kx]||kx} ＼ ${DIMS[ky]||ky}`, ...catsY, 'Total'];
+  const rows=catsX.map(x=>{
+    const cells=catsY.map(y=>{
+      const v=grid[x][y], p=totX[x]?100*v/totX[x]:0;
+      const bg = heatMode ? heatColor(p,false,mxColorblind) : (v?heat(p):undefined);
+      return { text:`${v} (${p.toFixed(0)}%)`, sortVal:v,
+        title:`${DIMS[kx]||kx} : ${x}  |  ${DIMS[ky]||ky} : ${y}  |  Effectif : ${v}  |  ${p.toFixed(1)}% de la ligne`,
+        bg, onClick:()=>applyComboFilter(kx,x,ky,y) };
+    });
+    cells.push({ text:totX[x], sortVal:totX[x] });
+    return { label:x, cells };
+  });
+  const colTot={}; catsY.forEach(y=>colTot[y]=catsX.reduce((a,x)=>a+grid[x][y],0));
+  const gTot=catsX.reduce((a,x)=>a+totX[x],0);
+  rows.push({ label:'Total', cells:[...catsY.map(y=>({text:colTot[y],sortVal:colTot[y]})),{text:gTot,sortVal:gTot}] });
+  const info=document.getElementById('mxInfo'); if(info) info.textContent=`${recs.length} enquêtés — ${catsX.length}×${catsY.length} modalités`;
+  renderMatriceTable('matriceTable',headers,rows,{sortable:true,searchable:true});
+}
+
+// renderMatriceQuartier() : tableau d'aide a la decision, une ligne par quartier
+function renderMatriceQuartier(recs){
+  const qa=quartierMatrixAgg(recs).sort((a,b)=>b.n-a.n);
+  const headers=['Quartier','Enquêtés','Distance moy.','Marche moy.','Couv. 5 min','Couv. 15 min (cumul)','Hors couverture','Recours dominant','Satisfaction','Score vulnérabilité','Priorité'];
+  const rows=qa.map(o=>{
+    const horsPct=o.n?100*o.hors/o.n:0;
+    const cells=[
+      { text:o.n, sortVal:o.n },
+      { text:o.distMoy!=null?Math.round(o.distMoy)+' m':'—', sortVal:o.distMoy??-1 },
+      { text:o.walkMoy!=null?Math.round(o.walkMoy)+' min':'—', sortVal:o.walkMoy??-1 },
+      { text:o.c5pct.toFixed(0)+'%', sortVal:o.c5pct, bg:heatColor(o.c5pct,false,mxColorblind) },
+      { text:o.taux!=null?o.taux.toFixed(0)+'%':'—', sortVal:o.taux??-1, bg:o.taux!=null?heatColor(o.taux,false,mxColorblind):undefined },
+      { text:o.hors, sortVal:o.hors, bg:heatColor(horsPct,true,mxColorblind), title:`${o.hors} personne(s) hors couverture 15 min (${horsPct.toFixed(0)}% du quartier)` },
+      { text:o.recDom, sortVal:o.recDom },
+      { text:o.satisfaction!=null?o.satisfaction.toFixed(0)+'%':'—', sortVal:o.satisfaction??-1, bg:o.satisfaction!=null?heatColor(o.satisfaction,false,mxColorblind):undefined },
+      { text:o.vulnerabilite.toFixed(0), sortVal:o.vulnerabilite, bg:heatColor(o.vulnerabilite,true,mxColorblind), title:'Combine couverture, distance, population et recours à la médecine moderne' },
+      { html:`<span class="mx-badge" style="background:${o.prioColor}">${o.priorite}</span>`, text:o.priorite, sortVal:o.vulnerabilite }
+    ];
+    return { label:o.q, cells, onRowClick:()=>zoomToQuartier(o.q) };
+  });
+  const info=document.getElementById('mxInfo'); if(info) info.textContent=`${qa.length} quartiers — ${recs.length} enquêtés — cliquez une ligne pour zoomer`;
+  renderMatriceTable('matriceTable',headers,rows,{sortable:true,searchable:true});
+}
+
+// renderMatrice() : dispatcher appele par renderTab() a chaque changement de filtre/onglet
+function renderMatrice(recs){
+  const mode=document.getElementById('mxMode').value; mxMode=mode;
+  const showXY=mode!=='quartier';
+  ['mxXlabel','mx','mxYlabel','my'].forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display=showXY?'':'none'; });
+  const cbWrap=document.getElementById('mxColorblind'); if(cbWrap&&cbWrap.closest('.switch')) cbWrap.closest('.switch').style.display=mode==='croise'?'none':'';
+  if(mode==='croise') renderMatriceCroise(recs,false);
+  else if(mode==='heat') renderMatriceCroise(recs,true);
+  else renderMatriceQuartier(recs);
+}
+
+// Exports du tableau matrice actuellement affiche (texte brut memorise dans mxLastTable)
+function exportMatriceCsv(){
+  const {headers,rows}=mxLastTable; if(!rows.length) return;
+  const lines=[headers.join(';')].concat(rows.map(r=>r.map(v=>{const s=(v==null?'':(''+v)).replace(/"/g,'""'); return /[;"\n]/.test(s)?`"${s}"`:s;}).join(';')));
+  const blob=new Blob(['﻿'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='tableau_matrice.csv'; a.click();
+}
+function exportMatriceXlsx(){
+  const {headers,rows}=mxLastTable; if(!rows.length || !window.XLSX) return;
+  const ws=XLSX.utils.aoa_to_sheet([headers,...rows]);
+  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'Tableau matrice');
+  XLSX.writeFile(wb,'tableau_matrice.xlsx');
+}
+function exportMatricePdf(){
+  const {headers,rows}=mxLastTable; if(!rows.length || !window.jspdf) return;
+  const {jsPDF}=window.jspdf; const doc=new jsPDF({orientation:'landscape'});
+  doc.setFontSize(12); doc.text("Bakusm@p — Tableau matrice", 14, 12);
+  doc.autoTable({ head:[headers], body:rows, startY:18, styles:{fontSize:8}, headStyles:{fillColor:[15,94,143]} });
+  doc.save('tableau_matrice.pdf');
+}
+
+
+/* ============================================================================
    12. EXPLORATEUR DE VARIABLE
    ============================================================================ */
 
@@ -1326,7 +1552,7 @@ function refresh(){ const recs=filtered(); renderChips(); renderKPIs(recs); rend
 function switchTab(t){
   currentTab=t;
   document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===t));
-  ['carte','apercu','recours','determinants','percept','spatial','croise','explor'].forEach(id=>{const el=document.getElementById('tab-'+id);if(el)el.classList.toggle('hidden',id!==t);});
+  ['carte','apercu','recours','determinants','percept','spatial','croise','matrice','explor'].forEach(id=>{const el=document.getElementById('tab-'+id);if(el)el.classList.toggle('hidden',id!==t);});
   const sec=document.getElementById('tab-'+t); if(sec){ sec.classList.remove('anim'); void sec.offsetWidth; sec.classList.add('anim'); } // re-declenche l'animation d'apparition
   renderTab(filtered());
   if(t==='carte') setTimeout(()=>map.invalidateSize(),80); // Leaflet doit recalculer sa taille quand on revient sur la carte
@@ -1361,6 +1587,18 @@ document.addEventListener('DOMContentLoaded',async ()=>{
   document.getElementById('cx').innerHTML=optgroupedDims();
   document.getElementById('cy').innerHTML=optgroupedDims();
   document.getElementById('cx').value='age'; document.getElementById('cy').value='premierRecours';
+
+  // 4bis. menus du tableau matrice (etape 4) : quartier x couverture par defaut
+  document.getElementById('mx').innerHTML=optgroupedDims();
+  document.getElementById('my').innerHTML=optgroupedDims();
+  document.getElementById('mx').value='quartier'; document.getElementById('my').value='coverClass';
+  ['mx','my'].forEach(id=>document.getElementById(id).addEventListener('change',()=>renderMatrice(filtered())));
+  document.getElementById('mxMode').addEventListener('change',()=>{ mxSort={key:null,dir:1}; renderMatrice(filtered()); });
+  document.getElementById('mxColorblind').addEventListener('change',e=>{ mxColorblind=e.target.checked; renderMatrice(filtered()); });
+  document.getElementById('mxSearch').addEventListener('input',e=>{ mxSearch=e.target.value; renderMatrice(filtered()); });
+  document.getElementById('mxExportCsv').addEventListener('click',exportMatriceCsv);
+  document.getElementById('mxExportXlsx').addEventListener('click',exportMatriceXlsx);
+  document.getElementById('mxExportPdf').addEventListener('click',exportMatricePdf);
 
   // 5. menu de l'explorateur (variables categorielles + numeriques)
   document.getElementById('ex').innerHTML=optgroupedDims()+`<optgroup label="Variables numériques">`+Object.keys(NUM).map(k=>`<option value="${k}">${NUM[k]}</option>`).join('')+`</optgroup>`;

@@ -130,6 +130,19 @@ table.ct th,table.ct td{border:1px solid var(--line);padding:5px 8px;text-align:
 table.ct th{background:#f3f7fb;position:sticky;top:0;font-weight:700}
 table.ct td.rowh{text-align:left;font-weight:600;background:#fafcfe;position:sticky;left:0}
 table.ct td .hm{display:inline-block;padding:2px 6px;border-radius:5px}
+table.ct th.sortable{cursor:pointer;user-select:none}
+table.ct th.sortable:hover{color:var(--brand)}
+table.ct th.sortable .arrow{opacity:.45;font-size:10px;margin-left:2px}
+table.ct th.sortable.sorted .arrow{opacity:1;color:var(--brand)}
+table.ct td.clickable{cursor:pointer}
+table.ct td.clickable:hover{outline:2px solid var(--brand);outline-offset:-2px}
+table.ct tr.rowclick{cursor:pointer}
+table.ct tr.rowclick:hover td{background:#eaf2f8}
+[data-theme="dark"] table.ct tr.rowclick:hover td{background:#12303c}
+.mx-badge{display:inline-block;padding:2px 9px;border-radius:999px;font-size:10.5px;font-weight:700;color:#fff;white-space:nowrap}
+.mx-legend{display:flex;gap:10px;flex-wrap:wrap;font-size:11px;color:var(--muted);margin:6px 0}
+.mx-legend span{display:flex;align-items:center;gap:4px}
+.mx-legend i{width:12px;height:12px;border-radius:3px;display:inline-block}
 .muted{color:var(--muted)}
 .pop b{color:var(--brand)}
 .pop table{font-size:12px;border-collapse:collapse;margin-top:4px}
@@ -336,6 +349,7 @@ table.ct td .hm{display:inline-block;padding:2px 6px;border-radius:5px}
       <div class="tab" data-tab="percept">⭐ Perceptions &amp; qualité</div>
       <div class="tab" data-tab="spatial">🧭 Analyse spatiale</div>
       <div class="tab" data-tab="croise">🔀 Analyse croisée</div>
+      <div class="tab" data-tab="matrice">📐 Tableau matrice</div>
       <div class="tab" data-tab="explor">🔎 Explorateur</div>
     </div>
 
@@ -545,6 +559,34 @@ table.ct td .hm{display:inline-block;padding:2px 6px;border-radius:5px}
       </div>
     </section>
 
+    <!-- TAB: MATRICE (etape 4) : tableau croise / heatmap / aide a la decision par quartier -->
+    <section id="tab-matrice" class="hidden">
+      <div class="card">
+        <div class="toolbar">
+          <label class="lbl">Mode d'affichage</label>
+          <select class="sel" id="mxMode">
+            <option value="croise">Tableau croisé classique</option>
+            <option value="heat">Heatmap colorée</option>
+            <option value="quartier">Aide à la décision par quartier</option>
+          </select>
+          <label class="lbl" id="mxXlabel">Variable en ligne (X)</label>
+          <select class="sel" id="mx"></select>
+          <label class="lbl" id="mxYlabel">Variable en colonne (Y)</label>
+          <select class="sel" id="my"></select>
+          <div class="switch" style="margin-left:auto"><input type="checkbox" id="mxColorblind"><label for="mxColorblind">Palette compatible daltonisme</label></div>
+        </div>
+        <div class="toolbar" style="margin-top:-6px">
+          <input class="sel" id="mxSearch" placeholder="🔎 Rechercher (quartier, modalité…)" style="min-width:240px">
+          <button class="btn" id="mxExportCsv">⬇ CSV</button>
+          <button class="btn" id="mxExportXlsx">⬇ Excel</button>
+          <button class="btn" id="mxExportPdf">⬇ PDF</button>
+          <span class="note" id="mxInfo" style="margin:0 0 0 auto"></span>
+        </div>
+        <div id="matriceTable"></div>
+        <div class="note">Cliquez un en-tête de colonne pour trier. En mode croisé ou heatmap, cliquez une cellule pour filtrer la carte et les graphiques sur cette combinaison. En mode « aide à la décision », cliquez une ligne pour centrer la carte sur le quartier.</div>
+      </div>
+    </section>
+
     <!-- TAB: EXPLORATEUR -->
     <section id="tab-explor" class="hidden">
       <div class="card">
@@ -648,6 +690,10 @@ table.ct td .hm{display:inline-block;padding:2px 6px;border-radius:5px}
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<!-- Tableau matrice (etape 4) : export Excel (SheetJS) et PDF (jsPDF + autotable) -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
 <script src="data/data.js"></script>
 <script src="data/centres.js"></script>   <!-- window.CENTRES : 108 etablissements de sante -->
 <script src="data/yopougon.js"></script>  <!-- window.YOP_BOUNDARY : limite communale -->
