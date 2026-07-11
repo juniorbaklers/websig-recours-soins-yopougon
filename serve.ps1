@@ -16,6 +16,7 @@ while ($listener.IsListening) {
       $ext = [System.IO.Path]::GetExtension($file).ToLower()
       $ctx.Response.ContentType = if ($mime.ContainsKey($ext)) { $mime[$ext] } else { "application/octet-stream" }
       $bytes = [System.IO.File]::ReadAllBytes($file)
+      $ctx.Response.ContentLength64 = $bytes.Length
       $ctx.Response.OutputStream.Write($bytes, 0, $bytes.Length)
     } else {
       $ctx.Response.StatusCode = 404
