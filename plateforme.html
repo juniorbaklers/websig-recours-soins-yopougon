@@ -353,6 +353,7 @@ table.ct tr.rowclick:hover td{background:#eaf2f8}
       <div class="tab" data-tab="croise">🔀 Analyse croisée</div>
       <div class="tab" data-tab="matrice">📐 Tableau matrice</div>
       <div class="tab" data-tab="explor">🔎 Explorateur</div>
+      <div class="tab" data-tab="donnees">📥 Données</div>
     </div>
 
     <!-- Pastilles des filtres actifs (generees par app.js) -->
@@ -629,6 +630,37 @@ table.ct tr.rowclick:hover td{background:#eaf2f8}
           <div class="card" style="box-shadow:none;border:1px solid var(--line)"><h3 id="exTitle"></h3><div class="chartbox tall"><canvas id="exChart"></canvas></div></div>
           <div class="card" style="box-shadow:none;border:1px solid var(--line)"><h3>Détail</h3><div id="exTable"></div></div>
         </div>
+      </div>
+    </section>
+
+    <!-- TAB: DONNEES (etape 5c) : import CSV/Excel/GeoJSON/JSON en couche complementaire -->
+    <section id="tab-donnees" class="hidden">
+      <div class="card">
+        <h3>📥 Importer des données externes</h3>
+        <div class="sub">Ajoutez un jeu de données complémentaire (CSV, Excel, GeoJSON, JSON) comme couche sur la carte, sans modifier les données de l'enquête. Utile pour comparer une autre source (recensement, autre campagne, autre commune…).</div>
+        <div class="toolbar">
+          <label class="btn" for="importFile" style="cursor:pointer">📁 Choisir un fichier</label>
+          <input type="file" id="importFile" accept=".csv,.xlsx,.xls,.geojson,.json" style="display:none">
+          <span class="note" id="importFileName" style="margin:0"></span>
+        </div>
+        <div id="importMsg"></div>
+
+        <div id="importMappingBox" class="hidden">
+          <h3 style="margin-top:14px">Correspondance des champs</h3>
+          <div class="sub">Détection automatique — corrigez si besoin avant de valider.</div>
+          <div class="grid g2" id="importMappingGrid" style="margin-top:6px"></div>
+
+          <div class="toolbar" style="margin-top:14px">
+            <button class="btn" id="importPreviewBtn">👁 Prévisualiser</button>
+            <button class="btn solid" id="importValidateBtn">✅ Valider (ajouter à la carte)</button>
+            <button class="btn" id="importExportBtn">⬇ Exporter</button>
+            <button class="btn" id="importResetBtn">↺ Réinitialiser les données importées</button>
+          </div>
+
+          <div id="importPreview" style="margin-top:12px"></div>
+        </div>
+
+        <div id="importSummary" style="margin-top:14px"></div>
       </div>
     </section>
   </main>

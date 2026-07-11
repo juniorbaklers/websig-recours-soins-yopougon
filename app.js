@@ -1649,7 +1649,7 @@ function refresh(){ const recs=filtered(); renderChips(); renderKPIs(recs); rend
 function switchTab(t){
   currentTab=t;
   document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===t));
-  ['carte','apercu','recours','determinants','percept','spatial','croise','matrice','explor'].forEach(id=>{const el=document.getElementById('tab-'+id);if(el)el.classList.toggle('hidden',id!==t);});
+  ['carte','apercu','recours','determinants','percept','spatial','croise','matrice','explor','donnees'].forEach(id=>{const el=document.getElementById('tab-'+id);if(el)el.classList.toggle('hidden',id!==t);});
   const sec=document.getElementById('tab-'+t); if(sec){ sec.classList.remove('anim'); void sec.offsetWidth; sec.classList.add('anim'); } // re-declenche l'animation d'apparition
   renderTab(filtered());
   if(t==='carte') setTimeout(()=>map.invalidateSize(),80); // Leaflet doit recalculer sa taille quand on revient sur la carte
@@ -1764,6 +1764,9 @@ document.addEventListener('DOMContentLoaded',async ()=>{
 
   // 11. style cartographique (etape 5b)
   initMapStyleUI();
+
+  // 12. gestion des donnees importees (etape 5c)
+  initImportUI();
 });
 
 // initMapStyleUI() : synchronise les controles du panneau « Style cartographique »
@@ -1796,6 +1799,249 @@ function initMapStyleUI(){
     applyMapStyle();
   });
 }
+
+
+/* ============================================================================
+   15. GESTION DES DONNEES IMPORTEES (etape 5c)
+   Ajoute une couche cartographique a partir d'un fichier externe (CSV, Excel,
+   GeoJSON, JSON), SANS toucher aux donnees de l'enquete (DATA) : les autres
+   onglets (Vue d'ensemble, Recours, Analyse croisee...) restent bases sur
+   l'enquete de 726 personnes. C'est une couche complementaire, comparable a
+   ce qu'on ferait en ajoutant une couche dans un vrai SIG.
+   ============================================================================ */
+const IMPORT_ROLES = [
+  { key:'id',       label:'Identifiant',          guesses:['id','identifiant','code','num','no','n°'] },
+  { key:'quartier', label:'Quartier',              guesses:['quartier','zone','localite','localité','commune','secteur'] },
+  { key:'lat',      label:'Latitude',              guesses:['lat','latitude','y'] },
+  { key:'lng',      label:'Longitude',             guesses:['lon','lng','long','longitude','x'] },
+  { key:'label',    label:'Libellé / nom',         guesses:['nom','label','name','titre','libelle','libellé'] },
+  { key:'value',    label:'Champ à cartographier', guesses:['valeur','value','categorie','catégorie','type','classe'] },
+  { key:'stat',     label:'Champ statistique',     guesses:['stat','montant','effectif','score','indice','nombre','total'] },
+  { key:'temporal', label:'Champ temporel',        guesses:['date','annee','année','periode','période','campagne','vague'] },
+  { key:'join',     label:'Champ de jointure',     guesses:['id','identifiant','code','cle','clé','key'] }
+];
+
+let importRaw=[];      // lignes brutes telles que parsees dans le fichier
+let importHeaders=[];  // en-tetes/colonnes detectees
+let importMapping={};  // role -> nom de colonne choisi (ou '' si aucun)
+let importedData=[];   // lignes normalisees apres validation, utilisees pour la couche carte
+let importedLayer=null;
+
+// guessColumn() : essaie de retrouver la colonne correspondant a un role a partir de mots-cles
+function guessColumn(headers,guesses){
+  const norm=s=>s.toString().trim().toLowerCase();
+  for(const g of guesses){ const hit=headers.find(h=>norm(h)===g); if(hit) return hit; }
+  for(const g of guesses){ const hit=headers.find(h=>norm(h).includes(g)); if(hit) return hit; }
+  return '';
+}
+
+// parseCsv() : petit parseur CSV tolerant (detecte , ou ; comme separateur, gere les guillemets)
+function parseCsv(text){
+  const rows=[]; let row=[],field='',inQ=false;
+  const sampleLine=text.slice(0,2000).split('\n')[0]||'';
+  const sep=(sampleLine.split(';').length>sampleLine.split(',').length)?';':',';
+  for(let i=0;i<text.length;i++){
+    const c=text[i];
+    if(inQ){
+      if(c==='"'){ if(text[i+1]==='"'){ field+='"'; i++; } else inQ=false; }
+      else field+=c;
+    } else {
+      if(c==='"') inQ=true;
+      else if(c===sep){ row.push(field); field=''; }
+      else if(c==='\n' || c==='\r'){ if(c==='\r'&&text[i+1]==='\n') i++; row.push(field); field=''; rows.push(row); row=[]; }
+      else field+=c;
+    }
+  }
+  if(field.length || row.length){ row.push(field); rows.push(row); }
+  const clean=rows.filter(r=>r.some(v=>v!==''));
+  if(!clean.length) return [];
+  const headers=clean[0].map(h=>h.trim());
+  return clean.slice(1).map(r=>{ const o={}; headers.forEach((h,i)=>o[h]=(r[i]??'').trim()); return o; });
+}
+
+// parseGeoJsonLike() : extrait les enregistrements d'un GeoJSON (FeatureCollection de points) ou d'un JSON generique
+function parseGeoJsonLike(obj){
+  if(obj && obj.type==='FeatureCollection' && Array.isArray(obj.features)){
+    return obj.features.map(f=>{
+      const props=Object.assign({},f.properties||{});
+      if(f.geometry && f.geometry.type==='Point' && Array.isArray(f.geometry.coordinates)){
+        props.__geoLng=f.geometry.coordinates[0]; props.__geoLat=f.geometry.coordinates[1];
+      }
+      return props;
+    });
+  }
+  if(Array.isArray(obj)) return obj;
+  const arrProp=Object.keys(obj||{}).find(k=>Array.isArray(obj[k])); // ex: { data:[...] }
+  if(arrProp) return obj[arrProp];
+  return [];
+}
+
+// handleImportFile() : lit le fichier choisi selon son extension puis lance la detection des champs
+function handleImportFile(file){
+  const msg=document.getElementById('importMsg');
+  document.getElementById('importFileName').textContent=file.name;
+  const ext=file.name.split('.').pop().toLowerCase();
+  const reader=new FileReader();
+  reader.onerror=()=>{ msg.innerHTML=`<div class="note" style="color:var(--danger)">Le fichier n'a pas pu être lu.</div>`; };
+  reader.onload=e=>{
+    try{
+      let records=[];
+      if(ext==='csv'){ records=parseCsv(e.target.result); }
+      else if(ext==='xlsx'||ext==='xls'){
+        const wb=XLSX.read(e.target.result,{type:'array'});
+        records=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:''});
+      } else if(ext==='geojson'||ext==='json'){
+        records=parseGeoJsonLike(JSON.parse(e.target.result));
+      } else { msg.innerHTML=`<div class="note" style="color:var(--danger)">Format non pris en charge (utilisez .csv, .xlsx, .geojson ou .json).</div>`; return; }
+      if(!records.length){ msg.innerHTML=`<div class="note" style="color:var(--danger)">Aucune ligne de données trouvée dans ce fichier.</div>`; return; }
+      importRaw=records;
+      importHeaders=[...new Set(records.flatMap(r=>Object.keys(r)))];
+      importMapping={}; IMPORT_ROLES.forEach(r=>importMapping[r.key]=guessColumn(importHeaders,r.guesses));
+      renderImportMapping();
+      msg.innerHTML=`<div class="note">${records.length} ligne(s), ${importHeaders.length} colonne(s) détectée(s). Vérifiez la correspondance des champs ci-dessous puis cliquez sur « Prévisualiser » ou « Valider ».</div>`;
+    }catch(err){ msg.innerHTML=`<div class="note" style="color:var(--danger)">Erreur de lecture : ${err.message}</div>`; }
+  };
+  if(ext==='xlsx'||ext==='xls') reader.readAsArrayBuffer(file); else reader.readAsText(file,'utf-8');
+}
+
+// renderImportMapping() : construit les menus de correspondance des champs (detection auto, modifiable)
+function renderImportMapping(){
+  document.getElementById('importMappingBox').classList.remove('hidden');
+  const grid=document.getElementById('importMappingGrid');
+  grid.innerHTML=IMPORT_ROLES.map(r=>{
+    const opts=['<option value="">— aucun —</option>'].concat(importHeaders.map(h=>`<option value="${esc(h)}"${importMapping[r.key]===h?' selected':''}>${esc(h)}</option>`)).join('');
+    return `<div><label class="lbl">${r.label}</label><select class="sel" data-role="${r.key}" style="width:100%;margin-top:3px">${opts}</select></div>`;
+  }).join('');
+  grid.querySelectorAll('select[data-role]').forEach(sel=>sel.addEventListener('change',e=>{ importMapping[e.target.dataset.role]=e.target.value; }));
+}
+
+// checkImportIssues() : messages d'alerte si un champ essentiel est manquant ou incompatible
+function checkImportIssues(){
+  const issues=[];
+  if(!importMapping.lat || !importMapping.lng){
+    issues.push("Aucun champ latitude/longitude sélectionné : les données pourront être exportées mais pas affichées sur la carte.");
+  } else {
+    const bad=importRaw.filter(r=>{ const la=+r[importMapping.lat], ln=+r[importMapping.lng]; return isNaN(la)||isNaN(ln)||(la===0&&ln===0); }).length;
+    if(bad===importRaw.length) issues.push("Le champ latitude/longitude sélectionné ne contient aucune coordonnée numérique valide.");
+    else if(bad>0) issues.push(`${bad} ligne(s) sur ${importRaw.length} ont des coordonnées manquantes ou invalides et ne seront pas affichées sur la carte.`);
+  }
+  if(!importMapping.id) issues.push("Aucun identifiant sélectionné : un numéro de ligne sera utilisé automatiquement.");
+  if(!importMapping.label) issues.push("Aucun libellé sélectionné : les popups afficheront l'identifiant.");
+  return issues;
+}
+
+// renderImportPreview() : apercu (10 premieres lignes) + alertes de coherence
+function renderImportPreview(){
+  const box=document.getElementById('importPreview');
+  const issues=checkImportIssues();
+  const cols=['id','quartier','lat','lng','label','value','stat','temporal'].map(k=>importMapping[k]).filter((v,i,a)=>v && a.indexOf(v)===i);
+  const shown=cols.length?cols:importHeaders.slice(0,6);
+  const rows=importRaw.slice(0,10);
+  let html = issues.length? `<div class="note" style="color:var(--accent);margin-bottom:8px">⚠ ${issues.join('<br>⚠ ')}</div>` : `<div class="note" style="color:var(--ok, #4c9a4c);margin-bottom:8px">✓ Tous les champs essentiels sont correctement mappés.</div>`;
+  html += `<table class="ct"><thead><tr>${shown.map(c=>`<th>${esc(c)}</th>`).join('')}</tr></thead><tbody>`+
+    rows.map(r=>`<tr>${shown.map(c=>`<td>${esc(r[c]??'')}</td>`).join('')}</tr>`).join('')+
+    `</tbody></table><div class="note">Aperçu limité aux 10 premières lignes sur ${importRaw.length}.</div>`;
+  box.innerHTML=html;
+}
+
+// validateImport() : normalise les lignes selon le mapping choisi et cree la couche carte « Données importées »
+function validateImport(){
+  if(!importRaw.length){ document.getElementById('importMsg').innerHTML=`<div class="note" style="color:var(--danger)">Importez d'abord un fichier.</div>`; return; }
+  const m=importMapping;
+  importedData=importRaw.map((r,i)=>({
+    id: m.id? r[m.id] : (i+1),
+    quartier: m.quartier? r[m.quartier] : '',
+    lat: m.lat? +r[m.lat] : (r.__geoLat!=null? +r.__geoLat : null),
+    lng: m.lng? +r[m.lng] : (r.__geoLng!=null? +r.__geoLng : null),
+    label: m.label? r[m.label] : (m.id? r[m.id] : `Ligne ${i+1}`),
+    value: m.value? r[m.value] : '',
+    stat: m.stat? +r[m.stat] : null,
+    temporal: m.temporal? r[m.temporal] : '',
+    join: m.join? r[m.join] : (m.id? r[m.id] : '')
+  }));
+  buildImportedLayer();
+  renderImportSummary();
+  try{ if(JSON.stringify(importedData).length<3000000) localStorage.setItem('imported_data_v1', JSON.stringify({mapping:importMapping,data:importedData})); }catch(e){}
+  document.getElementById('importMsg').innerHTML=`<div class="note" style="color:var(--ok, #4c9a4c)">✓ ${importedData.length} ligne(s) validée(s) et ajoutée(s) comme couche « Données importées » sur la carte.</div>`;
+}
+
+// buildImportedLayer() : (re)construit la couche Leaflet des donnees importees (losanges distincts des points de l'enquete)
+function buildImportedLayer(){
+  if(!importedLayer) importedLayer=L.layerGroup();
+  importedLayer.clearLayers();
+  const pts=importedData.filter(d=>typeof d.lat==='number' && typeof d.lng==='number' && !isNaN(d.lat) && !isNaN(d.lng) && !(d.lat===0&&d.lng===0));
+  pts.forEach(d=>{
+    const mk=L.marker([d.lat,d.lng],{icon:L.divIcon({className:'',iconSize:[14,14],iconAnchor:[7,7],
+      html:`<div style="width:11px;height:11px;background:${mapStyle.colorQuartier};border:2px solid #fff;box-shadow:0 0 3px rgba(0,0,0,.6);transform:rotate(45deg)"></div>`})});
+    const rows=[['Libellé',d.label],['Quartier',d.quartier],['Valeur',d.value],['Statistique',d.stat],['Champ temporel',d.temporal]].filter(r=>r[1]!=null && r[1]!=='');
+    mk.bindPopup(`<div class="pop"><span class="ttl">📥 ${esc(d.label||d.id)}</span><table>${rows.map(r=>`<tr><td class="k">${r[0]}</td><td class="v">${esc(r[1])}</td></tr>`).join('')}</table></div>`);
+    importedLayer.addLayer(mk);
+  });
+  if(pts.length && !map.hasLayer(importedLayer)) importedLayer.addTo(map);
+}
+
+// renderImportSummary() : petit resume statistique de la couche importee (effectif + min/moyenne/max du champ statistique)
+function renderImportSummary(){
+  const box=document.getElementById('importSummary'); if(!importedData.length){ box.innerHTML=''; return; }
+  const withGeo=importedData.filter(d=>typeof d.lat==='number' && !isNaN(d.lat)).length;
+  const stats=importedData.map(d=>d.stat).filter(v=>typeof v==='number' && !isNaN(v));
+  let statLine='';
+  if(stats.length){
+    const min=Math.min(...stats), max=Math.max(...stats), moy=stats.reduce((a,b)=>a+b,0)/stats.length;
+    statLine=`<div class="kpis" style="margin-top:8px">
+      <div class="kpi"><div class="v">${stats.length}</div><div class="l">Valeurs statistiques renseignées</div></div>
+      <div class="kpi"><div class="v">${min.toLocaleString('fr-FR')}</div><div class="l">Minimum</div></div>
+      <div class="kpi"><div class="v">${moy.toFixed(1)}</div><div class="l">Moyenne</div></div>
+      <div class="kpi"><div class="v">${max.toLocaleString('fr-FR')}</div><div class="l">Maximum</div></div></div>`;
+  }
+  box.innerHTML=`<h3>Résumé de la couche importée</h3><div class="note">${importedData.length} ligne(s) au total, dont ${withGeo} affichée(s) sur la carte (coordonnées valides).</div>${statLine}`;
+}
+
+// exportImportedData() : reexporte les donnees importees normalisees (CSV)
+function exportImportedData(){
+  if(!importedData.length){ document.getElementById('importMsg').innerHTML=`<div class="note" style="color:var(--danger)">Rien à exporter : validez d'abord un import.</div>`; return; }
+  const cols=['id','quartier','lat','lng','label','value','stat','temporal','join'];
+  const lines=[cols.join(';')].concat(importedData.map(d=>cols.map(c=>{const v=d[c]==null?'':(''+d[c]).replace(/"/g,'""'); return /[;"\n]/.test(v)?`"${v}"`:v;}).join(';')));
+  const blob=new Blob(['﻿'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='donnees_importees.csv'; a.click();
+}
+
+// resetImportedData() : efface completement l'import courant (couche carte, memoire, stockage local)
+function resetImportedData(){
+  importRaw=[]; importHeaders=[]; importMapping={}; importedData=[];
+  if(importedLayer){ importedLayer.clearLayers(); if(map.hasLayer(importedLayer)) map.removeLayer(importedLayer); }
+  document.getElementById('importMappingBox').classList.add('hidden');
+  document.getElementById('importPreview').innerHTML='';
+  document.getElementById('importSummary').innerHTML='';
+  document.getElementById('importFileName').textContent='';
+  document.getElementById('importFile').value='';
+  document.getElementById('importMsg').innerHTML=`<div class="note">Données importées réinitialisées.</div>`;
+  localStorage.removeItem('imported_data_v1');
+}
+
+// restoreImportedData() : recharge un import precedent depuis ce navigateur au demarrage
+function restoreImportedData(){
+  try{
+    const raw=localStorage.getItem('imported_data_v1'); if(!raw) return;
+    const saved=JSON.parse(raw);
+    importMapping=saved.mapping||{}; importedData=saved.data||[];
+    if(importedData.length){
+      buildImportedLayer(); renderImportSummary();
+      document.getElementById('importMsg').innerHTML=`<div class="note">${importedData.length} ligne(s) restaurée(s) depuis un import précédent (ce navigateur). Importez un nouveau fichier pour les remplacer.</div>`;
+    }
+  }catch(e){}
+}
+
+// initImportUI() : branche les boutons/fichier de l'onglet « Données »
+function initImportUI(){
+  document.getElementById('importFile').addEventListener('change',e=>{ if(e.target.files[0]) handleImportFile(e.target.files[0]); });
+  document.getElementById('importPreviewBtn').addEventListener('click',renderImportPreview);
+  document.getElementById('importValidateBtn').addEventListener('click',validateImport);
+  document.getElementById('importExportBtn').addEventListener('click',exportImportedData);
+  document.getElementById('importResetBtn').addEventListener('click',resetImportedData);
+  restoreImportedData();
+}
+
 
 /* ============================================================================
    APPARENCE : theme (clair/sombre) + accent (cyan/vert/alerte), memorises
