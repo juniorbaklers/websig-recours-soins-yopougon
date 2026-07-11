@@ -393,6 +393,7 @@ table.ct tr.rowclick:hover td{background:#eaf2f8}
       <div class="tab" data-tab="matrice">📐 Tableau matrice</div>
       <div class="tab" data-tab="explor">🔎 Explorateur</div>
       <div class="tab" data-tab="donnees">📥 Données</div>
+      <div class="tab" data-tab="exports">📤 Exports</div>
     </div>
 
     <!-- Pastilles des filtres actifs (generees par app.js) -->
@@ -702,6 +703,66 @@ table.ct tr.rowclick:hover td{background:#eaf2f8}
         <div id="importSummary" style="margin-top:14px"></div>
       </div>
     </section>
+
+    <!-- TAB: EXPORTS (etape 5f) : carte PNG/PDF, donnees CSV/Excel/GeoJSON, graphiques, tableaux, rapport complet -->
+    <section id="tab-exports" class="hidden">
+      <div class="card">
+        <h3>📤 Exports professionnels</h3>
+        <div class="sub">Choisissez ce que vous voulez exporter. « Graphiques » et « Tableaux » portent sur le dernier onglet d'analyse consulté avant celui-ci.</div>
+        <div class="toolbar">
+          <label class="lbl">Que voulez-vous exporter ?</label>
+          <select class="sel" id="exportScope" style="width:100%;max-width:280px">
+            <option value="carte">🗺️ Carte seule</option>
+            <option value="donnees">📋 Données seules</option>
+            <option value="graphiques">📊 Graphiques seuls</option>
+            <option value="tableaux">📑 Tableaux seuls</option>
+            <option value="rapport">📄 Rapport complet (PDF)</option>
+          </select>
+        </div>
+        <div id="exportStatus" class="note"></div>
+
+        <div id="exportPanelCarte" class="hidden">
+          <div class="toolbar">
+            <button class="btn solid" id="exportCartePng">⬇ Carte en PNG</button>
+            <button class="btn solid" id="exportCartePdf">⬇ Carte en PDF</button>
+          </div>
+          <div class="note">La carte est capturée telle qu'affichée (fond, points, légende, échelle), avec titre, date et source ajoutés automatiquement.</div>
+        </div>
+
+        <div id="exportPanelDonnees" class="hidden">
+          <div class="toolbar">
+            <button class="btn" id="exportDonneesCsv">⬇ Données filtrées (CSV)</button>
+            <button class="btn" id="exportDonneesXlsx">⬇ Données filtrées (Excel)</button>
+            <button class="btn" id="exportDonneesGeojson">⬇ Couches visibles (GeoJSON)</button>
+          </div>
+          <div class="note">« Couches visibles » exporte les points actuellement filtrés (+ la couche importée si active) au format GeoJSON.</div>
+        </div>
+
+        <div id="exportPanelGraphiques" class="hidden">
+          <div class="toolbar">
+            <button class="btn solid" id="exportGraphiquesPng">⬇ Graphiques (PNG)</button>
+          </div>
+          <div class="note" id="exportGraphInfo"></div>
+        </div>
+
+        <div id="exportPanelTableaux" class="hidden">
+          <div class="toolbar">
+            <button class="btn" id="exportTableauxCsv">⬇ Tableaux (CSV)</button>
+            <button class="btn" id="exportTableauxXlsx">⬇ Tableaux (Excel)</button>
+            <button class="btn" id="exportTableauxPdf">⬇ Tableaux (PDF)</button>
+          </div>
+          <div class="note" id="exportTableInfo"></div>
+        </div>
+
+        <div id="exportPanelRapport" class="hidden">
+          <div class="toolbar">
+            <button class="btn solid" id="exportRapportBtn">📄 Générer le rapport de synthèse (PDF)</button>
+          </div>
+          <div class="note">Le rapport combine les indicateurs clés, une capture de la carte, une interprétation courte générée automatiquement et le tableau des quartiers prioritaires.</div>
+          <div id="exportRapportStatus" class="note"></div>
+        </div>
+      </div>
+    </section>
   </main>
 
   <!-- ===================== COLONNE DE DROITE : panneau statistique permanent =====================
@@ -834,6 +895,8 @@ table.ct tr.rowclick:hover td{background:#eaf2f8}
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
+<!-- Exports professionnels (etape 5f) : capture de la carte en image -->
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script src="data/data.js"></script>
 <script src="data/centres.js"></script>   <!-- window.CENTRES : 108 etablissements de sante -->
 <script src="data/yopougon.js"></script>  <!-- window.YOP_BOUNDARY : limite communale -->

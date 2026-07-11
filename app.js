@@ -1646,10 +1646,14 @@ function initStatsPanel(){
 function refresh(){ const recs=filtered(); renderChips(); renderKPIs(recs); renderTab(recs); renderStatsPanel(recs); }
 
 // switchTab() : change d'onglet (affiche/masque les sections, redessine)
+// lastContentTab : dernier onglet d'ANALYSE visite (hors Exports), pour que l'onglet
+// Exports sache quels graphiques/tableaux exporter (etape 5f).
+let lastContentTab='apercu';
 function switchTab(t){
+  if(t!=='exports') lastContentTab=t;
   currentTab=t;
   document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===t));
-  ['carte','apercu','recours','determinants','percept','spatial','croise','matrice','explor','donnees'].forEach(id=>{const el=document.getElementById('tab-'+id);if(el)el.classList.toggle('hidden',id!==t);});
+  ['carte','apercu','recours','determinants','percept','spatial','croise','matrice','explor','donnees','exports'].forEach(id=>{const el=document.getElementById('tab-'+id);if(el)el.classList.toggle('hidden',id!==t);});
   const sec=document.getElementById('tab-'+t); if(sec){ sec.classList.remove('anim'); void sec.offsetWidth; sec.classList.add('anim'); } // re-declenche l'animation d'apparition
   renderTab(filtered());
   if(t==='carte') setTimeout(()=>map.invalidateSize(),80); // Leaflet doit recalculer sa taille quand on revient sur la carte
@@ -1776,6 +1780,9 @@ document.addEventListener('DOMContentLoaded',async ()=>{
   // 14. storytelling — visite guidee en 8 etapes (etape 5e)
   initStoryWidget();
   if(h==='story') startStory();
+
+  // 15. exports professionnels (etape 5f)
+  initExportsUI();
 });
 
 // initMapStyleUI() : synchronise les controles du panneau « Style cartographique »
@@ -2277,6 +2284,259 @@ function initStoryWidget(){
   document.getElementById('storyNext').addEventListener('click',()=>{ storyIndex===STORY_STEPS.length-1 ? quitStory() : goToStory(storyIndex+1); });
   document.getElementById('storyPrev').addEventListener('click',()=>goToStory(storyIndex-1));
   document.getElementById('storyQuit').addEventListener('click',quitStory);
+}
+
+
+/* ============================================================================
+   18. EXPORTS PROFESSIONNELS (etape 5f)
+   Carte en PNG/PDF (titre, legende, echelle, date, source), donnees filtrees
+   en CSV/Excel/GeoJSON, graphiques et tableaux de l'onglet d'analyse courant,
+   et un rapport de synthese PDF complet. Rien ne modifie l'app elle-meme :
+   tout part de ce qui est deja affiche/calcule (filtered(), charts, tables).
+   ============================================================================ */
+
+// exportStatus() : message d'etat/erreur affiche sous le selecteur de portee
+function exportStatus(msg,isErr){ const el=document.getElementById('exportStatus'); if(el) el.innerHTML = isErr? `<span style="color:var(--danger)">⚠ ${msg}</span>` : msg; }
+// tabLabel() : libelle lisible d'un onglet a partir de son id (pour les messages)
+function tabLabel(id){ const t=document.querySelector(`.tab[data-tab="${id}"]`); return t?t.textContent.trim():id; }
+// withTimeout() : borne la duree d'une promesse (ex : capture de carte trop lente/bloquee)
+function withTimeout(promise,ms,msg){ return Promise.race([promise,new Promise((_,rej)=>setTimeout(()=>rej(new Error(msg)),ms))]); }
+
+// captureMapCanvas() : capture la carte (fond, points, legende, echelle) en <canvas> via html2canvas
+async function captureMapCanvas(){
+  if(typeof html2canvas==='undefined') throw new Error("La bibliothèque de capture (html2canvas) n'a pas pu être chargée — vérifiez votre connexion.");
+  const mapEl=document.getElementById('map');
+  const isDark=document.documentElement.getAttribute('data-theme')==='dark';
+  return withTimeout(
+    html2canvas(mapEl,{useCORS:true,allowTaint:false,logging:false,scale:Math.min(2,window.devicePixelRatio||1),
+      // html2canvas clone tout le document pour resoudre les styles ; on exclut les <input type=color/range>
+      // (panneau Style cartographique, etape 5b), et on neutralise le fond en color-mix() de la legende
+      // flottante (.legendbox, non pris en charge par l'analyseur de couleurs CSS de html2canvas) —
+      // uniquement dans le CLONE utilise pour la capture, la page reelle n'est jamais modifiee.
+      ignoreElements:el=>el.tagName==='INPUT' && (el.type==='color' || el.type==='range'),
+      onclone:clonedDoc=>{
+        // le reste de la page (entetes, cartes KPI, panneau stats...) utilise des degrades CSS et du
+        // color-mix() : html2canvas les clone/analyse meme s'ils ne seront jamais peints (hors de #map),
+        // et son analyseur de couleurs plante dessus. On neutralise donc tout arriere-plan HORS de la
+        // carte dans le clone (aucun impact visuel puisque seul #map est rendu dans l'image finale).
+        const clonedMap=clonedDoc.getElementById('map');
+        clonedDoc.querySelectorAll('*').forEach(el=>{
+          if(!el.style) return;
+          if(!(clonedMap && clonedMap.contains(el))) el.style.backgroundImage='none';
+          el.style.boxShadow='none'; // les ombres portees font parfois planter le rendu des degrades internes de html2canvas
+        });
+        clonedDoc.querySelectorAll('.legendbox').forEach(el=>{
+          el.style.background = isDark ? 'rgba(15,23,42,0.94)' : 'rgba(255,255,255,0.94)';
+          el.style.backdropFilter='none'; el.style.webkitBackdropFilter='none';
+        });
+      }}),
+    15000,
+    "La capture de la carte a pris trop de temps (fond de carte trop lourd ou connexion lente). Réessayez, ou changez de fond de carte."
+  );
+}
+
+// buildExportMapImage() : compose l'image finale (bandeau titre + carte capturee + bandeau date/source)
+function buildExportMapImage(baseCanvas){
+  const padTop=54, padBottom=40;
+  const out=document.createElement('canvas');
+  out.width=baseCanvas.width; out.height=baseCanvas.height+padTop+padBottom;
+  const ctx=out.getContext('2d');
+  ctx.fillStyle='#ffffff'; ctx.fillRect(0,0,out.width,out.height);
+  ctx.fillStyle='#0f5e8f'; ctx.fillRect(0,0,out.width,padTop);
+  ctx.fillStyle='#ffffff'; ctx.font='bold '+Math.round(padTop*0.32)+'px Arial,sans-serif'; ctx.textBaseline='middle';
+  ctx.fillText('Bakusm@p — Recours aux soins des personnes du 3e âge, Yopougon',16,padTop/2);
+  ctx.drawImage(baseCanvas,0,padTop);
+  const y0=padTop+baseCanvas.height;
+  ctx.fillStyle='#f3f7fb'; ctx.fillRect(0,y0,out.width,padBottom);
+  ctx.strokeStyle='#dbe4ee'; ctx.beginPath(); ctx.moveTo(0,y0); ctx.lineTo(out.width,y0); ctx.stroke();
+  ctx.fillStyle='#334155'; ctx.font=Math.round(padBottom*0.3)+'px Arial,sans-serif'; ctx.textBaseline='middle';
+  const dateStr=new Date().toLocaleDateString('fr-FR',{day:'2-digit',month:'long',year:'numeric'});
+  ctx.fillText(`Généré le ${dateStr} — Source : enquête de terrain, thèse de doctorat (UFHB Cocody) — Fond de carte © OpenStreetMap/CARTO`,16,y0+padBottom/2);
+  return out;
+}
+
+async function exportMapPng(){
+  exportStatus('Capture de la carte en cours…');
+  try{ const out=buildExportMapImage(await captureMapCanvas());
+    const a=document.createElement('a'); a.href=out.toDataURL('image/png'); a.download='carte_bakusmap.png'; a.click();
+    exportStatus('✓ Carte exportée en PNG.');
+  }catch(err){ exportStatus('Échec de l\'export de la carte : '+err.message,true); }
+}
+async function exportMapPdf(){
+  exportStatus('Capture de la carte en cours…');
+  try{
+    const out=buildExportMapImage(await captureMapCanvas());
+    const {jsPDF}=window.jspdf;
+    const orient = out.width>=out.height ? 'landscape' : 'portrait';
+    const doc=new jsPDF({orientation:orient,unit:'pt',format:'a4'});
+    const pageW=doc.internal.pageSize.getWidth(), pageH=doc.internal.pageSize.getHeight();
+    const ratio=Math.min((pageW-40)/out.width,(pageH-40)/out.height);
+    const w=out.width*ratio, h=out.height*ratio;
+    doc.addImage(out.toDataURL('image/jpeg',0.92),'JPEG',(pageW-w)/2,(pageH-h)/2,w,h);
+    doc.save('carte_bakusmap.pdf');
+    exportStatus('✓ Carte exportée en PDF.');
+  }catch(err){ exportStatus('Échec de l\'export de la carte : '+err.message,true); }
+}
+
+// exportDonneesXlsx() : donnees filtrees (memes colonnes que exportCsv) en Excel
+function exportDonneesXlsx(){
+  const recs=filtered(); if(!recs.length){ exportStatus('Aucune donnée dans la sélection actuelle.',true); return; }
+  const cols=Object.keys(recs[0]);
+  const ws=XLSX.utils.aoa_to_sheet([cols,...recs.map(r=>cols.map(c=>r[c]??''))]);
+  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'Données filtrées');
+  XLSX.writeFile(wb,'donnees_filtrees.xlsx');
+  exportStatus(`✓ ${recs.length} ligne(s) exportée(s) (Excel).`);
+}
+// exportDonneesGeojson() : points actuellement visibles (enquete filtree + couche importee) en GeoJSON
+function exportDonneesGeojson(){
+  const recs=filtered();
+  const features=recs.filter(d=>typeof d.lat==='number' && d.lat).map(d=>({
+    type:'Feature', geometry:{type:'Point',coordinates:[d.lng,d.lat]},
+    properties:{ source:'enquete', id:d.id, quartier:d.quartier, sexe:d.sexe, age:d.age,
+      premierRecours:d.premierRecours, coverClass:d.coverClass, nearestDist:d.nearestDist }
+  }));
+  if(typeof importedData!=='undefined' && importedData.length){
+    importedData.filter(d=>typeof d.lat==='number' && !isNaN(d.lat)).forEach(d=>features.push({
+      type:'Feature', geometry:{type:'Point',coordinates:[d.lng,d.lat]},
+      properties:{ source:'import', id:d.id, quartier:d.quartier, label:d.label, value:d.value, stat:d.stat }
+    }));
+  }
+  if(!features.length){ exportStatus('Aucun point géolocalisé dans la sélection actuelle.',true); return; }
+  const blob=new Blob([JSON.stringify({type:'FeatureCollection',features},null,1)],{type:'application/geo+json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='couches_visibles.geojson'; a.click();
+  exportStatus(`✓ ${features.length} point(s) exporté(s) (GeoJSON).`);
+}
+
+// exportGraphiquesPng() : chaque graphique Chart.js visible dans le dernier onglet d'analyse, en PNG
+function exportGraphiquesPng(){
+  const sec=document.getElementById('tab-'+lastContentTab);
+  const canvases=sec? [...sec.querySelectorAll('canvas')].filter(c=>charts[c.id]) : [];
+  if(!canvases.length){ exportStatus(`L'onglet « ${tabLabel(lastContentTab)} » ne contient pas de graphique à exporter. Consultez un onglet avec des graphiques (Vue d'ensemble, Recours, Analyse croisée…) puis revenez sur Exports.`,true); return; }
+  canvases.forEach((c,i)=>{ const a=document.createElement('a'); a.href=c.toDataURL('image/png'); a.download=`graphique_${lastContentTab}_${i+1}.png`; a.click(); });
+  exportStatus(`✓ ${canvases.length} graphique(s) exporté(s) depuis « ${tabLabel(lastContentTab)} ».`);
+}
+
+// extractTablesFromSection() : lit generiquement les tableaux HTML (table.ct) d'une section -> {headers,rows}
+function extractTablesFromSection(sec){
+  return [...sec.querySelectorAll('table.ct')].map(table=>({
+    headers:[...table.querySelectorAll('thead th')].map(th=>th.textContent.trim()),
+    rows:[...table.querySelectorAll('tbody tr')].map(tr=>[...tr.querySelectorAll('td')].map(td=>td.textContent.trim()))
+  })).filter(t=>t.rows.length);
+}
+function getVisibleTables(){
+  const sec=document.getElementById('tab-'+lastContentTab);
+  return sec? extractTablesFromSection(sec) : [];
+}
+function exportTableauxCsv(){
+  const tables=getVisibleTables();
+  if(!tables.length){ exportStatus(`Aucun tableau visible dans « ${tabLabel(lastContentTab)} » à exporter.`,true); return; }
+  tables.forEach((t,i)=>{
+    const lines=[t.headers.join(';')].concat(t.rows.map(r=>r.map(v=>{const s=(v||'').replace(/"/g,'""'); return /[;"\n]/.test(s)?`"${s}"`:s;}).join(';')));
+    const blob=new Blob(['﻿'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'});
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`tableau_${lastContentTab}_${i+1}.csv`; a.click();
+  });
+  exportStatus(`✓ ${tables.length} tableau(x) exporté(s) (CSV) depuis « ${tabLabel(lastContentTab)} ».`);
+}
+function exportTableauxXlsx(){
+  const tables=getVisibleTables();
+  if(!tables.length){ exportStatus(`Aucun tableau visible dans « ${tabLabel(lastContentTab)} » à exporter.`,true); return; }
+  const wb=XLSX.utils.book_new();
+  tables.forEach((t,i)=>{ const ws=XLSX.utils.aoa_to_sheet([t.headers,...t.rows]); XLSX.utils.book_append_sheet(wb,ws,`Tableau ${i+1}`.slice(0,31)); });
+  XLSX.writeFile(wb,`tableaux_${lastContentTab}.xlsx`);
+  exportStatus(`✓ ${tables.length} tableau(x) exporté(s) (Excel) depuis « ${tabLabel(lastContentTab)} ».`);
+}
+function exportTableauxPdf(){
+  const tables=getVisibleTables();
+  if(!tables.length){ exportStatus(`Aucun tableau visible dans « ${tabLabel(lastContentTab)} » à exporter.`,true); return; }
+  const {jsPDF}=window.jspdf; const doc=new jsPDF({orientation:'landscape'});
+  tables.forEach((t,i)=>{
+    if(i>0) doc.addPage('a4','landscape');
+    doc.setFontSize(11); doc.text(`Tableau ${i+1} — onglet ${tabLabel(lastContentTab)}`,14,12);
+    doc.autoTable({head:[t.headers],body:t.rows,startY:18,styles:{fontSize:7},headStyles:{fillColor:[15,94,143]}});
+  });
+  doc.save(`tableaux_${lastContentTab}.pdf`);
+  exportStatus(`✓ ${tables.length} tableau(x) exporté(s) (PDF) depuis « ${tabLabel(lastContentTab)} ».`);
+}
+
+// exportRapportComplet() : rapport PDF automatique (indicateurs, interpretation, carte, quartiers prioritaires)
+async function exportRapportComplet(){
+  const status=document.getElementById('exportRapportStatus');
+  status.textContent='Génération du rapport en cours…';
+  try{
+    const recs=filtered();
+    const {jsPDF}=window.jspdf;
+    const doc=new jsPDF({unit:'pt',format:'a4'});
+    const pageW=doc.internal.pageSize.getWidth(), pageH=doc.internal.pageSize.getHeight();
+    let y=40;
+    doc.setFontSize(16); doc.setTextColor(15,94,143); doc.text('Bakusm@p — Rapport de synthèse',40,y); y+=20;
+    doc.setFontSize(10); doc.setTextColor(90,90,90);
+    doc.text('Recours aux soins des personnes du 3e âge — commune de Yopougon',40,y); y+=14;
+    doc.text(`Généré le ${new Date().toLocaleDateString('fr-FR',{day:'2-digit',month:'long',year:'numeric'})} — ${recs.length} enquêté(s) sur la sélection courante`,40,y); y+=24;
+
+    doc.setFontSize(12); doc.setTextColor(15,94,143); doc.text('Indicateurs clés',40,y); y+=6;
+    const kMod=rate(recs,'premierRecoursCat',['Médecine moderne']), kPub=rate(recs,'premierRecours',['La formation sanitaire publique']),
+      kTradi=rate(recs,'premierRecoursCat',['Médecine traditionnelle']), kSat=rate(recs,'satisfaitMedecin',['Oui']);
+    const wc=recs.filter(d=>d.coverClass); const c15=wc.length?(100*wc.filter(d=>d.coverClass!=='Hors 15 min').length/wc.length).toFixed(0):'—';
+    doc.autoTable({startY:y+8, body:[
+      ['Enquêtés',recs.length],["1er recours = hôpital public",kPub.toFixed(0)+'%'],['Médecine moderne',kMod.toFixed(0)+'%'],
+      ['Médecine traditionnelle',kTradi.toFixed(0)+'%'],['Satisfaits du médecin traitant',kSat.toFixed(0)+'%'],['Couverture à 15 min de marche',c15+'%']
+    ], styles:{fontSize:9}, theme:'plain', columnStyles:{0:{fontStyle:'bold'}}});
+    y=doc.lastAutoTable.finalY+16;
+
+    doc.setFontSize(12); doc.setTextColor(15,94,143); doc.text('Interprétation',40,y); y+=16;
+    doc.setFontSize(9.5); doc.setTextColor(30,30,30);
+    const interp=ansSummary(recs).replace(/<\/?b>/g,''); // texte brut, sans balises HTML
+    const lines=doc.splitTextToSize(interp,pageW-80);
+    doc.text(lines,40,y); y+=lines.length*12+16;
+
+    try{
+      const base=await captureMapCanvas();
+      const imgW=pageW-80, imgH=base.height*(imgW/base.width);
+      if(y+imgH>pageH-60){ doc.addPage(); y=40; }
+      doc.setFontSize(12); doc.setTextColor(15,94,143); doc.text('Carte',40,y); y+=14;
+      doc.addImage(base.toDataURL('image/jpeg',0.9),'JPEG',40,y,imgW,imgH); y+=imgH+18;
+    }catch(e){ /* la carte n'est pas bloquante : le reste du rapport se genere quand meme */ }
+
+    const qa=quartierMatrixAgg(recs).filter(o=>o.n>=3).sort((a,b)=>b.vulnerabilite-a.vulnerabilite).slice(0,10);
+    if(qa.length){
+      if(y>pageH-140){ doc.addPage(); y=40; }
+      doc.setFontSize(12); doc.setTextColor(15,94,143); doc.text('Quartiers prioritaires (top 10)',40,y);
+      doc.autoTable({startY:y+8, head:[['Quartier','Enquêtés','Couverture 15 min','Score vulnérabilité','Priorité']],
+        body:qa.map(o=>[o.q,o.n,o.taux!=null?o.taux.toFixed(0)+'%':'—',o.vulnerabilite.toFixed(0),o.priorite]),
+        styles:{fontSize:8}, headStyles:{fillColor:[15,94,143]}});
+    }
+
+    const totalPages=doc.internal.getNumberOfPages();
+    for(let p=1;p<=totalPages;p++){ doc.setPage(p); doc.setFontSize(7.5); doc.setTextColor(150,150,150);
+      doc.text('Source : enquête de terrain, thèse de doctorat en géographie de la population (UFHB Cocody) — Bakusm@p',40,pageH-20); }
+
+    doc.save('rapport_synthese_bakusmap.pdf');
+    status.textContent='✓ Rapport généré et téléchargé.';
+  }catch(err){ status.innerHTML=`<span style="color:var(--danger)">⚠ Échec de la génération du rapport : ${err.message}</span>`; }
+}
+
+// initExportsUI() : bascule le panneau selon la portee choisie, branche tous les boutons
+function initExportsUI(){
+  const scopeSel=document.getElementById('exportScope');
+  const panels={carte:'exportPanelCarte',donnees:'exportPanelDonnees',graphiques:'exportPanelGraphiques',tableaux:'exportPanelTableaux',rapport:'exportPanelRapport'};
+  const updatePanels=()=>{
+    Object.entries(panels).forEach(([k,id])=>document.getElementById(id).classList.toggle('hidden',k!==scopeSel.value));
+    exportStatus('');
+    const gi=document.getElementById('exportGraphInfo'); if(gi) gi.textContent=`Exporte les graphiques actuellement visibles dans l'onglet « ${tabLabel(lastContentTab)} ».`;
+    const ti=document.getElementById('exportTableInfo'); if(ti) ti.textContent=`Exporte les tableaux actuellement visibles dans l'onglet « ${tabLabel(lastContentTab)} ».`;
+  };
+  scopeSel.addEventListener('change',updatePanels); updatePanels();
+
+  document.getElementById('exportCartePng').addEventListener('click',exportMapPng);
+  document.getElementById('exportCartePdf').addEventListener('click',exportMapPdf);
+  document.getElementById('exportDonneesCsv').addEventListener('click',exportCsv);
+  document.getElementById('exportDonneesXlsx').addEventListener('click',exportDonneesXlsx);
+  document.getElementById('exportDonneesGeojson').addEventListener('click',exportDonneesGeojson);
+  document.getElementById('exportGraphiquesPng').addEventListener('click',exportGraphiquesPng);
+  document.getElementById('exportTableauxCsv').addEventListener('click',exportTableauxCsv);
+  document.getElementById('exportTableauxXlsx').addEventListener('click',exportTableauxXlsx);
+  document.getElementById('exportTableauxPdf').addEventListener('click',exportTableauxPdf);
+  document.getElementById('exportRapportBtn').addEventListener('click',exportRapportComplet);
 }
 
 
