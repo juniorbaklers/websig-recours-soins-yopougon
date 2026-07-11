@@ -1914,13 +1914,25 @@ function initMapStyleUI(){
   $('colCouverture').value=mapStyle.colorCouverture; $('colGrille').value=mapStyle.colorGrille; $('colIsochrones').value=mapStyle.colorIsochrones;
   $('mapDarkToggle').checked = document.documentElement.getAttribute('data-theme')==='dark';
 
-  $('mapPalette').addEventListener('change',e=>{ mapStyle.palette=e.target.value; applyMapStyle(); });
+  $('mapPalette').addEventListener('change',e=>{ mapStyle.palette=e.target.value; applyMapStyle(); const cp=$('chartPalette'); if(cp) cp.value=e.target.value; renderTab(filtered()); });
   $('mapDarkToggle').addEventListener('change',e=>{ applyAppearance(e.target.checked?'dark':'light', document.documentElement.getAttribute('data-accent')); });
   $('mapOpacity').addEventListener('input',e=>{ mapStyle.layerOpacity=(+e.target.value)/100; $('mapOpacityVal').textContent=e.target.value; applyMapStyle(); });
   $('mapPointSize').addEventListener('input',e=>{ mapStyle.pointSize=+e.target.value; $('mapPointSizeVal').textContent=e.target.value; renderMap(filtered()); localStorage.setItem('map_style_v1',JSON.stringify(mapStyle)); });
   [['colCentres','colorCentres'],['colQuartier','colorQuartier'],['colCouverture','colorCouverture'],['colGrille','colorGrille'],['colIsochrones','colorIsochrones']].forEach(([id,key])=>{
     $(id).addEventListener('input',e=>{ mapStyle[key]=e.target.value; applyMapStyle(); });
   });
+
+  // Raccourci "Couleurs des graphiques" (visible sur tous les onglets, pas seulement Style cartographique) :
+  // pilote la MEME palette (mapStyle.palette), pour rester coherent avec la carte.
+  const cp=$('chartPalette');
+  if(cp){
+    cp.value=mapStyle.palette;
+    cp.addEventListener('change',e=>{
+      mapStyle.palette=e.target.value; applyMapStyle();
+      $('mapPalette').value=e.target.value; // synchro avec le panneau Style cartographique
+      renderTab(filtered()); // redessine les graphiques de l'onglet courant avec la nouvelle palette
+    });
+  }
   $('resetMapStyle').addEventListener('click',()=>{
     Object.assign(mapStyle, DEFAULT_MAP_STYLE);
     localStorage.removeItem('map_style_v1');
