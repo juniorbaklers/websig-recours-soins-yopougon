@@ -304,6 +304,14 @@ function ordered(key,m){
 // Reglages generaux de police/couleur pour tous les graphiques
 Chart.defaults.font.family='"Segoe UI",Roboto,Arial,sans-serif';
 Chart.defaults.font.size=11.5; Chart.defaults.color='#334155';
+// applyChartTheme() : couleurs de texte/grille des graphiques adaptees au theme clair/sombre.
+// Chart.defaults n'est lu qu'a la CREATION d'un graphique : on doit aussi redessiner l'onglet
+// courant apres un changement de theme pour que les graphiques deja affiches se corrigent.
+function applyChartTheme(theme){
+  const dark=theme==='dark';
+  Chart.defaults.color = dark ? '#c3d1de' : '#334155';
+  Chart.defaults.borderColor = dark ? '#2a3948' : '#e5e9f0';
+}
 
 // charts = registre des graphiques crees, indexe par l'id du <canvas>.
 // On garde une reference pour DETRUIRE l'ancien graphique avant d'en redessiner
@@ -2784,12 +2792,17 @@ function initChatDrag(){
    APPARENCE : theme (clair/sombre) + accent (cyan/vert/alerte), memorises
    ============================================================================ */
 function applyAppearance(theme,accent){
+  const themeChanged = document.documentElement.getAttribute('data-theme')!==theme;
   document.documentElement.setAttribute('data-theme',theme);
   document.documentElement.setAttribute('data-accent',accent);
   localStorage.setItem('ui_theme',theme); localStorage.setItem('ui_accent',accent);
   const tb=document.getElementById('themeBtn'); if(tb) tb.textContent = theme==='dark' ? '☀' : '🌙';
   document.querySelectorAll('.acc').forEach(b=>b.classList.toggle('on',b.dataset.acc===accent));
   const mdt=document.getElementById('mapDarkToggle'); if(mdt) mdt.checked = theme==='dark'; // synchro avec le panneau Style cartographique (etape 5b)
+  applyChartTheme(theme);
+  // Chart.defaults n'affecte que les graphiques crees APRES le changement : on redessine ceux
+  // deja a l'ecran pour que leurs couleurs de texte/grille se corrigent immediatement.
+  if(themeChanged && typeof filtered==='function' && typeof renderTab==='function') renderTab(filtered());
 }
 function initAppearance(){
   const theme=localStorage.getItem('ui_theme')||'light';
