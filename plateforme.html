@@ -306,6 +306,20 @@ table.ct tr.rowclick:hover td{background:#eaf2f8}
 [data-theme="dark"] .chat-chip{background:#12303c;border-color:#1d4757}
 [data-theme="dark"] .chat-msg.bot{background:#16212e}
 [data-theme="dark"] .chat-input{background:#16212e}
+
+/* Storytelling — visite guidee en 8 etapes (etape 5e) */
+.story-widget{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:1900;width:520px;max-width:92vw}
+.story-widget.hidden{display:none}
+.story-card{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:0 8px 30px rgba(0,0,0,.28);padding:14px 16px}
+.story-head{display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--muted);margin-bottom:4px}
+.story-close{background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;line-height:1}
+.story-close:hover{color:var(--danger)}
+.story-card h3{margin:2px 0 6px;font-size:15px;color:var(--brand)}
+.story-text{font-size:12.8px;line-height:1.55;color:var(--ink);margin-bottom:10px}
+.story-nav{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.story-dots{display:flex;gap:5px}
+.story-dots span{width:7px;height:7px;border-radius:50%;background:var(--line);display:inline-block}
+.story-dots span.on{background:var(--brand)}
 </style>
 </head>
 <body>
@@ -329,6 +343,7 @@ table.ct tr.rowclick:hover td{background:#eaf2f8}
     <button class="hbtn" id="themeBtn" title="Thème clair / sombre">🌙</button>
     <button class="hbtn" id="resetAppearance" title="Réinitialiser l'apparence">↺</button>
     <button class="hbtn" id="exportBtn" title="Exporter les données filtrées (CSV)">⬇</button>
+    <button class="hbtn" id="storyBtn" title="Visite guidée (storytelling)">🎬</button>
     <button class="hbtn" id="helpBtn" title="Aide">?</button>
     <a class="hbtn" href="index.html" title="Retour à l'accueil">⌂</a>
   </div>
@@ -779,6 +794,25 @@ table.ct tr.rowclick:hover td{background:#eaf2f8}
     <div class="chat-input-row">
       <input class="chat-input" id="chatInput" placeholder="Posez une question sur la carte, les stats…">
       <button class="btn solid" id="chatSend">➤</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== STORYTELLING (etape 5e) =====================
+     Visite guidee en 8 etapes : titre + texte court genere par app.js a partir
+     des donnees reelles, zoom automatique de la carte, navigation Precedent/Suivant/Quitter. -->
+<div class="story-widget hidden" id="storyWidget">
+  <div class="story-card">
+    <div class="story-head">
+      <span id="storyProgress">Étape 1/8</span>
+      <button class="story-close" id="storyQuit" title="Quitter la visite guidée">✕ Quitter</button>
+    </div>
+    <h3 id="storyTitle"></h3>
+    <div class="story-text" id="storyText"></div>
+    <div class="story-nav">
+      <button class="btn" id="storyPrev">← Précédent</button>
+      <div class="story-dots" id="storyDots"></div>
+      <button class="btn solid" id="storyNext">Suivant →</button>
     </div>
   </div>
 </div>

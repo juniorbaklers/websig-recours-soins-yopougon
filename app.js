@@ -1752,9 +1752,11 @@ document.addEventListener('DOMContentLoaded',async ()=>{
   // 7. premier affichage
   refresh();
 
-  // 8. lien profond depuis la page d'accueil : #onglet ouvre directement le bon onglet
+  // 8. lien profond depuis la page d'accueil : #onglet ouvre directement le bon onglet,
+  //    #story lance directement la visite guidee (etape 5e)
   const h=(location.hash||'').replace('#','');
-  if(h && document.getElementById('tab-'+h)) switchTab(h);
+  if(h==='story'){ /* geree plus bas, une fois initStoryWidget() branche */ }
+  else if(h && document.getElementById('tab-'+h)) switchTab(h);
 
   // 9. apparence : theme clair/sombre + 3 couleurs d'interface + aide + export rapide
   initAppearance();
@@ -1770,6 +1772,10 @@ document.addEventListener('DOMContentLoaded',async ()=>{
 
   // 13. assistant conversationnel a regles (etape 5d)
   initChatWidget();
+
+  // 14. storytelling — visite guidee en 8 etapes (etape 5e)
+  initStoryWidget();
+  if(h==='story') startStory();
 });
 
 // initMapStyleUI() : synchronise les controles du panneau « Style cartographique »
@@ -2172,6 +2178,105 @@ function initChatWidget(){
   document.getElementById('chatSend').addEventListener('click',()=>{ const inp=document.getElementById('chatInput'); sendChat(inp.value); inp.value=''; });
   document.getElementById('chatInput').addEventListener('keydown',e=>{ if(e.key==='Enter'){ sendChat(e.target.value); e.target.value=''; } });
   setOpen(localStorage.getItem('chat_open')==='1');
+}
+
+
+/* ============================================================================
+   17. STORYTELLING — VISITE GUIDEE EN 8 ETAPES (etape 5e)
+   Chaque etape change d'onglet/couche et zoome la carte automatiquement, avec
+   un texte court genere a partir des memes fonctions d'agregation que le
+   reste de l'application (donc toujours coherent avec la selection courante).
+   ============================================================================ */
+let storyIndex=-1;
+
+// storyCoverage15() : % de couverture cumulee a 15 min sur "recs"
+function storyCoverage15(recs){
+  const wc=recs.filter(d=>d.coverClass);
+  return wc.length? (100*wc.filter(d=>d.coverClass!=='Hors 15 min').length/wc.length).toFixed(0) : '—';
+}
+// storyTopDeterminant() : facteur qui differencie le plus le recours a la medecine moderne (meme logique que renderDeterminants)
+function storyTopDeterminant(recs){
+  const tgt=DET_TARGET.mod;
+  const rank=DET_FACTORS.map(f=>{
+    const cats=ordered(f,countBy(recs,f)); const rates=[];
+    cats.forEach(c=>{ const g=recs.filter(d=>(d[f]??'').toString().trim()===c); const r=targetRate(g,tgt); if(r.n>=10&&r.rate!=null) rates.push(r.rate); });
+    return rates.length<2 ? {f,spread:0} : {f,spread:Math.max(...rates)-Math.min(...rates)};
+  }).filter(x=>x.spread>0).sort((a,b)=>b.spread-a.spread);
+  return rank[0]||null;
+}
+
+const STORY_STEPS=[
+  { title:"Bienvenue sur Bakusm@p",
+    text:()=>`Cette plateforme présente les résultats d'une enquête de terrain sur le recours aux soins de <b>${DATA.length}</b> personnes âgées de la commune de Yopougon, réparties dans <b>${new Set(DATA.map(d=>(d.quartier||'').toString().trim())).size}</b> quartiers. Suivez cette visite guidée en 8 étapes pour découvrir les principaux résultats.`,
+    run(){ resetFilters(); switchTab('carte'); document.getElementById('colorBy').value='coverClass'; renderMap(filtered()); if(homeBounds) map.flyToBounds(homeBounds,{padding:[20,20]}); } },
+
+  { title:"Répartition spatiale des enquêtés",
+    text:()=>`Chaque point représente une personne enquêtée, coloré ici selon son <b>quartier</b>. La répartition suit celle de la population âgée réellement rencontrée sur le terrain — certains quartiers concentrent davantage d'enquêtés que d'autres.`,
+    run(){ switchTab('carte'); document.getElementById('colorBy').value='quartier'; renderMap(filtered()); if(homeBounds) map.flyToBounds(homeBounds,{padding:[20,20]}); } },
+
+  { title:"Les centres de santé",
+    text:()=>`<b>${CENTRES.length}</b> établissements de santé ont été recensés à Yopougon (hôpitaux, cliniques, centres de premier contact…). Ils sont représentés par les icônes en croix sur la carte.`,
+    run(){ switchTab('carte'); const ct=document.getElementById('centresToggle'); if(ct && !ct.checked){ ct.checked=true; centresLayer.addTo(map); } if(homeBounds) map.flyToBounds(homeBounds,{padding:[20,20]}); } },
+
+  { title:"Accessibilité aux soins",
+    text:()=>{ const recs=filtered(); const dists=recs.map(d=>d.nearestDist).filter(x=>typeof x==='number');
+      const moy=dists.length? Math.round(dists.reduce((a,b)=>a+b,0)/dists.length) : '—';
+      return `La distance moyenne entre une personne âgée et le centre de santé le plus proche est de <b>${moy} m</b>. <b>${storyCoverage15(recs)}%</b> des personnes sont couvertes en 15 minutes de marche.`; },
+    run(){ switchTab('spatial'); } },
+
+  { title:"Recours aux soins",
+    text:()=>{ const recs=filtered();
+      return `<b>${rate(recs,'premierRecoursCat',['Médecine moderne']).toFixed(0)}%</b> des personnes âgées se tournent en premier vers la médecine moderne, <b>${rate(recs,'premierRecoursCat',['Médecine traditionnelle']).toFixed(0)}%</b> vers la médecine traditionnelle et <b>${rate(recs,'premierRecoursCat',['Automédication']).toFixed(0)}%</b> pratiquent l'automédication.`; },
+    run(){ switchTab('recours'); } },
+
+  { title:"Les déterminants du recours",
+    text:()=>{ const top=storyTopDeterminant(filtered());
+      return top? `Le facteur qui différencie le plus le recours à la médecine moderne est <b>${DIMS[top.f]}</b>, avec un écart de <b>${top.spread.toFixed(0)} points</b> entre les catégories les plus extrêmes.` : `Plusieurs facteurs socio-économiques (instruction, revenu, assurance…) influencent le recours à la médecine moderne.`; },
+    run(){ switchTab('determinants'); } },
+
+  { title:"Quartiers vulnérables",
+    text:()=>{ const qa=quartierMatrixAgg(filtered()).filter(o=>o.n>=3).sort((a,b)=>b.vulnerabilite-a.vulnerabilite);
+      return qa.length? `<b>${esc(qa[0].q)}</b> est le quartier le plus prioritaire pour l'amélioration de l'offre sanitaire (score de vulnérabilité <b>${qa[0].vulnerabilite.toFixed(0)}/100</b>), combinant faible couverture, distance élevée et faible recours à la médecine moderne.` : `Pas assez de données par quartier sur la sélection actuelle.`; },
+    run(){ const qa=quartierMatrixAgg(filtered()).filter(o=>o.n>=3).sort((a,b)=>b.vulnerabilite-a.vulnerabilite);
+      if(qa.length) zoomToQuartier(qa[0].q); else switchTab('carte'); } },
+
+  { title:"Synthèse",
+    text:()=>ansSummary(filtered())+" Merci d'avoir suivi cette visite guidée — explorez librement les filtres et les onglets pour approfondir l'analyse.",
+    run(){ switchTab('apercu'); } }
+];
+
+// renderStoryPanel() : met a jour le texte, la progression et les boutons du panneau
+function renderStoryPanel(){
+  const step=STORY_STEPS[storyIndex];
+  document.getElementById('storyProgress').textContent=`Étape ${storyIndex+1}/${STORY_STEPS.length}`;
+  document.getElementById('storyTitle').textContent=step.title;
+  document.getElementById('storyText').innerHTML=step.text();
+  document.getElementById('storyPrev').disabled=(storyIndex===0);
+  document.getElementById('storyNext').textContent = storyIndex===STORY_STEPS.length-1 ? 'Terminer ✓' : 'Suivant →';
+  document.getElementById('storyDots').innerHTML=STORY_STEPS.map((_,i)=>`<span class="${i===storyIndex?'on':''}"></span>`).join('');
+}
+// goToStory() : joue les effets (onglet/carte) de l'etape i puis affiche son texte
+function goToStory(i){
+  if(i<0||i>=STORY_STEPS.length) return;
+  storyIndex=i;
+  STORY_STEPS[i].run();
+  setTimeout(renderStoryPanel,90); // laisse switchTab()/renderMap() se terminer avant d'afficher le texte
+}
+function startStory(){
+  document.getElementById('storyWidget').classList.remove('hidden');
+  const chatW=document.getElementById('chatWidget'); if(chatW) chatW.classList.add('collapsed'); // evite le chevauchement avec le chat
+  goToStory(0);
+}
+function quitStory(){
+  storyIndex=-1;
+  document.getElementById('storyWidget').classList.add('hidden');
+}
+// initStoryWidget() : branche le bouton de lancement et la navigation Precedent/Suivant/Quitter
+function initStoryWidget(){
+  document.getElementById('storyBtn').addEventListener('click',startStory);
+  document.getElementById('storyNext').addEventListener('click',()=>{ storyIndex===STORY_STEPS.length-1 ? quitStory() : goToStory(storyIndex+1); });
+  document.getElementById('storyPrev').addEventListener('click',()=>goToStory(storyIndex-1));
+  document.getElementById('storyQuit').addEventListener('click',quitStory);
 }
 
 
