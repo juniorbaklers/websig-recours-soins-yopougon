@@ -303,6 +303,10 @@ table.ct tr.rowclick:hover td{background:#eaf2f8}
   display:flex;flex-direction:column;overflow:hidden}
 .chat-head{background:var(--brand);color:#fff;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;font-size:13px;flex:none}
 .chat-head .chat-close{background:none;border:none;color:#fff;cursor:pointer;font-size:15px;line-height:1}
+.chat-settings{padding:10px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:6px;flex:none;background:var(--bg)}
+.chat-settings.hidden{display:none}
+.chat-settings select,.chat-settings input{width:100%}
+.chat-settings .note{margin:0}
 .chat-body{flex:1;overflow:auto;padding:10px;display:flex;flex-direction:column;gap:8px}
 .chat-msg{max-width:85%;padding:7px 10px;border-radius:10px;font-size:12.3px;line-height:1.48}
 .chat-msg.bot{background:var(--bg);border:1px solid var(--line);align-self:flex-start}
@@ -939,7 +943,23 @@ body.presentation-mode .maprow{grid-template-columns:1fr}
   <div class="chat-panel" id="chatPanel">
     <div class="chat-head">
       <b>🤖 Assistant Bakusm@p</b>
-      <button class="chat-close" id="chatClose" title="Réduire">✕</button>
+      <span style="display:flex;gap:4px">
+        <button class="chat-close" id="chatSettingsBtn" title="Connecter une IA (Claude / ChatGPT)">⚙</button>
+        <button class="chat-close" id="chatClose" title="Réduire">✕</button>
+      </span>
+    </div>
+    <div class="chat-settings hidden" id="chatSettings">
+      <label class="lbl">Moteur de réponse</label>
+      <select class="sel" id="chatProvider">
+        <option value="local">Mode local (règles, hors ligne)</option>
+        <option value="anthropic">Claude (Anthropic)</option>
+        <option value="openai">ChatGPT (OpenAI)</option>
+      </select>
+      <div id="chatKeyBox">
+        <input type="password" class="sel" id="chatApiKey" placeholder="Clé API (voir note ci-dessous)">
+      </div>
+      <div class="note">Votre clé n'est envoyée qu'à l'API officielle choisie, directement depuis votre navigateur — jamais ailleurs. Elle reste stockée uniquement sur cet appareil (localStorage).</div>
+      <button class="btn solid" id="chatSettingsSave">Enregistrer</button>
     </div>
     <div class="chat-body" id="chatBody"></div>
     <div class="chat-quick" id="chatQuick"></div>

@@ -2290,12 +2290,86 @@ function addChatMsg(role,html){
   const div=document.createElement('div'); div.className='chat-msg '+role; div.innerHTML=html;
   body.appendChild(div); body.scrollTop=body.scrollHeight;
 }
-// sendChat() : affiche la question de l'utilisateur puis la reponse generee localement
-function sendChat(text){
+/* ---------- Connexion IA optionnelle (Claude / ChatGPT) ----------
+   Par defaut le chat reste en mode local (regles, hors ligne, section 16).
+   Si l'utilisateur renseigne sa propre cle API (bouton engrenage du chat),
+   les questions en saisie libre sont envoyees directement de SON navigateur
+   vers l'API officielle choisie, avec un contexte factuel base sur la
+   selection filtree courante (evite les reponses hors-sol). La cle n'est
+   stockee que dans le navigateur (localStorage) et n'est jamais envoyee
+   ailleurs qu'a l'API Anthropic/OpenAI elle-meme. */
+let chatProvider = localStorage.getItem('chat_provider') || 'local';
+let chatKeys = { anthropic: localStorage.getItem('chat_key_anthropic')||'', openai: localStorage.getItem('chat_key_openai')||'' };
+
+// buildChatContext() : resume factuel court de la selection courante, injecte en contexte pour l'IA
+function buildChatContext(recs){
+  const plain = ansSummary(recs).replace(/<\/?b>/g,'');
+  const qa = quartierMatrixAgg(recs).filter(o=>o.n>=3).sort((a,b)=>b.vulnerabilite-a.vulnerabilite).slice(0,5)
+    .map(o=>`${o.q} (score ${o.vulnerabilite.toFixed(0)}, priorité ${o.priorite})`).join('; ');
+  return `Tu es l'assistant intégré à Bakusm@p, un WebSIG d'analyse du recours aux soins des personnes âgées à Yopougon (thèse de doctorat en géographie de la population, UFHB Cocody). Voici le contexte factuel de la sélection actuellement filtrée (${recs.length} enquêtés) : ${plain} Quartiers les plus prioritaires : ${qa || 'non disponible'}. Réponds en français, de façon concise (6-10 lignes maximum), en t'appuyant sur ce contexte quand la question porte sur l'enquête ; sinon réponds normalement comme un assistant généraliste.`;
+}
+
+async function callAnthropic(userText,context,apiKey){
+  const res=await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{ 'Content-Type':'application/json', 'x-api-key':apiKey, 'anthropic-version':'2023-06-01', 'anthropic-dangerous-direct-browser-access':'true' },
+    body:JSON.stringify({ model:'claude-sonnet-5', max_tokens:600, system:context, messages:[{role:'user',content:userText}] })
+  });
+  if(!res.ok){ const t=await res.text().catch(()=>''); throw new Error(`HTTP ${res.status} — ${t.slice(0,180)}`); }
+  const data=await res.json();
+  return (data.content && data.content[0] && data.content[0].text) || '(réponse vide)';
+}
+async function callOpenAI(userText,context,apiKey){
+  const res=await fetch('https://api.openai.com/v1/chat/completions',{
+    method:'POST',
+    headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer '+apiKey },
+    body:JSON.stringify({ model:'gpt-4o-mini', max_tokens:600, messages:[{role:'system',content:context},{role:'user',content:userText}] })
+  });
+  if(!res.ok){ const t=await res.text().catch(()=>''); throw new Error(`HTTP ${res.status} — ${t.slice(0,180)}`); }
+  const data=await res.json();
+  return (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '(réponse vide)';
+}
+
+// sendChat() : affiche la question de l'utilisateur puis la reponse — IA externe si configuree, sinon moteur local
+async function sendChat(text){
   text=(text||'').trim(); if(!text) return;
   addChatMsg('user', esc(text));
+  if(chatProvider!=='local' && chatKeys[chatProvider]){
+    addChatMsg('bot','<i>Réflexion en cours…</i>');
+    const body=document.getElementById('chatBody');
+    const thinkingEl=body.querySelector('.chat-msg.bot:last-child');
+    try{
+      const context=buildChatContext(filtered());
+      const answer = chatProvider==='anthropic' ? await callAnthropic(text,context,chatKeys.anthropic) : await callOpenAI(text,context,chatKeys.openai);
+      thinkingEl.innerHTML=esc(answer).replace(/\n/g,'<br>');
+    }catch(err){
+      thinkingEl.innerHTML=`⚠ Erreur de connexion à l'IA (${esc(err.message)}). Réponse locale de repli :<br>${answerChat(text)}`;
+    }
+    body.scrollTop=body.scrollHeight;
+    return;
+  }
   const answer=answerChat(text);
   setTimeout(()=>addChatMsg('bot', answer), 200); // petit delai pour un effet de "reflexion"
+}
+
+// initChatSettings() : panneau "engrenage" pour connecter le chat a Claude/ChatGPT avec sa propre cle API
+function initChatSettings(){
+  const btn=document.getElementById('chatSettingsBtn'), panel=document.getElementById('chatSettings');
+  const provSel=document.getElementById('chatProvider'), keyInput=document.getElementById('chatApiKey'), keyBox=document.getElementById('chatKeyBox');
+  if(!btn||!panel) return;
+  provSel.value=chatProvider;
+  keyInput.value=chatProvider!=='local' ? (chatKeys[chatProvider]||'') : '';
+  keyBox.style.display=chatProvider==='local'?'none':'';
+  btn.addEventListener('click',()=>panel.classList.toggle('hidden'));
+  provSel.addEventListener('change',()=>{ keyBox.style.display=provSel.value==='local'?'none':''; keyInput.value=chatKeys[provSel.value]||''; });
+  document.getElementById('chatSettingsSave').addEventListener('click',()=>{
+    chatProvider=provSel.value; localStorage.setItem('chat_provider',chatProvider);
+    if(chatProvider!=='local'){ chatKeys[chatProvider]=keyInput.value.trim(); localStorage.setItem('chat_key_'+chatProvider, chatKeys[chatProvider]); }
+    panel.classList.add('hidden');
+    addChatMsg('bot', chatProvider==='local'
+      ? "Mode local réactivé (réponses par règles, hors ligne)."
+      : (chatKeys[chatProvider] ? `Connecté à ${chatProvider==='anthropic'?'Claude':'ChatGPT'} — posez-moi n'importe quelle question.` : "Aucune clé API renseignée : le mode local reste utilisé en attendant."));
+  });
 }
 
 // initChatWidget() : branche le panneau flottant (ouverture/fermeture memorisee, questions rapides, saisie libre)
@@ -2304,7 +2378,7 @@ function initChatWidget(){
   const setOpen=o=>{
     widget.classList.toggle('collapsed',!o); localStorage.setItem('chat_open',o?'1':'0');
     if(o && !body.dataset.greeted){
-      addChatMsg('bot',"Bonjour 👋 Je suis l'assistant de Bakusm@p. Posez-moi une question sur la carte, les statistiques, les graphiques ou les tableaux — je réponds à partir des données actuellement filtrées. Vous pouvez aussi cliquer une question rapide ci-dessous.");
+      addChatMsg('bot',"Bonjour 👋 Je suis l'assistant de Bakusm@p. Posez-moi une question sur la carte, les statistiques, les graphiques ou les tableaux — je réponds à partir des données actuellement filtrées. Vous pouvez aussi cliquer une question rapide ci-dessous, ou connecter Claude/ChatGPT via l'icône ⚙ pour des réponses libres.");
       body.dataset.greeted='1';
     }
   };
@@ -2314,6 +2388,7 @@ function initChatWidget(){
   document.getElementById('chatQuick').querySelectorAll('.chat-chip').forEach(b=>b.addEventListener('click',()=>sendChat(b.dataset.q)));
   document.getElementById('chatSend').addEventListener('click',()=>{ const inp=document.getElementById('chatInput'); sendChat(inp.value); inp.value=''; });
   document.getElementById('chatInput').addEventListener('keydown',e=>{ if(e.key==='Enter'){ sendChat(e.target.value); e.target.value=''; } });
+  initChatSettings();
   setOpen(localStorage.getItem('chat_open')==='1');
 }
 
