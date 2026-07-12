@@ -1740,6 +1740,16 @@ function initStatsPanel(){
   const ct=document.getElementById('centresToggle'); if(ct) ct.addEventListener('change',()=>renderStatsPanel(filtered()));
 }
 
+// initSidebarToggle() : repli des filtres sur mobile/tablette (bouton visible seulement <=980px,
+// replie par defaut sur petit ecran pour ne pas masquer le contenu principal au chargement).
+function initSidebarToggle(){
+  const sidebar=document.getElementById('sidebar'), btn=document.getElementById('sidebarToggle');
+  if(!sidebar||!btn) return;
+  const setCollapsed=c=>{ sidebar.classList.toggle('collapsed',c); btn.textContent=c?'▸':'▾'; };
+  setCollapsed(window.innerWidth<=980);
+  btn.addEventListener('click',()=>setCollapsed(!sidebar.classList.contains('collapsed')));
+}
+
 
 /* ============================================================================
    14. ORCHESTRATION ET DEMARRAGE
@@ -1875,6 +1885,7 @@ document.addEventListener('DOMContentLoaded',async ()=>{
 
   // 10. panneau statistique de droite (etape 3)
   initStatsPanel();
+  initSidebarToggle(); // repli des filtres sur mobile/tablette
 
   // 11. style cartographique (etape 5b)
   initMapStyleUI();
@@ -2257,7 +2268,28 @@ function ansSummary(recs){
   return `Sur la sélection actuelle : <b>${n}</b> enquêté(s) répartis dans <b>${quartiers}</b> quartier(s). Recours dominant : <b>${top?esc(top[0]):'—'}</b>. Couverture à 15 min : <b>${wc.length?(100*c15/wc.length).toFixed(0):'—'}%</b>. Quartier le plus prioritaire : <b>${qa.length?esc(qa[0].q):'—'}</b>.`;
 }
 function chatFallback(){
-  return "Je n'ai pas de réponse automatique toute prête à cette question. Essayez une des questions rapides ci-dessous, ou reformulez avec des mots comme « couverture », « distance », « recours », « quartier », « priorité » ou « satisfaction ».";
+  return "Je n'ai pas de réponse automatique toute prête à cette question précise. Essayez une question rapide ci-dessous, reformulez avec le nom d'une variable de l'enquête (ex. « revenu », « instruction », « assurance », « profession »…), ou connectez Claude/ChatGPT via l'icône ⚙ en haut du chat pour que je réponde à absolument tout.";
+}
+function ansGreeting(){ return "Bonjour 👋 Que puis-je faire pour vous : couverture, distance, recours, quartiers, satisfaction, ou une variable précise de l'enquête (revenu, instruction, assurance…) ?"; }
+function ansThanks(){ return "Avec plaisir 🙂 N'hésitez pas si vous avez d'autres questions."; }
+function ansHelpBot(){ return "Je peux répondre sur : la couverture sanitaire, la distance aux centres, le recours aux soins, les quartiers (représentation, priorité, vulnérabilité), la satisfaction, et toute variable de l'enquête (ex. « quel est le revenu dominant ? », « quelle assurance maladie ? »). Pour des questions totalement libres, connectez Claude ou ChatGPT via l'icône ⚙."; }
+// ansGenericVariable() : filet generique — si la question cite le libelle d'une variable de
+// l'enquete (DIMS), renvoie sa modalite dominante sur la selection courante. Couvre des dizaines
+// de variables (revenu, instruction, assurance, profession, religion...) sans regle dediee.
+function ansGenericVariable(recs,text){
+  const norm=deaccent(text);
+  // correspondance mot a mot (pas l'intitule entier) : "revenu dominant" doit matcher "Revenu mensuel"
+  let best=null,bestScore=0;
+  for(const key in DIMS){
+    const labelWords=deaccent(DIMS[key]).split(/[^a-z0-9]+/).filter(w=>w.length>=4);
+    let score=0; labelWords.forEach(w=>{ if(norm.includes(w)) score+=w.length; });
+    if(score>bestScore){ bestScore=score; best=key; }
+  }
+  if(!best || bestScore<4) return null;
+  const m=countBy(recs,best); const top=[...m.entries()].sort((a,b)=>b[1]-a[1])[0];
+  const n=recs.length;
+  if(!top) return `Aucune donnée disponible pour « ${esc(DIMS[best])} » sur la sélection actuelle.`;
+  return `Pour « <b>${esc(DIMS[best])}</b> », la modalité la plus fréquente est <b>${esc(top[0])}</b> (${(100*top[1]/n).toFixed(0)}% de la sélection, ${top[1]} personne(s) sur ${n}).`;
 }
 
 // deaccent() : enleve les accents pour une recherche de mots-cles plus tolerante
@@ -2266,6 +2298,9 @@ function deaccent(s){ return (s||'').toLowerCase().normalize('NFD').replace(/[̀
 // CHAT_RULES : chaque regle porte une liste de mots-cles (deja sans accents) et une
 // fonction reponse(recs). Evaluees dans l'ordre, la premiere qui matche l'emporte.
 const CHAT_RULES = [
+  { kws:['bonjour','bonsoir','salut','hello','coucou'], fn:()=>ansGreeting() },
+  { kws:['merci','parfait super'], fn:()=>ansThanks() },
+  { kws:['aide moi','que peux tu','peux tu faire','comment ca marche','comment fonctionne','quelles questions'], fn:()=>ansHelpBot() },
   { kws:['moins bien couvert','pire couverture','faible couverture','mal desservi','moins desservi','moins couvert'], fn:ansWorstCoverage },
   { kws:['prioritaire','priorite','vulnerable'], fn:ansPriority },
   { kws:['recours dominant','recours aux soins','type de recours','quel recours','premier recours'], fn:ansDominantRecourse },
@@ -2276,11 +2311,13 @@ const CHAT_RULES = [
   { kws:['resume','synthese',"vue d'ensemble",'general'], fn:ansSummary }
 ].map(r=>({ kws:r.kws.map(deaccent), fn:r.fn }));
 
-// answerChat() : trouve la premiere regle dont un mot-cle apparait dans le texte, sinon repli
+// answerChat() : 1) regles precises ; 2) filet generique sur les variables de l'enquete ; 3) repli
 function answerChat(text){
   const norm=deaccent(text);
   const recs=filtered();
   for(const rule of CHAT_RULES){ if(rule.kws.some(k=>norm.includes(k))) return rule.fn(recs); }
+  const generic=ansGenericVariable(recs,text);
+  if(generic) return generic;
   return chatFallback();
 }
 
