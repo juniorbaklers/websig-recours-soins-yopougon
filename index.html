@@ -111,6 +111,7 @@ section .shead{color:var(--muted);font-size:13.5px;margin-bottom:26px;max-width:
 </style>
 </head>
 <body>
+<noscript><style>.reveal{opacity:1!important;transform:none!important}</style></noscript>
 
 <div class="hero">
   <div class="blob b1"></div><div class="blob b2"></div>
@@ -197,12 +198,18 @@ section .shead{color:var(--muted);font-size:13.5px;margin-bottom:26px;max-width:
 <script src="data/data.js"></script>
 <script src="data/centres.js"></script>
 <script>
-document.getElementById('yr').textContent = new Date().getFullYear();
+try{ document.getElementById('yr').textContent = new Date().getFullYear(); }catch(e){}
 
-// apparition progressive des blocs
-window.addEventListener('load',()=>{
-  document.querySelectorAll('.reveal').forEach((el,i)=>{ el.style.transitionDelay=(i*70)+'ms'; requestAnimationFrame(()=>el.classList.add('show')); });
-});
+// apparition progressive des blocs. IMPORTANT : declenchee sur DOMContentLoaded (des que le HTML est
+// pret), pas sur 'load' (qui attend polices/images et peut rester bloque durablement sur reseau mobile
+// lent ou instable, laissant la page vide puisque .reveal est opacity:0 par defaut). Filet de securite
+// supplementaire (timeout + execution immediate si le DOM est deja pret) pour ne JAMAIS rester invisible.
+function revealAll(){
+  document.querySelectorAll('.reveal').forEach((el,i)=>{ el.style.transitionDelay=(i*70)+'ms'; el.classList.add('show'); });
+}
+if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',revealAll);
+else revealAll(); // le DOM est deja pret (script execute tardivement) : on affiche tout de suite
+setTimeout(revealAll,1200); // filet de securite si un evenement a ete manque
 
 // stats calculées en direct à partir des mêmes données que la plateforme
 (function(){
