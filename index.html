@@ -8,17 +8,9 @@
 <meta name="description" content="Tableau de bord WebSIG d'analyse du recours aux soins, de l'accessibilité spatiale et des déterminants socio-sanitaires des personnes du troisième âge à Yopougon.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-<!-- Inter (petits éléments d'interface). Cal Sans est déclarée en @font-face dans le <style> ci-dessous. -->
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<!-- Outfit : sans-serif géométrique, équivalent libre de Cera Pro (la police de Mapbox). Famille unique. -->
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
-/* Cal Sans (police d'affichage de Cal.com, open source SIL OFL) — poids natif SemiBold ~600,
-   servie depuis jsDelivr. Déclarée sur la plage 400-700 pour éviter tout gras synthétique. */
-@font-face{
-  font-family:'Cal Sans';
-  src:url('https://cdn.jsdelivr.net/gh/calcom/font/fonts/webfonts/CalSans-SemiBold.woff2') format('woff2');
-  font-weight:400 700; font-style:normal; font-display:swap;
-}
 /* Palette sombre sanitaire, identique à plateforme.html (data-theme="dark", data-accent="cyan") */
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -32,11 +24,9 @@
   --brand:#faff69; --brand2:#faff69; --gold:#faff69;
 }
 html,body{height:100%}
-/* Corps en Inter 600 (lisibilité sur fond sombre). Cal Sans est réservée aux titres. */
-body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-weight:600;color:var(--body);background:var(--bg);
+/* Outfit partout (comme Mapbox avec Cera Pro) : corps en 500 lisible sur fond sombre. */
+body{font-family:'Outfit',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-weight:500;color:var(--body);background:var(--bg);
   -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
-/* Cal Sans : chaque titre d'affichage, en graisse 600 au crénage resserré */
-h1,h2,.brand b,.logo,.stat b,.mod b,.src b,.cta-band h3{font-family:'Cal Sans','Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
 /* Anneau de focus clavier accessible (jaune de marque) */
 :focus-visible{outline:2px solid var(--focus);outline-offset:2px;border-radius:4px}
 :where(a,button,input,select,summary,[tabindex]):focus:not(:focus-visible){outline:none}
@@ -148,6 +138,8 @@ section .shead{color:var(--muted);font-size:15px;line-height:1.55;margin-bottom:
 
 .foot{border-top:1px solid var(--line);padding:22px 6vw 30px;text-align:center;font-size:12px;color:var(--muted);line-height:1.7}
 .foot b{color:var(--ink)}
+/* Titres d'affichage en graisse 700 (comme Mapbox) — placé en fin de feuille pour l'emporter sur les poids individuels */
+h1,h2,section h2,.brand b,.logo,.stat b,.mod b,.src b,.cta-band h3{font-weight:700}
 </style>
 </head>
 <body>
