@@ -436,7 +436,7 @@ function renderKPIs(recs){
 let map,baseLayers,currentBase,markerLayer,clusterLayer;
 let centresLayer,buffer500Layer,buffer1000Layer,boundaryLayer,gridLayer; // couches de l'analyse spatiale
 let homeBounds=null, measureOn=false, measurePts=[], measureLayer=null; // outils SIG
-let isoMode=false, isoLayer=null; // isochrones d'accessibilite
+let isoMode=false, isoLayer=null, lastIsoCentre=null; // isochrones d'accessibilite (lastIsoCentre = dernier centre affiche, pour re-dessiner au changement de couleur)
 let underLayer=null; // zones faiblement desservies (hors 15 min)
 let gridCounts={}; // effectif d'enquetes par cellule (recalcule en direct pendant l'edition)
 const GRID_COL={1:'#f0cf87',2:'#5fae5f',3:'#e69a34',4:'#d9534f'}; // couleur cellule selon nb d'enquetes
@@ -695,6 +695,7 @@ function renderLegend(key,recs){
 function applyMapStyle(){
   buildSpatialLayers();
   renderMap(filtered());
+  syncIsoLegend(); // la legende isochrones suit toujours la couleur choisie
   localStorage.setItem('map_style_v1', JSON.stringify(mapStyle));
 }
 
@@ -791,6 +792,8 @@ function setIsoInfo(t){ const el=document.getElementById('isoInfo'); if(el) el.i
 // Utilise OpenRouteService si une cle est fournie, sinon des cercles approximatifs.
 async function computeIsochrone(c){
   isoLayer.clearLayers(); if(!map.hasLayer(isoLayer)) isoLayer.addTo(map);
+  lastIsoCentre=c; // memorise pour re-dessiner si la couleur change
+  syncIsoLegend(); // la legende reflete toujours la couleur actuelle
   const key=(localStorage.getItem('ors_key')||'').trim();
   const cols=shades3(mapStyle.colorIsochrones); // 5, 10, 15 min — 3 teintes derivees de la couleur choisie (etape 5b)
   if(key){
@@ -814,6 +817,19 @@ async function computeIsochrone(c){
 // approxIso() : cercles de distance equivalents a 5/10/15 min de marche (~400/800/1200 m)
 function approxIso(c,cols){ [[1200,cols[2]],[800,cols[1]],[400,cols[0]]].forEach(([r,col])=>
   L.circle([c.lat,c.lon],{radius:r,color:col,weight:1.6,fillColor:col,fillOpacity:.14}).addTo(isoLayer)); }
+// syncIsoLegend() : aligne les pastilles de la legende 5/10/15 min sur les 3 teintes reellement
+// dessinees (shades3 de la couleur choisie). Appelee a chaque changement de style (applyMapStyle).
+function syncIsoLegend(){
+  const cols=shades3(mapStyle.colorIsochrones);
+  const ids=['isoSw5','isoSw10','isoSw15'];
+  ids.forEach((id,i)=>{ const el=document.getElementById(id); if(el) el.style.background=cols[i]; });
+}
+// refreshIsoColors() : re-synchronise la legende ET re-dessine l'isochrone affiche (s'il y en a un)
+// avec la nouvelle couleur, pour que carte et legende restent coherentes a chaque fois.
+function refreshIsoColors(){
+  syncIsoLegend();
+  if(lastIsoCentre && isoLayer && map.hasLayer(isoLayer)) computeIsochrone(lastIsoCentre);
+}
 
 /* ---------- Enregistrement en ligne optionnel (Supabase) ----------
    Permet une sauvegarde AUTOMATIQUE et partagee des deplacements, sans exporter.
@@ -1796,6 +1812,27 @@ function initMapCtrls(){
   };
   setOpen(localStorage.getItem('mc_open')==='1');
   btn.addEventListener('click',()=>setOpen(!panel.classList.contains('open')));
+
+  // deplacement libre du panneau par sa poignee (Pointer Events : souris + tactile)
+  const head=document.getElementById('mapCtrlsHead');
+  if(head){
+    let dragging=false,dx=0,dy=0;
+    head.addEventListener('pointerdown',e=>{
+      dragging=true; panel.classList.add('dragging');
+      const r=panel.getBoundingClientRect();
+      dx=e.clientX-r.left; dy=e.clientY-r.top;
+      panel.style.left=r.left+'px'; panel.style.top=r.top+'px'; panel.style.right='auto';
+      head.setPointerCapture(e.pointerId);
+    });
+    head.addEventListener('pointermove',e=>{ if(!dragging) return;
+      const w=panel.offsetWidth, h=panel.offsetHeight;
+      panel.style.left=Math.max(0,Math.min(window.innerWidth-w,e.clientX-dx))+'px';
+      panel.style.top=Math.max(0,Math.min(window.innerHeight-h,e.clientY-dy))+'px';
+    });
+    const stopDrag=()=>{ dragging=false; panel.classList.remove('dragging'); };
+    head.addEventListener('pointerup',stopDrag);
+    head.addEventListener('pointercancel',stopDrag);
+  }
 }
 
 // initSidebarToggle() : repli des filtres sur mobile/tablette (bouton visible seulement <=980px,
@@ -1986,13 +2023,16 @@ function initMapStyleUI(){
   $('colCentres').value=mapStyle.colorCentres; $('colQuartier').value=mapStyle.colorQuartier;
   $('colCouverture').value=mapStyle.colorCouverture; $('colGrille').value=mapStyle.colorGrille; $('colIsochrones').value=mapStyle.colorIsochrones;
   $('mapDarkToggle').checked = document.documentElement.getAttribute('data-theme')==='dark';
+  syncIsoLegend(); // la legende isochrones part de la couleur enregistree
 
   $('mapPalette').addEventListener('change',e=>{ mapStyle.palette=e.target.value; applyMapStyle(); const cp=$('chartPalette'); if(cp) cp.value=e.target.value; renderTab(filtered()); });
   $('mapDarkToggle').addEventListener('change',e=>{ applyAppearance(e.target.checked?'dark':'light', document.documentElement.getAttribute('data-accent')); });
   $('mapOpacity').addEventListener('input',e=>{ mapStyle.layerOpacity=(+e.target.value)/100; $('mapOpacityVal').textContent=e.target.value; applyMapStyle(); });
   $('mapPointSize').addEventListener('input',e=>{ mapStyle.pointSize=+e.target.value; $('mapPointSizeVal').textContent=e.target.value; renderMap(filtered()); localStorage.setItem('map_style_v1',JSON.stringify(mapStyle)); });
   [['colCentres','colorCentres'],['colQuartier','colorQuartier'],['colCouverture','colorCouverture'],['colGrille','colorGrille'],['colIsochrones','colorIsochrones']].forEach(([id,key])=>{
-    $(id).addEventListener('input',e=>{ mapStyle[key]=e.target.value; applyMapStyle(); });
+    $(id).addEventListener('input',e=>{ mapStyle[key]=e.target.value; applyMapStyle();
+      if(key==='colorIsochrones') refreshIsoColors(); // re-dessine l'isochrone affiche avec la nouvelle couleur
+    });
   });
 
   // Raccourci "Couleurs des graphiques" (visible sur tous les onglets, pas seulement Style cartographique) :

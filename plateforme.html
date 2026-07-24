@@ -165,11 +165,16 @@ table.ct tr.rowclick:hover td{background:#eaf2f8}
   display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--ink);transition:.15s}
 .mc-toggle:hover{color:var(--brand);border-color:var(--brand)}
 .mc-toggle.on{color:#fff;background:var(--brand);border-color:var(--brand)}
-.mapctrls{position:absolute;top:56px;right:10px;width:290px;max-height:calc(100% - 66px);overflow:auto;padding:8px;z-index:900;
-  background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:0 6px 24px rgba(0,0,0,.3);
-  transform:translateX(calc(100% + 20px));opacity:0;pointer-events:none;transition:transform .2s ease,opacity .2s ease}
+.mapctrls{position:fixed;top:70px;right:24px;width:290px;max-height:calc(100vh - 100px);overflow:auto;padding:8px;z-index:950;
+  background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:0 10px 34px rgba(0,0,0,.35);
+  transform:translateX(calc(100% + 40px));opacity:0;pointer-events:none;transition:transform .2s ease,opacity .2s ease}
 .mapctrls.open{transform:translateX(0);opacity:1;pointer-events:auto}
-@media(max-width:640px){.mapctrls{width:calc(100% - 20px);right:10px}}
+.mapctrls.dragging{transition:none;user-select:none}
+.mc-head{display:flex;align-items:center;gap:7px;padding:8px 9px;margin:-8px -8px 8px;border-bottom:1px solid var(--line);
+  cursor:move;font-size:12px;font-weight:700;color:var(--ink);border-radius:calc(var(--radius) - 1px) calc(var(--radius) - 1px) 0 0;
+  background:rgba(127,127,127,.08)}
+.mc-head svg{opacity:.55;flex:none}
+@media(max-width:640px){.mapctrls{width:calc(100% - 20px);left:10px!important;right:10px}}
 
 /* --- Sections repliables de la colonne "Options de la carte" --- */
 .mcpanel{border:1px solid var(--line);border-radius:var(--radius);margin-bottom:8px;background:var(--panel);overflow:hidden;box-shadow:var(--shadow)}
@@ -596,6 +601,10 @@ body.presentation-mode .wrap.sp-collapsed{grid-template-columns:1fr}
         <div id="map"></div>
         <button class="mc-toggle" id="mapCtrlsToggle" title="Options de la carte"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><circle cx="9" cy="6" r="2" fill="currentColor" stroke="none"/><line x1="4" y1="12" x2="20" y2="12"/><circle cx="15" cy="12" r="2" fill="currentColor" stroke="none"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="11" cy="18" r="2" fill="currentColor" stroke="none"/></svg></button>
         <div class="mapctrls" id="mapCtrls">
+          <div class="mc-head" id="mapCtrlsHead">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>
+            <span>Options de la carte</span>
+          </div>
           <details class="mcpanel" open>
             <summary>Affichage</summary>
             <div class="card">
@@ -658,9 +667,9 @@ body.presentation-mode .wrap.sp-collapsed{grid-template-columns:1fr}
               <div class="switch"><input type="checkbox" id="isoToggle"><label for="isoToggle"><b>Isochrones</b> — accessibilité à pied</label></div>
               <select class="sel" id="isoCentre" style="width:100%;margin:3px 0;font-size:11px"><option value="">— Choisir un centre de santé —</option></select>
               <div class="isolegend" id="isoLegend">
-                <span><i style="background:#1a9850"></i>5 min</span>
-                <span><i style="background:#f9a825"></i>10 min</span>
-                <span><i style="background:#c62828"></i>15 min</span>
+                <span><i id="isoSw5" style="background:#2e7d32"></i>5 min</span>
+                <span><i id="isoSw10" style="background:#2e7d32"></i>10 min</span>
+                <span><i id="isoSw15" style="background:#2e7d32"></i>15 min</span>
               </div>
               <div id="isoInfo" class="note" style="min-height:14px;color:var(--brand)"></div>
               <div class="switch"><input type="checkbox" id="underToggle"><label for="underToggle">Zones faiblement desservies (hors 15 min)</label></div>
