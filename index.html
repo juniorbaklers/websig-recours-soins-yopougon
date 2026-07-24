@@ -32,12 +32,11 @@
   --brand:#faff69; --brand2:#faff69; --gold:#faff69;
 }
 html,body{height:100%}
-/* Cal Sans porte les titres ET le corps ; Inter 600 est réservé aux petits éléments
-   d'interface (labels, légendes, descriptions denses) — voir la règle ci-dessous. */
-body{font-family:'Cal Sans','Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:var(--body);background:var(--bg);
+/* Corps en Inter 600 (lisibilité sur fond sombre). Cal Sans est réservée aux titres. */
+body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-weight:600;color:var(--body);background:var(--bg);
   -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
-.sub,.stat span,.mod span,.src span,.nav .tag,.foot{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
-.sub,.stat span,.mod span,.src span,.nav .tag{font-weight:600}
+/* Cal Sans : chaque titre d'affichage, en graisse 600 au crénage resserré */
+h1,h2,.brand b,.logo,.stat b,.mod b,.src b,.cta-band h3{font-family:'Cal Sans','Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
 /* Anneau de focus clavier accessible (jaune de marque) */
 :focus-visible{outline:2px solid var(--focus);outline-offset:2px;border-radius:4px}
 :where(a,button,input,select,summary,[tabindex]):focus:not(:focus-visible){outline:none}
