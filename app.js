@@ -1784,6 +1784,20 @@ function initStatsPanel(){
   const ct=document.getElementById('centresToggle'); if(ct) ct.addEventListener('change',()=>renderStatsPanel(filtered()));
 }
 
+// initMapCtrls() : branche le tiroir flottant "Options de la carte" (ferme par defaut, pour
+// laisser toute la largeur a la carte) et restaure l'etat memorise.
+function initMapCtrls(){
+  const panel=document.getElementById('mapCtrls'), btn=document.getElementById('mapCtrlsToggle');
+  if(!panel||!btn) return;
+  const setOpen=o=>{
+    panel.classList.toggle('open',o); btn.classList.toggle('on',o);
+    localStorage.setItem('mc_open',o?'1':'0');
+    if(o) setTimeout(()=>{ if(typeof map!=='undefined' && map) map.invalidateSize(); },210);
+  };
+  setOpen(localStorage.getItem('mc_open')==='1');
+  btn.addEventListener('click',()=>setOpen(!panel.classList.contains('open')));
+}
+
 // initSidebarToggle() : repli des filtres sur mobile/tablette (bouton visible seulement <=980px,
 // replie par defaut sur petit ecran pour ne pas masquer le contenu principal au chargement).
 function initSidebarToggle(){
@@ -1813,6 +1827,9 @@ function switchTab(t){
   currentTab=t;
   document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===t));
   ['carte','apercu','recours','determinants','percept','spatial','croise','matrice','explor','donnees','exports'].forEach(id=>{const el=document.getElementById('tab-'+id);if(el)el.classList.toggle('hidden',id!==t);});
+  // la barre "Couleurs des graphiques" et les 8 KPI ne concernent que les onglets d'analyse : masques sur la Carte, qui a son propre panneau flottant
+  const kpis=document.getElementById('kpis'); if(kpis) kpis.classList.toggle('hidden',t==='carte');
+  const cpb=document.getElementById('chartpalBar'); if(cpb) cpb.classList.toggle('hidden',t==='carte');
   const sec=document.getElementById('tab-'+t); if(sec){ sec.classList.remove('anim'); void sec.offsetWidth; sec.classList.add('anim'); } // re-declenche l'animation d'apparition
   renderTab(filtered());
   if(t==='carte') setTimeout(()=>map.invalidateSize(),80); // Leaflet doit recalculer sa taille quand on revient sur la carte
@@ -1929,6 +1946,7 @@ document.addEventListener('DOMContentLoaded',async ()=>{
 
   // 10. panneau statistique de droite (etape 3)
   initStatsPanel();
+  initMapCtrls(); // tiroir flottant "Options de la carte"
   initSidebarToggle(); // repli des filtres sur mobile/tablette
 
   // 11. style cartographique (etape 5b)

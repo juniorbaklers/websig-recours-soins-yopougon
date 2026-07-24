@@ -119,11 +119,8 @@ select.sel{padding:7px 9px;border:1px solid var(--line);border-radius:8px;font-s
 label.lbl{font-size:12px;color:var(--muted);font-weight:600}
 input.colorpick{width:32px;height:24px;padding:1px;border:1px solid var(--line);border-radius:5px;cursor:pointer;background:none;flex:none}
 input[type=range]{accent-color:var(--brand)}
-#map{height:100%;min-height:600px;border-radius:var(--radius);border:1px solid var(--line);z-index:1}
-.maprow{align-items:stretch}
-.maprow>#map{align-self:stretch}
-.mapctrls{max-height:calc(100vh - 150px);overflow:auto;padding-right:2px}
-@media(max-width:900px){#map{height:560px;min-height:0}.mapctrls{max-height:none;overflow:visible}}
+#map{width:100%;height:calc(100vh - 230px);min-height:600px;border-radius:var(--radius);border:1px solid var(--line);z-index:1}
+@media(max-width:900px){#map{height:560px;min-height:0}}
 .legend{background:#fff;padding:8px 10px;border-radius:8px;box-shadow:0 1px 6px rgba(0,0,0,.2);font-size:12px;line-height:1.7;max-height:240px;overflow:auto}
 .legend b{display:block;margin-bottom:4px;font-size:11.5px}
 .legend .li{display:flex;align-items:center;gap:6px}
@@ -159,9 +156,20 @@ table.ct tr.rowclick:hover td{background:#eaf2f8}
 .pop td{padding:1px 6px 1px 0;vertical-align:top}
 .pop td.k{color:var(--muted)}
 .note{font-size:11.5px;color:var(--muted);margin-top:8px}
-.maprow{display:grid;grid-template-columns:1fr 260px;gap:14px}
-@media(max-width:900px){.maprow{grid-template-columns:1fr}}
+.maprow{position:relative}
 .mapctrls .card{margin-bottom:0}
+
+/* --- Panneau "Options de la carte" : tiroir flottant, ferme par defaut, pousse la carte a plein largeur --- */
+.mc-toggle{position:absolute;top:10px;right:10px;z-index:901;width:36px;height:36px;border-radius:10px;
+  border:1px solid var(--line);background:var(--panel);box-shadow:0 2px 10px rgba(0,0,0,.25);
+  display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--ink);transition:.15s}
+.mc-toggle:hover{color:var(--brand);border-color:var(--brand)}
+.mc-toggle.on{color:#fff;background:var(--brand);border-color:var(--brand)}
+.mapctrls{position:absolute;top:56px;right:10px;width:290px;max-height:calc(100% - 66px);overflow:auto;padding:8px;z-index:900;
+  background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:0 6px 24px rgba(0,0,0,.3);
+  transform:translateX(calc(100% + 20px));opacity:0;pointer-events:none;transition:transform .2s ease,opacity .2s ease}
+.mapctrls.open{transform:translateX(0);opacity:1;pointer-events:auto}
+@media(max-width:640px){.mapctrls{width:calc(100% - 20px);right:10px}}
 
 /* --- Sections repliables de la colonne "Options de la carte" --- */
 .mcpanel{border:1px solid var(--line);border-radius:var(--radius);margin-bottom:8px;background:var(--panel);overflow:hidden;box-shadow:var(--shadow)}
@@ -399,6 +407,7 @@ table.ct tr.rowclick:hover td{background:#eaf2f8}
 body.presentation-mode .sidebar,
 body.presentation-mode .statspanel,
 body.presentation-mode .mapctrls,
+body.presentation-mode .mc-toggle,
 body.presentation-mode #chatWidget,
 body.presentation-mode .accents,
 body.presentation-mode #resetAppearance,
@@ -411,7 +420,6 @@ body.presentation-mode .tab[data-tab="donnees"],
 body.presentation-mode .tab[data-tab="exports"]{display:none!important}
 body.presentation-mode .wrap,
 body.presentation-mode .wrap.sp-collapsed{grid-template-columns:1fr}
-body.presentation-mode .maprow{grid-template-columns:1fr}
 
 /* Fenetres flottantes generiques (etape 6a) : graphiques, tableaux, deplacables/fermables/repliables */
 #floatingLayer{position:fixed;inset:0;pointer-events:none;z-index:3000}
@@ -563,8 +571,8 @@ body.presentation-mode .maprow{grid-template-columns:1fr}
     <!-- Pastilles des filtres actifs (generees par app.js) -->
     <div class="chips" id="activeChips"></div>
 
-    <!-- Couleurs des graphiques (accessible partout, pas seulement dans Style cartographique) -->
-    <div class="chartpal-bar">
+    <!-- Couleurs des graphiques (masquee sur l'onglet Carte, voir switchTab() dans app.js) -->
+    <div class="chartpal-bar hidden" id="chartpalBar">
       <label class="lbl" for="chartPalette">Couleurs des graphiques</label>
       <select class="sel" id="chartPalette">
         <option value="bleu">Bleu</option>
@@ -579,14 +587,15 @@ body.presentation-mode .maprow{grid-template-columns:1fr}
       </select>
     </div>
 
-    <!-- Les 8 indicateurs cles (generes par app.js -> renderKPIs) -->
-    <div class="kpis" id="kpis"></div>
+    <!-- Les 8 indicateurs cles (generes par app.js -> renderKPIs), masques sur l'onglet Carte -->
+    <div class="kpis hidden" id="kpis"></div>
 
     <!-- TAB: CARTE -->
     <section id="tab-carte">
       <div class="maprow">
         <div id="map"></div>
-        <div class="mapctrls">
+        <button class="mc-toggle" id="mapCtrlsToggle" title="Options de la carte"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><circle cx="9" cy="6" r="2" fill="currentColor" stroke="none"/><line x1="4" y1="12" x2="20" y2="12"/><circle cx="15" cy="12" r="2" fill="currentColor" stroke="none"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="11" cy="18" r="2" fill="currentColor" stroke="none"/></svg></button>
+        <div class="mapctrls" id="mapCtrls">
           <details class="mcpanel" open>
             <summary>Affichage</summary>
             <div class="card">
