@@ -8,8 +8,17 @@
 <meta name="description" content="Tableau de bord WebSIG d'analyse du recours aux soins, de l'accessibilité spatiale et des déterminants socio-sanitaires des personnes du troisième âge à Yopougon.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<!-- Inter (petits éléments d'interface). Cal Sans est déclarée en @font-face dans le <style> ci-dessous. -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
+/* Cal Sans (police d'affichage de Cal.com, open source SIL OFL) — poids natif SemiBold ~600,
+   servie depuis jsDelivr. Déclarée sur la plage 400-700 pour éviter tout gras synthétique. */
+@font-face{
+  font-family:'Cal Sans';
+  src:url('https://cdn.jsdelivr.net/gh/calcom/font/fonts/webfonts/CalSans-SemiBold.woff2') format('woff2');
+  font-weight:400 700; font-style:normal; font-display:swap;
+}
 /* Palette sombre sanitaire, identique à plateforme.html (data-theme="dark", data-accent="cyan") */
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -23,10 +32,12 @@
   --brand:#faff69; --brand2:#faff69; --gold:#faff69;
 }
 html,body{height:100%}
-/* Police unique du système : Inter, avec la pile de secours documentée. Toute la hiérarchie
-   (titres, corps, boutons, légendes) repose sur Inter — aucune police d'affichage séparée. */
-body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:var(--body);background:var(--bg);
+/* Cal Sans porte les titres ET le corps ; Inter 600 est réservé aux petits éléments
+   d'interface (labels, légendes, descriptions denses) — voir la règle ci-dessous. */
+body{font-family:'Cal Sans','Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:var(--body);background:var(--bg);
   -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+.sub,.stat span,.mod span,.src span,.nav .tag,.foot{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
+.sub,.stat span,.mod span,.src span,.nav .tag{font-weight:600}
 /* Anneau de focus clavier accessible (jaune de marque) */
 :focus-visible{outline:2px solid var(--focus);outline-offset:2px;border-radius:4px}
 :where(a,button,input,select,summary,[tabindex]):focus:not(:focus-visible){outline:none}
@@ -51,7 +62,7 @@ a{text-decoration:none;color:inherit}
 .nav{display:flex;align-items:center;justify-content:space-between;padding:20px 6vw;flex-wrap:wrap;gap:12px}
 .brand{display:flex;align-items:center;gap:13px}
 .logo{width:48px;height:48px;border-radius:12px;background:var(--panel);border:1px solid var(--line-strong);
-  display:flex;align-items:center;justify-content:center;font-weight:800;font-size:25px;letter-spacing:-1px;color:var(--ink)}
+  display:flex;align-items:center;justify-content:center;font-weight:600;font-size:25px;letter-spacing:-1px;color:var(--ink)}
 .logo span{color:var(--primary)}
 .brand b{font-size:20px;font-weight:700;letter-spacing:-.4px;color:var(--ink)}
 .nav .tag{font-size:12px;color:var(--muted)}
@@ -61,7 +72,7 @@ a{text-decoration:none;color:inherit}
 
 .wrap{max-width:900px;margin:0 auto;padding:44px 6vw 30px;text-align:center}
 .sub{font-size:12px;text-transform:uppercase;letter-spacing:1.5px;color:var(--primary);font-weight:600;margin-bottom:18px}
-h1{font-size:38px;line-height:1.08;font-weight:700;letter-spacing:-1.5px;margin-bottom:18px;color:var(--ink)}
+h1{font-size:38px;line-height:1.05;font-weight:600;letter-spacing:-1.5px;margin-bottom:18px;color:var(--ink)}
 @media(min-width:760px){h1{font-size:56px;letter-spacing:-2px}}
 h1 .hl{color:var(--primary)}
 .subtitle{font-size:16px;font-weight:500;color:var(--body-strong);max-width:680px;margin:0 auto 14px;line-height:1.5}
@@ -79,13 +90,13 @@ h1 .hl{color:var(--primary)}
 @media(min-width:700px){.stats{grid-template-columns:repeat(3,1fr)}}
 .stat{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px 16px;transition:border-color .15s}
 .stat:hover{border-color:var(--primary)}
-.stat b{display:block;font-size:34px;font-weight:700;color:var(--primary);letter-spacing:-1px;line-height:1;font-variant-numeric:tabular-nums}
+.stat b{display:block;font-size:34px;font-weight:600;color:var(--primary);letter-spacing:-1px;line-height:1;font-variant-numeric:tabular-nums}
 .stat span{font-size:12px;color:var(--muted);line-height:1.35;display:block;margin-top:8px}
 
 /* ---------- Sections claires sur fond panneau ---------- */
 main{background:var(--bg)}
 section{max-width:1120px;margin:0 auto;padding:72px 6vw}
-section h2{font-size:30px;font-weight:700;letter-spacing:-1px;margin-bottom:10px;color:var(--ink)}
+section h2{font-size:30px;font-weight:600;letter-spacing:-1px;margin-bottom:10px;color:var(--ink)}
 section .shead{color:var(--muted);font-size:15px;line-height:1.55;margin-bottom:30px;max-width:660px}
 .objectifs{display:grid;gap:12px}
 .obj{display:flex;gap:16px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px 22px}
@@ -109,7 +120,7 @@ section .shead{color:var(--muted);font-size:15px;line-height:1.55;margin-bottom:
 
 .cta-band{max-width:1120px;margin:0 auto;padding:0 6vw 72px;text-align:center}
 .cta-band .box{background:var(--primary);border:none;border-radius:12px;padding:56px 32px}
-.cta-band h3{font-size:30px;font-weight:700;letter-spacing:-1px;color:var(--on-primary);margin-bottom:10px}
+.cta-band h3{font-size:30px;font-weight:600;letter-spacing:-1px;color:var(--on-primary);margin-bottom:10px}
 .cta-band p{color:rgba(10,10,10,.72);font-size:15px;font-weight:500;margin-bottom:22px}
 .cta-band .box .cta.solid{background:var(--on-primary);color:var(--primary)}
 .cta-band .box .cta.solid:hover{background:#000}
