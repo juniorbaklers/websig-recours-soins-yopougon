@@ -297,9 +297,9 @@ function countUp(el){
 }
 
 // initHeroMap() : mini-carte Leaflet de Yopougon en fond du hero (façon carte hero de Mapbox).
-// Fond sombre CARTO, points d'enquête et centres de santé en jaune de marque, ouverture animée +
-// lente dérive. Non interactive (n'intercepte ni le défilement ni les clics). Si Leaflet ou les tuiles
-// échouent, la photo de repli (.hero-photo) reste visible sous la carte.
+// Fond sombre CARTO, couche des enquêtés en jaune de marque, et visite animée qui vole lentement
+// d'un quartier à l'autre avec zoom variable. Non interactive (n'intercepte ni le défilement ni les
+// clics). Si Leaflet ou les tuiles échouent, la photo de repli (.hero-photo) reste visible dessous.
 function initHeroMap(){
   const el=document.getElementById('heroMap');
   if(!el || typeof L==='undefined') return;
@@ -310,22 +310,31 @@ function initHeroMap(){
   L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
     { subdomains:'abcd', maxZoom:19, attribution:'© OpenStreetMap · © CARTO' }).addTo(map);
 
-  // points d'enquête (petits) + centres de santé (cercles), en jaune de marque
-  const DATA=window.DATA||[], CENTRES=window.CENTRES||[];
-  DATA.forEach(d=>{ if(typeof d.lat==='number' && typeof d.lng==='number')
-    L.circleMarker([d.lat,d.lng],{radius:2.4,weight:0,fillColor:'#faff69',fillOpacity:.55,interactive:false}).addTo(map); });
-  CENTRES.forEach(c=>{ if(typeof c.lat==='number' && typeof c.lon==='number')
-    L.circleMarker([c.lat,c.lon],{radius:4,weight:1.4,color:'#faff69',fillOpacity:0,interactive:false}).addTo(map); });
+  // couche des enquêtés uniquement, en jaune de marque
+  const pts=(window.DATA||[]).filter(d=>typeof d.lat==='number' && typeof d.lng==='number');
+  pts.forEach(d=>L.circleMarker([d.lat,d.lng],{radius:2.4,weight:0,fillColor:'#faff69',fillOpacity:.55,interactive:false}).addTo(map));
 
   setTimeout(()=>map.invalidateSize(),200); // s'assure des bonnes dimensions après mise en page
   addEventListener('resize',()=>map.invalidateSize(),{passive:true});
 
-  // ouverture animée puis lente dérive de va-et-vient (désactivées sous prefers-reduced-motion)
-  if(!REDUCE){
-    map.setZoom(12);
-    setTimeout(()=>map.flyTo(YOP,13,{duration:2.6}),350);
-    let dir=1; setInterval(()=>{ dir=-dir; try{ map.panBy([dir*20,dir*12],{animate:true,duration:6,easeLinearity:.2}); }catch(e){} },7000);
+  // centroïdes des principaux quartiers -> parcours de la visite animée
+  const byq={};
+  pts.forEach(d=>{ const q=(d.quartier||'').toString().trim(); if(!q) return;
+    const o=byq[q]=byq[q]||{n:0,la:0,lo:0}; o.n++; o.la+=d.lat; o.lo+=d.lng; });
+  const tour=Object.values(byq).filter(o=>o.n>=8).map(o=>[o.la/o.n,o.lo/o.n,o.n])
+             .sort((a,b)=>b[2]-a[2]).slice(0,10);
+
+  if(REDUCE || tour.length<2){ map.setView(YOP,13); return; }
+
+  // visite : vol lent et continu d'un quartier à l'autre, avec zoom variable (façon survol Mapbox)
+  const zooms=[14.4,15,14.6,15.2,14.4,14.8]; let i=0;
+  function tick(){
+    const s=tour[i%tour.length];
+    try{ map.flyTo([s[0],s[1]], zooms[i%zooms.length], {duration:6, easeLinearity:.12}); }catch(e){}
+    i++; setTimeout(tick, 9000); // ~6 s de vol + ~3 s de pause avant le quartier suivant
   }
+  map.setView(YOP,13);
+  setTimeout(tick, 1000); // démarre la visite après une brève vue d'ensemble
 }
 
 // initPremium() : révélation au défilement (IntersectionObserver), compteurs animés au 1er passage,
