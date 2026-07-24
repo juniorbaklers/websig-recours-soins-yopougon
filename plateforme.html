@@ -76,12 +76,12 @@ header.app .sub{margin:3px 0 0;font-size:var(--fs-xs);opacity:.9;font-weight:500
 header.app .hmeta{font-size:var(--fs-xs);opacity:.95;white-space:nowrap;text-align:right}
 header.app .hmeta a{color:#fff;text-decoration:underline}
 @media(max-width:640px){header.app h1{font-size:19px} header.app .hmeta{display:none}}
-.wrap{display:grid;grid-template-columns:288px 1fr;gap:16px;padding:16px;align-items:start}
+.wrap{display:grid;grid-template-columns:288px 1fr;gap:var(--sp-4);padding:var(--sp-4);align-items:start}
 @media(max-width:980px){.wrap{grid-template-columns:1fr}}
 .sidebar{position:sticky;top:16px;max-height:calc(100vh - 32px);overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
-.sidebar .shead{padding:12px 14px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:var(--panel);z-index:2}
-.sidebar .shead b{font-size:13px}
-.sidebar .body{padding:6px 10px 14px}
+.sidebar .shead{padding:var(--sp-3) var(--sp-4);border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:var(--panel);z-index:2}
+.sidebar .shead b{font-size:var(--fs-sm)}
+.sidebar .body{padding:var(--sp-2) var(--sp-3) var(--sp-4)}
 #sidebarToggle{display:none}
 @media(max-width:980px){
   .sidebar{position:static;max-height:none}
@@ -89,16 +89,16 @@ header.app .hmeta a{color:#fff;text-decoration:underline}
   .sidebar.collapsed .body{display:none}
 }
 details.fg{border-bottom:1px solid var(--line)}
-details.fg>summary{cursor:pointer;padding:9px 6px;font-weight:600;font-size:12.8px;list-style:none;display:flex;justify-content:space-between;align-items:center}
+details.fg>summary{cursor:pointer;padding:9px 6px;font-weight:600;font-size:var(--fs-xs);list-style:none;display:flex;justify-content:space-between;align-items:center}
 details.fg>summary::-webkit-details-marker{display:none}
 details.fg>summary .chev{color:var(--muted);font-size:11px;transition:.2s}
 details.fg[open]>summary .chev{transform:rotate(90deg)}
 .fg .opts{padding:2px 4px 10px}
-.fg .search{width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:8px;margin:2px 0 8px;font-size:12px}
-.opt{display:flex;align-items:center;gap:7px;padding:3px 4px;border-radius:6px;font-size:12.4px;cursor:pointer}
-.opt:hover{background:#f1f5fa}
+.fg .search{width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:var(--r-sm);margin:2px 0 8px;font-size:var(--fs-xs);background:var(--panel);color:var(--ink)}
+.opt{display:flex;align-items:center;gap:7px;padding:4px 5px;border-radius:var(--r-sm);font-size:var(--fs-xs);cursor:pointer}
+.opt:hover{background:var(--panel-2)}
 .opt input{accent-color:var(--brand)}
-.opt .cnt{margin-left:auto;color:var(--muted);font-size:11px;font-variant-numeric:tabular-nums}
+.opt .cnt{margin-left:auto;color:var(--muted);font-size:var(--fs-2xs);font-variant-numeric:tabular-nums}
 .btn{border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:8px 14px;border-radius:var(--r-sm);font-size:var(--fs-xs);cursor:pointer;font-weight:600;transition:border-color .15s,color .15s,background .15s}
 .btn:hover{border-color:var(--brand);color:var(--brand)}
 .btn.solid{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
@@ -359,7 +359,7 @@ table.ct tr.rowclick:hover td{background:#eaf2f8}
   position:sticky;top:0;background:var(--panel);z-index:2;gap:6px}
 .sp-head b{font-size:13px;white-space:nowrap}
 .statspanel.collapsed .sp-head b{display:none}
-.sp-toggle{border:1px solid var(--line);background:#fff;color:var(--muted);width:24px;height:24px;border-radius:7px;
+.sp-toggle{border:1px solid var(--line);background:var(--panel);color:var(--muted);width:24px;height:24px;border-radius:7px;
   cursor:pointer;font-weight:700;font-size:12px;flex:none}
 .sp-toggle:hover{border-color:var(--brand);color:var(--brand)}
 [data-theme="dark"] .sp-toggle{background:#1b2836}
@@ -369,18 +369,18 @@ table.ct tr.rowclick:hover td{background:#eaf2f8}
 .sp-gtitle{font-size:11px;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);font-weight:700;
   margin-bottom:8px;display:flex;align-items:center;gap:6px}
 .spgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.spstat{position:relative;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:9px 10px 8px;overflow:hidden}
+.spstat{position:relative;background:var(--panel-2);border:1px solid var(--line);border-radius:var(--r-md);padding:10px 11px 9px;overflow:hidden}
 .spstat::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:linear-gradient(180deg,var(--brand),var(--brand2))}
 .spstat .ic{font-size:12px;opacity:.8;margin-bottom:2px}
 .spstat .v{font-size:17px;font-weight:800;color:var(--brand);line-height:1.15;font-variant-numeric:tabular-nums}
-.spstat .l{font-size:10.5px;color:var(--muted);line-height:1.25;margin-top:1px}
+.spstat .l{font-size:var(--fs-2xs);color:var(--muted);line-height:1.3;margin-top:2px}
 .spstat.wide{grid-column:1/-1}
 .sprank{display:flex;flex-direction:column;gap:4px}
-.sprow{display:flex;align-items:center;gap:7px;font-size:11.5px;padding:4px 6px;border-radius:7px;background:var(--bg)}
+.sprow{display:flex;align-items:center;gap:7px;font-size:var(--fs-xs);padding:5px 7px;border-radius:7px;background:var(--panel-2)}
 .sprow .rk{flex:none;width:16px;height:16px;border-radius:5px;background:var(--line);color:var(--muted);
   font-size:9.5px;font-weight:800;display:flex;align-items:center;justify-content:center}
 .sprow .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink)}
-.sprow .bd{flex:none;font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:999px;color:#fff;white-space:nowrap}
+.sprow .bd{flex:none;font-size:var(--fs-2xs);font-weight:700;padding:2px 8px;border-radius:var(--r-full);color:#fff;white-space:nowrap}
 .sp-empty{font-size:11px;color:var(--muted);padding:4px 2px;font-style:italic}
 
 /* Assistant conversationnel flottant (etape 5d) */
