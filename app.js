@@ -302,16 +302,38 @@ function ordered(key,m){
    5. GRAPHIQUES (Chart.js)
    ============================================================================ */
 
-// Reglages generaux de police/couleur pour tous les graphiques
-Chart.defaults.font.family='"Segoe UI",Roboto,Arial,sans-serif';
-Chart.defaults.font.size=11.5; Chart.defaults.color='#334155';
-// applyChartTheme() : couleurs de texte/grille des graphiques adaptees au theme clair/sombre.
+// Reglages generaux (une seule fois) : police du produit + styles d'elements coherents.
+Chart.defaults.font.family="'Inter','Segoe UI',Roboto,Arial,sans-serif";
+Chart.defaults.font.size=12;
+Chart.defaults.elements.bar.borderRadius=4;         // barres a coins arrondis par defaut
+Chart.defaults.elements.bar.borderSkipped=false;
+Chart.defaults.elements.point.radius=2.5;           // points de ligne discrets
+Chart.defaults.elements.point.hoverRadius=5;
+Chart.defaults.elements.line.tension=.3;            // lignes legerement adoucies
+Chart.defaults.elements.line.borderWidth=2;
+Chart.defaults.plugins.legend.labels.usePointStyle=true;
+Chart.defaults.plugins.legend.labels.boxWidth=8;
+Chart.defaults.plugins.legend.labels.boxHeight=8;
+Chart.defaults.plugins.legend.labels.padding=14;
+// applyChartTheme() : couleurs de texte/grille/tooltip des graphiques adaptees au theme clair/sombre.
 // Chart.defaults n'est lu qu'a la CREATION d'un graphique : on doit aussi redessiner l'onglet
 // courant apres un changement de theme pour que les graphiques deja affiches se corrigent.
 function applyChartTheme(theme){
   const dark=theme==='dark';
-  Chart.defaults.color = dark ? '#e6edf5' : '#334155'; // meme teinte que --ink en sombre : contraste maximal
-  Chart.defaults.borderColor = dark ? '#344657' : '#e5e9f0';
+  const muted = dark ? '#9fb2c6' : '#556374';
+  const grid  = dark ? 'rgba(159,178,198,.13)' : 'rgba(85,99,116,.11)';   // grilles discretes, non concurrentes des donnees
+  Chart.defaults.color = muted;
+  Chart.defaults.borderColor = grid;
+  Chart.defaults.scale.grid.color = grid;
+  Chart.defaults.scale.grid.drawTicks = false;
+  Chart.defaults.scale.border.display = false;       // pas de ligne d'axe dure (Chart.js v4)
+  Chart.defaults.scale.ticks.color = muted;
+  Chart.defaults.scale.ticks.padding = 6;
+  const tt=Chart.defaults.plugins.tooltip;            // infobulles soignees et lisibles
+  tt.backgroundColor = dark ? 'rgba(22,33,46,.97)' : 'rgba(26,36,50,.95)';
+  tt.titleColor = '#ffffff'; tt.bodyColor = '#e6edf5';
+  tt.padding = 10; tt.cornerRadius = 8; tt.boxPadding = 4;
+  tt.usePointStyle = true; tt.titleFont = {weight:'600',size:12}; tt.bodyFont = {size:12};
 }
 
 // charts = registre des graphiques crees, indexe par l'id du <canvas>.
