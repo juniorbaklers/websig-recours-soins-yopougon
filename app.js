@@ -192,7 +192,8 @@ const COVER_COL = { '5 min':'#1a9850','10 min':'#91cf60','15 min':'#fee08b','Hor
 // des points, couleurs des couches). DEFAULT_MAP_STYLE sert de reference pour
 // le bouton « Réinitialiser le style ».
 const DEFAULT_MAP_STYLE = { palette:'bleu', layerOpacity:0.5, pointSize:5.5,
-  colorCentres:'#0d8a6a', colorQuartier:'#0f5e8f', colorCouverture:'#0d8a6a', colorGrille:'#5f6b7a', colorIsochrones:'#2e7d32' };
+  colorCentres:'#0d8a6a', colorQuartier:'#0f5e8f', colorCouverture:'#0d8a6a', colorGrille:'#5f6b7a',
+  colorIso5:'#1a9850', colorIso10:'#f9a825', colorIso15:'#c62828' }; // isochrones : 3 couleurs distinctes (5/10/15 min)
 let mapStyle = Object.assign({}, DEFAULT_MAP_STYLE);
 try{ const savedStyle=JSON.parse(localStorage.getItem('map_style_v1')||'null'); if(savedStyle) Object.assign(mapStyle,savedStyle); }catch(e){}
 // opacityMult() : multiplicateur applique aux opacites de base des couches (500 -> 1x, 0-100 -> 0x-2x)
@@ -792,10 +793,10 @@ function setIsoInfo(t){ const el=document.getElementById('isoInfo'); if(el) el.i
 // Utilise OpenRouteService si une cle est fournie, sinon des cercles approximatifs.
 async function computeIsochrone(c){
   isoLayer.clearLayers(); if(!map.hasLayer(isoLayer)) isoLayer.addTo(map);
-  lastIsoCentre=c; // memorise pour re-dessiner si la couleur change
-  syncIsoLegend(); // la legende reflete toujours la couleur actuelle
+  lastIsoCentre=c; // memorise pour re-dessiner si une couleur change
+  syncIsoLegend(); // la legende reflete toujours les couleurs actuelles
   const key=(localStorage.getItem('ors_key')||'').trim();
-  const cols=shades3(mapStyle.colorIsochrones); // 5, 10, 15 min — 3 teintes derivees de la couleur choisie (etape 5b)
+  const cols=isoColors(); // 5, 10, 15 min — 3 couleurs distinctes choisies par l'utilisateur
   if(key){
     setIsoInfo(`Calcul des isochrones réseau autour de « ${c.nom} »…`);
     try{
@@ -817,12 +818,13 @@ async function computeIsochrone(c){
 // approxIso() : cercles de distance equivalents a 5/10/15 min de marche (~400/800/1200 m)
 function approxIso(c,cols){ [[1200,cols[2]],[800,cols[1]],[400,cols[0]]].forEach(([r,col])=>
   L.circle([c.lat,c.lon],{radius:r,color:col,weight:1.6,fillColor:col,fillOpacity:.14}).addTo(isoLayer)); }
-// syncIsoLegend() : aligne les pastilles de la legende 5/10/15 min sur les 3 teintes reellement
-// dessinees (shades3 de la couleur choisie). Appelee a chaque changement de style (applyMapStyle).
+// isoColors() : les 3 couleurs distinctes des isochrones (5, 10, 15 min).
+function isoColors(){ return [mapStyle.colorIso5, mapStyle.colorIso10, mapStyle.colorIso15]; }
+// syncIsoLegend() : aligne les pastilles de la legende 5/10/15 min sur les 3 couleurs choisies.
+// Appelee a chaque changement de style (applyMapStyle) pour rester coherente avec la carte.
 function syncIsoLegend(){
-  const cols=shades3(mapStyle.colorIsochrones);
-  const ids=['isoSw5','isoSw10','isoSw15'];
-  ids.forEach((id,i)=>{ const el=document.getElementById(id); if(el) el.style.background=cols[i]; });
+  const cols=isoColors();
+  ['isoSw5','isoSw10','isoSw15'].forEach((id,i)=>{ const el=document.getElementById(id); if(el) el.style.background=cols[i]; });
 }
 // refreshIsoColors() : re-synchronise la legende ET re-dessine l'isochrone affiche (s'il y en a un)
 // avec la nouvelle couleur, pour que carte et legende restent coherentes a chaque fois.
@@ -2021,18 +2023,22 @@ function initMapStyleUI(){
   $('mapOpacity').value=Math.round(mapStyle.layerOpacity*100); $('mapOpacityVal').textContent=$('mapOpacity').value;
   $('mapPointSize').value=mapStyle.pointSize; $('mapPointSizeVal').textContent=mapStyle.pointSize;
   $('colCentres').value=mapStyle.colorCentres; $('colQuartier').value=mapStyle.colorQuartier;
-  $('colCouverture').value=mapStyle.colorCouverture; $('colGrille').value=mapStyle.colorGrille; $('colIsochrones').value=mapStyle.colorIsochrones;
+  $('colCouverture').value=mapStyle.colorCouverture; $('colGrille').value=mapStyle.colorGrille;
+  $('colIso5').value=mapStyle.colorIso5; $('colIso10').value=mapStyle.colorIso10; $('colIso15').value=mapStyle.colorIso15;
   $('mapDarkToggle').checked = document.documentElement.getAttribute('data-theme')==='dark';
-  syncIsoLegend(); // la legende isochrones part de la couleur enregistree
+  syncIsoLegend(); // la legende isochrones part des couleurs enregistrees
 
   $('mapPalette').addEventListener('change',e=>{ mapStyle.palette=e.target.value; applyMapStyle(); const cp=$('chartPalette'); if(cp) cp.value=e.target.value; renderTab(filtered()); });
   $('mapDarkToggle').addEventListener('change',e=>{ applyAppearance(e.target.checked?'dark':'light', document.documentElement.getAttribute('data-accent')); });
   $('mapOpacity').addEventListener('input',e=>{ mapStyle.layerOpacity=(+e.target.value)/100; $('mapOpacityVal').textContent=e.target.value; applyMapStyle(); });
   $('mapPointSize').addEventListener('input',e=>{ mapStyle.pointSize=+e.target.value; $('mapPointSizeVal').textContent=e.target.value; renderMap(filtered()); localStorage.setItem('map_style_v1',JSON.stringify(mapStyle)); });
-  [['colCentres','colorCentres'],['colQuartier','colorQuartier'],['colCouverture','colorCouverture'],['colGrille','colorGrille'],['colIsochrones','colorIsochrones']].forEach(([id,key])=>{
-    $(id).addEventListener('input',e=>{ mapStyle[key]=e.target.value; applyMapStyle();
-      if(key==='colorIsochrones') refreshIsoColors(); // re-dessine l'isochrone affiche avec la nouvelle couleur
-    });
+  // couleurs des couches classiques
+  [['colCentres','colorCentres'],['colQuartier','colorQuartier'],['colCouverture','colorCouverture'],['colGrille','colorGrille']].forEach(([id,key])=>{
+    $(id).addEventListener('input',e=>{ mapStyle[key]=e.target.value; applyMapStyle(); });
+  });
+  // couleurs distinctes des 3 zones isochrones : re-dessine l'isochrone affiche + met a jour la legende
+  [['colIso5','colorIso5'],['colIso10','colorIso10'],['colIso15','colorIso15']].forEach(([id,key])=>{
+    $(id).addEventListener('input',e=>{ mapStyle[key]=e.target.value; applyMapStyle(); refreshIsoColors(); });
   });
 
   // Raccourci "Couleurs des graphiques" (visible sur tous les onglets, pas seulement Style cartographique) :
@@ -2053,9 +2059,10 @@ function initMapStyleUI(){
     $('mapOpacity').value=Math.round(mapStyle.layerOpacity*100); $('mapOpacityVal').textContent=$('mapOpacity').value;
     $('mapPointSize').value=mapStyle.pointSize; $('mapPointSizeVal').textContent=mapStyle.pointSize;
     $('colCentres').value=mapStyle.colorCentres; $('colQuartier').value=mapStyle.colorQuartier;
-    $('colCouverture').value=mapStyle.colorCouverture; $('colGrille').value=mapStyle.colorGrille; $('colIsochrones').value=mapStyle.colorIsochrones;
+    $('colCouverture').value=mapStyle.colorCouverture; $('colGrille').value=mapStyle.colorGrille;
+    $('colIso5').value=mapStyle.colorIso5; $('colIso10').value=mapStyle.colorIso10; $('colIso15').value=mapStyle.colorIso15;
     applyAppearance('light', document.documentElement.getAttribute('data-accent'));
-    applyMapStyle();
+    applyMapStyle(); refreshIsoColors();
   });
 }
 
