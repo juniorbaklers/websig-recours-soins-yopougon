@@ -241,6 +241,7 @@ h1,h2,section h2,.brand b,.logo,.stat b,.mod b,.src b,.cta-band h3{font-weight:7
 
 <script src="data/data.js"></script>
 <script src="data/centres.js"></script>
+<script src="data/routes.js"></script>
 <script>
 try{ document.getElementById('yr').textContent = new Date().getFullYear(); }catch(e){}
 const REDUCE = matchMedia('(prefers-reduced-motion:reduce)').matches;
@@ -314,7 +315,9 @@ function addLuminousRoads(map){
       opacity:r.c==='p'?.9:.72,lineCap:'round',lineJoin:'round',interactive:false}).addTo(map));
     setTimeout(()=>{ rp.style.opacity='1'; },60); // fondu (setTimeout : indépendant du compositing)
   };
-  // cache d'abord
+  // priorité : couche routes exportée depuis QGIS (data/routes.js -> window.ROUTES)
+  if(window.ROUTES && window.ROUTES.length){ draw(window.ROUTES); return; }
+  // repli : cache local puis OpenStreetMap
   try{ const c=localStorage.getItem(KEY); if(c){ draw(JSON.parse(c)); return; } }catch(e){}
   // sinon récupération unique depuis Overpass, sur l'emprise exacte des enquêtés
   const P=(window.DATA||[]).filter(d=>typeof d.lat==='number'&&typeof d.lng==='number');
