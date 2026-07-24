@@ -296,6 +296,44 @@ function countUp(el){
   })(performance.now());
 }
 
+// addLuminousRoads() : dessine les routes primaires (jaune vif) et secondaires (jaune) en lignes
+// lumineuses (halo doux + trait vif) sous les points. Les géométries viennent d'OpenStreetMap via
+// Overpass, récupérées UNE fois puis mises en cache (localStorage) ; échec silencieux si indisponible.
+function addLuminousRoads(map){
+  const KEY='bakusmap_roads_v1';
+  map.createPane('roadsPane'); const rp=map.getPane('roadsPane');
+  rp.style.zIndex=350; rp.style.opacity='0'; // sous les points (overlayPane=400) ; apparition en fondu
+  if(!REDUCE) rp.style.transition='opacity 1.1s ease';
+  const draw=(roads)=>{
+    if(!roads || !roads.length) return;
+    // 1) halo doux (large, transparent) pour l'effet lumineux
+    roads.forEach(r=>L.polyline(r.pts,{pane:'roadsPane',color:'#faff69',weight:r.c==='p'?7:4.5,opacity:.16,
+      lineCap:'round',lineJoin:'round',interactive:false}).addTo(map));
+    // 2) trait vif par-dessus le halo
+    roads.forEach(r=>L.polyline(r.pts,{pane:'roadsPane',color:r.c==='p'?'#fff7b0':'#faff69',weight:r.c==='p'?1.9:1.1,
+      opacity:r.c==='p'?.9:.72,lineCap:'round',lineJoin:'round',interactive:false}).addTo(map));
+    setTimeout(()=>{ rp.style.opacity='1'; },60); // fondu (setTimeout : indépendant du compositing)
+  };
+  // cache d'abord
+  try{ const c=localStorage.getItem(KEY); if(c){ draw(JSON.parse(c)); return; } }catch(e){}
+  // sinon récupération unique depuis Overpass, sur l'emprise exacte des enquêtés
+  const P=(window.DATA||[]).filter(d=>typeof d.lat==='number'&&typeof d.lng==='number');
+  if(!P.length) return;
+  let s=90,w=180,n=-90,e=-180;
+  P.forEach(d=>{ if(d.lat<s)s=d.lat; if(d.lat>n)n=d.lat; if(d.lng<w)w=d.lng; if(d.lng>e)e=d.lng; });
+  const g=0.006, bbox=[(s-g).toFixed(4),(w-g).toFixed(4),(n+g).toFixed(4),(e+g).toFixed(4)].join(',');
+  const q='[out:json][timeout:25];(way["highway"="primary"]('+bbox+');way["highway"="trunk"]('+bbox+');way["highway"="secondary"]('+bbox+'););out geom;';
+  fetch('https://overpass-api.de/api/interpreter',{method:'POST',headers:{'Content-Type':'text/plain'},body:q})
+    .then(r=>r.ok?r.json():Promise.reject(new Error('HTTP '+r.status)))
+    .then(j=>{
+      const roads=j.elements.filter(x=>x.type==='way'&&x.geometry)
+        .map(x=>({c:x.tags.highway==='secondary'?'s':'p', pts:x.geometry.map(gp=>[+gp.lat.toFixed(5),+gp.lon.toFixed(5)])}));
+      if(!roads.length) return;
+      try{ localStorage.setItem(KEY, JSON.stringify(roads)); }catch(e){}
+      draw(roads);
+    }).catch(()=>{}); // silencieux : la carte reste belle sans les routes
+}
+
 // initHeroMap() : mini-carte Leaflet de Yopougon en fond du hero (façon carte hero de Mapbox).
 // Fond sombre CARTO, couche des enquêtés en jaune de marque, et visite animée qui vole lentement
 // d'un quartier à l'autre avec zoom variable. Non interactive (n'intercepte ni le défilement ni les
@@ -310,7 +348,10 @@ function initHeroMap(){
   L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
     { subdomains:'abcd', maxZoom:19, attribution:'© OpenStreetMap · © CARTO' }).addTo(map);
 
-  // couche des enquêtés uniquement, en jaune de marque
+  // routes primaires et secondaires lumineuses (sous les points), chargées une fois puis mises en cache
+  addLuminousRoads(map);
+
+  // couche des enquêtés uniquement, en jaune de marque (au-dessus des routes)
   const pts=(window.DATA||[]).filter(d=>typeof d.lat==='number' && typeof d.lng==='number');
   pts.forEach(d=>L.circleMarker([d.lat,d.lng],{radius:2.4,weight:0,fillColor:'#faff69',fillOpacity:.55,interactive:false}).addTo(map));
 
