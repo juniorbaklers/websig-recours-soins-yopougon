@@ -1802,6 +1802,36 @@ function initStatsPanel(){
   const ct=document.getElementById('centresToggle'); if(ct) ct.addEventListener('change',()=>renderStatsPanel(filtered()));
 }
 
+// iconizeButtons() : remplace les symboles clavier en tete des boutons (⬇ ↺ ✕ ⚙ ➤ …) par
+// des icones SVG homogenes (style Lucide, stroke 2), pour une iconographie coherente sur tout
+// le tableau de bord sans dependance reseau. Ne touche qu'un bouton dont le contenu est un seul
+// noeud texte commencant par un symbole connu (les boutons deja en SVG sont ignores).
+const BTN_ICONS = {
+  '⬇':'<path d="M12 3v12M7 10l5 5 5-5"/><path d="M5 21h14"/>',
+  '⬆':'<path d="M12 21V9M7 14l5-5 5 5"/><path d="M5 3h14"/>',
+  '↺':'<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/>',
+  '✕':'<path d="M6 6l12 12M18 6 6 18"/>',
+  '➤':'<path d="M22 2 15 22l-4-9-9-4 20-7Z"/>',
+  '⚙':'<path d="M4 7h9M18 7h2M4 17h6M15 17h5"/><circle cx="15" cy="7" r="2"/><circle cx="10" cy="17" r="2"/>',
+  '↩':'<path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 5 5v3"/>',
+  '↔':'<path d="M8 3 4 7l4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/><path d="M20 17H4"/>',
+  '✓':'<path d="M20 6 9 17l-5-5"/>'
+};
+function iconSvg(inner,size){ return `<svg viewBox="0 0 24 24" width="${size||13}" height="${size||13}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none">${inner}</svg>`; }
+function iconizeButtons(root){
+  (root||document).querySelectorAll('button,.btn,a.hbtn,label.btn').forEach(el=>{
+    if(el.querySelector('svg')) return;                       // deja iconise
+    if(el.childNodes.length!==1 || el.firstChild.nodeType!==3) return; // pas un simple libelle texte
+    const t=el.textContent.replace(/^\s+/,'');
+    const sym=t.charAt(0);
+    if(!BTN_ICONS[sym]) return;
+    const rest=t.slice(1).replace(/^\s+/,'');
+    el.innerHTML = iconSvg(BTN_ICONS[sym]) + (rest?` <span>${esc(rest)}</span>`:'');
+    el.style.display='inline-flex'; el.style.alignItems='center'; el.style.justifyContent='center';
+    el.style.gap = rest? '6px' : '0';
+  });
+}
+
 // initMapCtrls() : branche le tiroir flottant "Options de la carte" (ferme par defaut, pour
 // laisser toute la largeur a la carte) et restaure l'etat memorise.
 function initMapCtrls(){
@@ -1987,6 +2017,7 @@ document.addEventListener('DOMContentLoaded',async ()=>{
   initStatsPanel();
   initMapCtrls(); // tiroir flottant "Options de la carte"
   initSidebarToggle(); // repli des filtres sur mobile/tablette
+  iconizeButtons(); // remplace les symboles clavier des boutons par des icones SVG homogenes
 
   // 11. style cartographique (etape 5b)
   initMapStyleUI();
