@@ -124,7 +124,7 @@ const EDIT_KEY='websig_edits_v1'; // cle de sauvegarde des deplacements dans le 
 // mode de deplacement, centre de sante, satisfaction, perception de la
 // distance, accessibilite), les groupes suivants reprennent le detail.
 const FILTER_GROUPS = [
-  { g:'🎯 Filtres essentiels', keys:['quartier','sexe','age','premierRecoursCat','bandPrim','revenu','coutTransport','locomotion','nearestName','satisfaitMedecin','opinionDistance','coverClass'] },
+  { g:'Filtres essentiels', keys:['quartier','sexe','age','premierRecoursCat','bandPrim','revenu','coutTransport','locomotion','nearestName','satisfaitMedecin','opinionDistance','coverClass'] },
   { g:'Profil', keys:['nationalite','ethnie','matrimonial','religion','instruction','professionCat','cadreProfession'] },
   { g:'Localisation', keys:['lieuNaissance'] },
   { g:'Ménage & économie', keys:['statutLogement','typeConstruction','nbPieces','depenses','nbEnfantsCat','personnesCharge','autreRevenu'] },
@@ -155,7 +155,7 @@ function detectTemporalField(){
 const TEMPORAL_FIELD=detectTemporalField();
 if(TEMPORAL_FIELD){
   if(!DIMS[TEMPORAL_FIELD]) DIMS[TEMPORAL_FIELD]="Campagne / période d'enquête";
-  FILTER_GROUPS.push({ g:"🕐 Campagne d'enquête / Analyse temporelle", keys:[TEMPORAL_FIELD] });
+  FILTER_GROUPS.push({ g:"Campagne d'enquête / Analyse temporelle", keys:[TEMPORAL_FIELD] });
 }
 
 
@@ -997,7 +997,7 @@ function buildFilters(){
     }).join('');
   }).join('') + (TEMPORAL_FIELD ? '' :
     // etape 5a : aucun champ temporel detecte -> message discret plutot qu'un filtre vide
-    `<details class="fg"><summary>🕐 Campagne d'enquête / Analyse temporelle<span class="chev">▶</span></summary>`+
+    `<details class="fg"><summary>Campagne d'enquête / Analyse temporelle<span class="chev">▶</span></summary>`+
     `<div class="opts"><div class="note" style="margin:2px 0 4px">Données issues d'une campagne d'enquête unique. Aucun filtre temporel disponible pour le moment.</div></div></details>`);
   // quand on coche/decoche : on met a jour l'ensemble filters puis on rafraichit tout
   body.querySelectorAll('input[type=checkbox]').forEach(cb=>cb.addEventListener('change',()=>{
