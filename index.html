@@ -13,11 +13,16 @@
 /* Palette sombre sanitaire, identique à plateforme.html (data-theme="dark", data-accent="cyan") */
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --bg:#0d1620; --panel:#16212e; --panel2:#121b26; --ink:#e6edf5; --muted:#93a6ba; --line:#26333f;
+  --bg:#0d1620; --panel:#16212e; --panel2:#121b26; --ink:#e6edf5; --muted:#9fb2c6; --line:#283543;
   --brand:#3ec8e0; --brand2:#34d399; --gold:#ffd27a; --shadow:0 1px 3px rgba(0,0,0,.45),0 8px 26px rgba(0,0,0,.35);
+  --focus:#5b9dff;
 }
 html,body{height:100%}
-body{font-family:'Inter','Noto Sans','Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:var(--bg)}
+body{font-family:'Inter','Noto Sans','Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:var(--bg);
+  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+/* Anneau de focus clavier accessible (cohérent avec la plateforme) */
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px;border-radius:4px}
+:where(a,button,input,select,summary,[tabindex]):focus:not(:focus-visible){outline:none}
 h1,h2,.brand b,.cta,.logo,.stat b,.card h3{font-family:'Manrope','Inter',sans-serif}
 .lead,.sub,p,.chip,.foot,.tag{font-family:'Noto Sans','Inter',sans-serif}
 a{text-decoration:none;color:inherit}
