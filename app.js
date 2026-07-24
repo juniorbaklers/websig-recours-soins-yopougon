@@ -752,7 +752,7 @@ function addGisTools(){
   const bar=L.control({position:'topright'});
   bar.onAdd=function(){ const c=L.DomUtil.create('div','leaflet-bar gis-bar');
     c.innerHTML=`<a href="#" title="Vue d'ensemble de Yopougon" id="gisHome">⌂</a>`+
-                `<a href="#" title="Mesurer une distance (clic sur la carte, double-clic pour effacer)" id="gisMeasure">📏</a>`+
+                `<a href="#" title="Mesurer une distance (clic sur la carte, double-clic pour effacer)" id="gisMeasure"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17 17 3l4 4L7 21Z"/><path d="m14 6 2 2M11 9l2 2M8 12l2 2"/></svg></a>`+
                 `<a href="#" title="Plein écran" id="gisFull">⛶</a>`;
     L.DomEvent.disableClickPropagation(c); return c; };
   bar.addTo(map);
@@ -1728,6 +1728,50 @@ function renderStatsPanel(recs){
     o=>o.hors+' pers.', o=>'var(--danger, #d9534f)');
 }
 
+// toggleQuartierFilter() : clic sur une carte de classement (onglet Carte) -> isole ce
+// quartier dans le filtre "quartier" (memes cases a cocher que la colonne de gauche),
+// ou l'enleve si deja isole seul.
+function toggleQuartierFilter(q){
+  const boxes=[...document.querySelectorAll('#filterBody input[type=checkbox][data-k="quartier"]')];
+  const isolated = filters.quartier && filters.quartier.size===1 && filters.quartier.has(q);
+  boxes.forEach(b=>{
+    const want = !isolated && b.value===q;
+    if(b.checked!==want){ b.checked=want; b.dispatchEvent(new Event('change')); }
+  });
+}
+
+// renderMapRanking() : cartes de classement des quartiers (onglet Carte), avec un score
+// d'acces aux soins indicatif = 50% couverture <=15 min + 30% proximite + 20% population
+// enquetee (les 3 composantes viennent de quartierAgg(), calculees sur la selection active).
+function renderMapRanking(recs){
+  const list=document.getElementById('mapRankingList'); if(!list) return;
+  const qa=quartierAgg(recs).filter(o=>o.n>=3);
+  if(!qa.length){ list.innerHTML='<div class="mr-empty">Pas assez de données sur la sélection actuelle (min. 3 enquêtés par quartier).</div>'; return; }
+  const maxN=Math.max(...qa.map(o=>o.n));
+  const DIST_REF=2000; // m : distance moyenne au-dela de laquelle la proximite est comptee nulle
+  const activeQ = (filters.quartier && filters.quartier.size===1) ? [...filters.quartier][0] : null;
+  const scored=qa.map(o=>{
+    const cov=o.taux!=null?o.taux:0;
+    const prox=o.distMoy!=null?Math.max(0,100-100*o.distMoy/DIST_REF):0;
+    const pop=maxN?100*o.n/maxN:0;
+    return {...o, cov, prox, pop, score:Math.round(0.5*cov+0.3*prox+0.2*pop)};
+  }).sort((a,b)=>b.score-a.score).slice(0,12);
+  list.innerHTML=scored.map((o,i)=>`
+    <div class="mr-card${o.q===activeQ?' active':''}" data-q="${esc(o.q)}">
+      <div class="mr-top">
+        <span class="mr-rank">${i+1}</span>
+        <span class="mr-name" title="${esc(o.q)}">${o.q}</span>
+        <span class="mr-score">${o.score}</span>
+      </div>
+      <div class="mr-bars">
+        <div class="mr-bar-row"><span class="mr-bar-label">Couverture</span><span class="mr-bar-track"><span class="mr-bar-fill" style="width:${o.cov}%"></span></span><span class="mr-bar-val">${o.cov.toFixed(0)}%</span></div>
+        <div class="mr-bar-row"><span class="mr-bar-label">Proximité</span><span class="mr-bar-track"><span class="mr-bar-fill" style="width:${o.prox}%"></span></span><span class="mr-bar-val">${o.distMoy!=null?Math.round(o.distMoy)+'m':'—'}</span></div>
+        <div class="mr-bar-row"><span class="mr-bar-label">Population</span><span class="mr-bar-track"><span class="mr-bar-fill" style="width:${o.pop}%"></span></span><span class="mr-bar-val">${o.n}</span></div>
+      </div>
+    </div>`).join('');
+  list.querySelectorAll('.mr-card').forEach(card=>card.addEventListener('click',()=>toggleQuartierFilter(card.dataset.q)));
+}
+
 // initStatsPanel() : branche le bouton reduire/agrandir et restaure l'etat memorise
 function initStatsPanel(){
   const panel=document.getElementById('statsPanel'), wrap=document.querySelector('.wrap'), btn=document.getElementById('spToggle');
@@ -1758,7 +1802,7 @@ function initSidebarToggle(){
 // refresh() : LE point central. A chaque changement de filtre, on recalcule la
 // selection puis on met a jour les pastilles, les KPIs, l'onglet visible et le
 // panneau statistique de droite (etape 3, toujours visible quel que soit l'onglet).
-function refresh(){ const recs=filtered(); renderChips(); renderKPIs(recs); renderTab(recs); renderStatsPanel(recs); }
+function refresh(){ const recs=filtered(); renderChips(); renderKPIs(recs); renderTab(recs); renderStatsPanel(recs); renderMapRanking(recs); }
 
 // switchTab() : change d'onglet (affiche/masque les sections, redessine)
 // lastContentTab : dernier onglet d'ANALYSE visite (hors Exports), pour que l'onglet
@@ -2131,7 +2175,7 @@ function buildImportedLayer(){
     const mk=L.marker([d.lat,d.lng],{icon:L.divIcon({className:'',iconSize:[14,14],iconAnchor:[7,7],
       html:`<div style="width:11px;height:11px;background:${mapStyle.colorQuartier};border:2px solid #fff;box-shadow:0 0 3px rgba(0,0,0,.6);transform:rotate(45deg)"></div>`})});
     const rows=[['Libellé',d.label],['Quartier',d.quartier],['Valeur',d.value],['Statistique',d.stat],['Champ temporel',d.temporal]].filter(r=>r[1]!=null && r[1]!=='');
-    mk.bindPopup(`<div class="pop"><span class="ttl">📥 ${esc(d.label||d.id)}</span><table>${rows.map(r=>`<tr><td class="k">${r[0]}</td><td class="v">${esc(r[1])}</td></tr>`).join('')}</table></div>`);
+    mk.bindPopup(`<div class="pop"><span class="ttl">${esc(d.label||d.id)}</span><table>${rows.map(r=>`<tr><td class="k">${r[0]}</td><td class="v">${esc(r[1])}</td></tr>`).join('')}</table></div>`);
     importedLayer.addLayer(mk);
   });
   if(pts.length && !map.hasLayer(importedLayer)) importedLayer.addTo(map);
@@ -2270,8 +2314,8 @@ function ansSummary(recs){
 function chatFallback(){
   return "Je n'ai pas de réponse automatique toute prête à cette question précise. Essayez une question rapide ci-dessous, reformulez avec le nom d'une variable de l'enquête (ex. « revenu », « instruction », « assurance », « profession »…), ou connectez Claude/ChatGPT via l'icône ⚙ en haut du chat pour que je réponde à absolument tout.";
 }
-function ansGreeting(){ return "Bonjour 👋 Que puis-je faire pour vous : couverture, distance, recours, quartiers, satisfaction, ou une variable précise de l'enquête (revenu, instruction, assurance…) ?"; }
-function ansThanks(){ return "Avec plaisir 🙂 N'hésitez pas si vous avez d'autres questions."; }
+function ansGreeting(){ return "Bonjour, que puis-je faire pour vous : couverture, distance, recours, quartiers, satisfaction, ou une variable précise de l'enquête (revenu, instruction, assurance…) ?"; }
+function ansThanks(){ return "Avec plaisir. N'hésitez pas si vous avez d'autres questions."; }
 function ansHelpBot(){ return "Je peux répondre sur : la couverture sanitaire, la distance aux centres, le recours aux soins, les quartiers (représentation, priorité, vulnérabilité), la satisfaction, et toute variable de l'enquête (ex. « quel est le revenu dominant ? », « quelle assurance maladie ? »). Pour des questions totalement libres, connectez Claude ou ChatGPT via l'icône ⚙."; }
 // ansGenericVariable() : filet generique — si la question cite le libelle d'une variable de
 // l'enquete (DIMS), renvoie sa modalite dominante sur la selection courante. Couvre des dizaines
@@ -2415,7 +2459,7 @@ function initChatWidget(){
   const setOpen=o=>{
     widget.classList.toggle('collapsed',!o); localStorage.setItem('chat_open',o?'1':'0');
     if(o && !body.dataset.greeted){
-      addChatMsg('bot',"Bonjour 👋 Je suis l'assistant de Bakusm@p. Posez-moi une question sur la carte, les statistiques, les graphiques ou les tableaux — je réponds à partir des données actuellement filtrées. Vous pouvez aussi cliquer une question rapide ci-dessous, ou connecter Claude/ChatGPT via l'icône ⚙ pour des réponses libres.");
+      addChatMsg('bot',"Bonjour, je suis l'assistant de Bakusm@p. Posez-moi une question sur la carte, les statistiques, les graphiques ou les tableaux — je réponds à partir des données actuellement filtrées. Vous pouvez aussi cliquer une question rapide ci-dessous, ou connecter Claude/ChatGPT via l'icône ⚙ pour des réponses libres.");
       body.dataset.greeted='1';
     }
   };
@@ -2799,7 +2843,12 @@ function applyPresentationMode(on){
   document.body.classList.toggle('presentation-mode',on);
   localStorage.setItem('ui_presentation',on?'1':'0');
   const btn=document.getElementById('modeBtn');
-  if(btn){ btn.textContent = on ? '📊' : '🎓'; btn.title = on ? 'Revenir en Mode Analyse (tout visible)' : 'Passer en Mode Présentation (interface épurée)'; }
+  if(btn){
+    btn.innerHTML = on
+      ? '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>'
+      : '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>';
+    btn.title = on ? 'Revenir en Mode Analyse (tout visible)' : 'Passer en Mode Présentation (interface épurée)';
+  }
   const hiddenTabs=['matrice','croise','explor','donnees','exports'];
   if(on && hiddenTabs.includes(currentTab)) switchTab('carte');
   if(map) setTimeout(()=>map.invalidateSize(),220); // la carte change de largeur -> Leaflet doit recalculer sa taille
@@ -2880,7 +2929,7 @@ function exportElementCanvasPng(container,filename){
 function popOutElement(sourceEl,{id,title,exportName,width}={}){
   if(!sourceEl || sourceEl.dataset.poppedOut==='1') return;
   const placeholder=document.createElement('div'); placeholder.className='popout-placeholder';
-  placeholder.innerHTML=`<span>🗗 Actuellement affiché dans une fenêtre flottante</span><button class="btn" type="button">↩ Revenir ici</button>`;
+  placeholder.innerHTML=`<span>Actuellement affiché dans une fenêtre flottante</span><button class="btn" type="button">↩ Revenir ici</button>`;
   sourceEl.parentNode.insertBefore(placeholder,sourceEl);
   sourceEl.dataset.poppedOut='1';
   const winId='fw-'+id;
@@ -2891,7 +2940,7 @@ function popOutElement(sourceEl,{id,title,exportName,width}={}){
   placeholder.querySelector('button').addEventListener('click',()=>ctrl.close());
 }
 
-// initChartPopouts() : ajoute un bouton 🗗 sur chaque carte-graphique existante (tous onglets confondus,
+// initChartPopouts() : ajoute un bouton "fenêtre flottante" sur chaque carte-graphique existante (tous onglets confondus,
 // la HTML de chaque onglet existe des le chargement, seule sa visibilite change) pour l'ouvrir en fenetre flottante.
 function initChartPopouts(){
   document.querySelectorAll('.card').forEach(card=>{
@@ -2899,7 +2948,8 @@ function initChartPopouts(){
     if(!box || !h3 || !box.querySelector('canvas') || h3.querySelector('.popout-btn')) return;
     const canvas=box.querySelector('canvas');
     const btn=document.createElement('button');
-    btn.className='popout-btn'; btn.type='button'; btn.title='Ouvrir dans une fenêtre flottante'; btn.textContent='🗗';
+    btn.className='popout-btn'; btn.type='button'; btn.title='Ouvrir dans une fenêtre flottante';
+    btn.innerHTML='<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>';
     btn.addEventListener('click',e=>{ e.stopPropagation();
       const titleTxt=(h3.childNodes[0]&&h3.childNodes[0].textContent||h3.textContent).trim();
       popOutElement(box,{id:canvas.id||('chart'+Math.random().toString(36).slice(2)),title:titleTxt,exportName:canvas.id,width:440});
@@ -2943,7 +2993,10 @@ function applyAppearance(theme,accent){
   document.documentElement.setAttribute('data-theme',theme);
   document.documentElement.setAttribute('data-accent',accent);
   localStorage.setItem('ui_theme',theme); localStorage.setItem('ui_accent',accent);
-  const tb=document.getElementById('themeBtn'); if(tb) tb.textContent = theme==='dark' ? '☀' : '🌙';
+  const tb=document.getElementById('themeBtn');
+  if(tb) tb.innerHTML = theme==='dark'
+    ? '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>'
+    : '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/></svg>';
   document.querySelectorAll('.acc').forEach(b=>b.classList.toggle('on',b.dataset.acc===accent));
   const mdt=document.getElementById('mapDarkToggle'); if(mdt) mdt.checked = theme==='dark'; // synchro avec le panneau Style cartographique (etape 5b)
   applyChartTheme(theme);

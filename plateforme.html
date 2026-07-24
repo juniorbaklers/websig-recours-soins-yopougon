@@ -161,7 +161,47 @@ table.ct tr.rowclick:hover td{background:#eaf2f8}
 .note{font-size:11.5px;color:var(--muted);margin-top:8px}
 .maprow{display:grid;grid-template-columns:1fr 260px;gap:14px}
 @media(max-width:900px){.maprow{grid-template-columns:1fr}}
-.mapctrls .card{margin-bottom:14px}
+.mapctrls .card{margin-bottom:0}
+
+/* --- Sections repliables de la colonne "Options de la carte" --- */
+.mcpanel{border:1px solid var(--line);border-radius:var(--radius);margin-bottom:8px;background:var(--panel);overflow:hidden;box-shadow:var(--shadow)}
+.mcpanel summary{cursor:pointer;padding:9px 12px;font-size:12.5px;font-weight:700;color:var(--ink);list-style:none;display:flex;align-items:center;justify-content:space-between}
+.mcpanel summary::-webkit-details-marker{display:none}
+.mcpanel summary::after{content:'';width:7px;height:7px;border-right:1.6px solid var(--muted);border-bottom:1.6px solid var(--muted);transform:rotate(45deg);transition:transform .15s;margin-left:8px}
+.mcpanel[open] summary::after{transform:rotate(-135deg)}
+.mcpanel .card{box-shadow:none;border:none;border-top:1px solid var(--line);border-radius:0;padding:10px 12px 12px}
+
+/* --- Classement des quartiers (en tete du panneau statistique droit) --- */
+.mapranking{display:flex;flex-direction:column;gap:10px}
+.mr-head{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:11px 13px}
+.mr-head b{display:block;font-size:13.5px}
+.mr-head .mr-sub{display:block;font-size:11px;color:var(--muted);margin-top:2px}
+.mr-list{display:flex;flex-direction:column;gap:8px}
+.mr-card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:10px 12px;cursor:pointer;transition:.15s}
+.mr-card:hover{border-color:var(--brand);transform:translateY(-1px)}
+.mr-card.active{border-color:var(--brand);box-shadow:0 0 0 2px var(--brand) inset}
+.mr-top{display:flex;align-items:center;gap:8px}
+.mr-rank{width:20px;height:20px;border-radius:6px;background:var(--brand);color:#fff;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;flex:none}
+.mr-name{flex:1;font-size:12.5px;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mr-score{font-size:15px;font-weight:800;color:var(--brand);font-variant-numeric:tabular-nums}
+.mr-bars{margin-top:8px;display:flex;flex-direction:column;gap:4px}
+.mr-bar-row{display:flex;align-items:center;gap:6px;font-size:10px;color:var(--muted)}
+.mr-bar-label{width:64px;flex:none}
+.mr-bar-track{flex:1;height:5px;border-radius:3px;background:var(--line);overflow:hidden}
+.mr-bar-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--brand),var(--brand2))}
+.mr-bar-val{width:34px;flex:none;text-align:right;font-variant-numeric:tabular-nums}
+.mr-meta{margin-top:6px;font-size:10.5px;color:var(--muted)}
+.mr-empty{font-size:11.5px;color:var(--muted);padding:4px 2px}
+
+/* --- Grappes de points (Leaflet.markercluster) : pastilles plates au lieu du style par defaut --- */
+.marker-cluster{background:transparent!important}
+.marker-cluster div{background:var(--brand)!important;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-weight:800;font-family:'Inter',sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.35);border:2px solid #fff}
+.marker-cluster span{font-size:inherit}
+.marker-cluster-small{background:transparent!important}
+.marker-cluster-small div{width:32px!important;height:32px!important;margin-left:4px!important;margin-top:4px!important;font-size:11px}
+.marker-cluster-medium div{width:38px!important;height:38px!important;margin-left:1px!important;margin-top:1px!important;font-size:12.5px}
+.marker-cluster-large div{width:46px!important;height:46px!important;margin-left:-3px!important;margin-top:-3px!important;font-size:14px}
 .switch{display:flex;align-items:center;gap:8px;font-size:12.5px;margin:6px 0}
 .hidden{display:none}
 .gis-coord{background:rgba(255,255,255,.9);padding:2px 8px;border-radius:6px;font-size:11px;color:#334155;font-variant-numeric:tabular-nums;box-shadow:0 1px 4px rgba(0,0,0,.2)}
@@ -460,11 +500,11 @@ body.presentation-mode .maprow{grid-template-columns:1fr}
       <button class="acc" data-acc="green" title="Vert santé"></button>
       <button class="acc" data-acc="alert" title="Orange / rouge doux"></button>
     </div>
-    <button class="hbtn" id="modeBtn" title="Basculer Mode Analyse / Mode Présentation">🎓</button>
-    <button class="hbtn" id="themeBtn" title="Thème clair / sombre">🌙</button>
+    <button class="hbtn" id="modeBtn" title="Basculer Mode Analyse / Mode Présentation"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg></button>
+    <button class="hbtn" id="themeBtn" title="Thème clair / sombre"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/></svg></button>
     <button class="hbtn" id="resetAppearance" title="Réinitialiser l'apparence">↺</button>
     <button class="hbtn" id="exportBtn" title="Exporter les données filtrées (CSV)">⬇</button>
-    <button class="hbtn" id="storyBtn" title="Visite guidée (storytelling)">🎬</button>
+    <button class="hbtn" id="storyBtn" title="Visite guidée (storytelling)"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m14.5 9.5-2 5-5 2 2-5 5-2Z"/></svg></button>
     <button class="hbtn" id="helpBtn" title="Aide">?</button>
     <a class="hbtn" href="index.html" title="Retour à l'accueil">⌂</a>
   </div>
@@ -481,7 +521,7 @@ body.presentation-mode .maprow{grid-template-columns:1fr}
       <li><b>Isochrones</b> : cochez « Isochrones » puis choisissez ou cliquez un centre pour voir les zones atteignables à 5 / 10 / 15 min de marche.</li>
       <li><b>Zones faiblement desservies</b> : met en évidence les personnes situées hors de la zone des 15 minutes.</li>
       <li><b>Mode édition</b> : déplacez un point mal placé ; ses coordonnées et sa cellule se mettent à jour, puis publiez en ligne.</li>
-      <li><b>Apparence</b> : bouton 🌙 pour le thème sombre, les 3 pastilles pour la couleur d'interface, ↺ pour revenir au style par défaut.</li>
+      <li><b>Apparence</b> : bouton thème pour le mode sombre, les 3 pastilles pour la couleur d'interface, ↺ pour revenir au style par défaut.</li>
       <li><b>Export</b> : le bouton ⬇ télécharge les données correspondant aux filtres actifs.</li>
     </ul>
     <button class="btn solid" id="helpClose" style="margin-top:12px">Fermer</button>
@@ -525,7 +565,7 @@ body.presentation-mode .maprow{grid-template-columns:1fr}
 
     <!-- Couleurs des graphiques (accessible partout, pas seulement dans Style cartographique) -->
     <div class="chartpal-bar">
-      <label class="lbl" for="chartPalette">🎨 Couleurs des graphiques</label>
+      <label class="lbl" for="chartPalette">Couleurs des graphiques</label>
       <select class="sel" id="chartPalette">
         <option value="bleu">Bleu</option>
         <option value="vert">Vert</option>
@@ -547,87 +587,111 @@ body.presentation-mode .maprow{grid-template-columns:1fr}
       <div class="maprow">
         <div id="map"></div>
         <div class="mapctrls">
-          <div class="card">
-            <h3>Colorer les points par</h3>
-            <select class="sel" id="colorBy" style="width:100%"></select>
-            <div class="switch"><input type="checkbox" id="clusterToggle"><label for="clusterToggle">Regrouper les points (densité)</label></div>
-            <div style="margin:6px 0"><label class="lbl" for="basemapSelect">Fond de carte</label>
-              <select class="sel" id="basemapSelect" style="width:100%;margin-top:3px">
-                <option value="osm">Plan (OpenStreetMap)</option>
-                <option value="carto">Clair (CARTO)</option>
-                <option value="cartodark">Sombre (CARTO)</option>
-                <option value="gsat">Satellite (Google)</option>
-                <option value="ghyb">Satellite + rues (Google)</option>
-                <option value="esri">Satellite (Esri World Imagery)</option>
-              </select></div>
-            <hr style="border:none;border-top:1px solid var(--line);margin:8px 0">
-            <!-- Style cartographique (etape 5b) : palette, mode, opacite, taille des points, couleurs des couches -->
-            <div style="font-weight:600;font-size:12px;margin-bottom:4px">🎨 Style cartographique</div>
-            <div style="margin:6px 0"><label class="lbl" for="mapPalette">Palette de couleurs</label>
-              <select class="sel" id="mapPalette" style="width:100%;margin-top:3px">
-                <option value="bleu">Bleu</option>
-                <option value="vert">Vert</option>
-                <option value="jor">Jaune-orange-rouge</option>
-                <option value="violet">Violet</option>
-                <option value="turquoise">Turquoise</option>
-                <option value="rouge">Rouge</option>
-                <option value="sombre">Sombre</option>
-                <option value="claire">Claire</option>
-                <option value="daltonienne">Daltonienne (accessible)</option>
-              </select></div>
-            <div class="switch"><input type="checkbox" id="mapDarkToggle"><label for="mapDarkToggle">Mode sombre (interface)</label></div>
-            <div style="margin:6px 0"><label class="lbl" for="mapOpacity">Opacité des couches (<span id="mapOpacityVal">50</span>%)</label>
-              <input type="range" id="mapOpacity" min="0" max="100" value="50" style="width:100%"></div>
-            <div style="margin:6px 0"><label class="lbl" for="mapPointSize">Taille des points (<span id="mapPointSizeVal">5.5</span> px)</label>
-              <input type="range" id="mapPointSize" min="2" max="12" step="0.5" value="5.5" style="width:100%"></div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:6px 0 2px">
-              <label class="lbl" style="display:flex;align-items:center;gap:5px">🏥 Centres <input type="color" class="colorpick" id="colCentres" value="#0d8a6a"></label>
-              <label class="lbl" style="display:flex;align-items:center;gap:5px">🏘️ Quartiers <input type="color" class="colorpick" id="colQuartier" value="#0f5e8f"></label>
-              <label class="lbl" style="display:flex;align-items:center;gap:5px">⭕ Couverture <input type="color" class="colorpick" id="colCouverture" value="#0d8a6a"></label>
-              <label class="lbl" style="display:flex;align-items:center;gap:5px">▦ Grille <input type="color" class="colorpick" id="colGrille" value="#5f6b7a"></label>
-              <label class="lbl" style="display:flex;align-items:center;gap:5px;grid-column:1/-1">🕒 Isochrones <input type="color" class="colorpick" id="colIsochrones" value="#2e7d32"></label>
+          <details class="mcpanel" open>
+            <summary>Affichage</summary>
+            <div class="card">
+              <h3>Colorer les points par</h3>
+              <select class="sel" id="colorBy" style="width:100%"></select>
+              <div class="switch"><input type="checkbox" id="clusterToggle" checked><label for="clusterToggle">Regrouper les points (densité)</label></div>
+              <div style="margin:6px 0"><label class="lbl" for="basemapSelect">Fond de carte</label>
+                <select class="sel" id="basemapSelect" style="width:100%;margin-top:3px">
+                  <option value="osm">Plan (OpenStreetMap)</option>
+                  <option value="carto">Clair (CARTO)</option>
+                  <option value="cartodark">Sombre (CARTO)</option>
+                  <option value="gsat">Satellite (Google)</option>
+                  <option value="ghyb">Satellite + rues (Google)</option>
+                  <option value="esri">Satellite (Esri World Imagery)</option>
+                </select></div>
             </div>
-            <button class="btn" id="resetMapStyle" style="width:100%;margin-top:2px">↺ Réinitialiser le style</button>
-            <hr style="border:none;border-top:1px solid var(--line);margin:8px 0">
-            <div class="switch"><input type="checkbox" id="centresToggle" checked><label for="centresToggle">🏥 Centres de santé (108)</label></div>
-            <div class="switch"><input type="checkbox" id="buffer500Toggle"><label for="buffer500Toggle">Zone de couverture 500 m</label></div>
-            <div class="switch"><input type="checkbox" id="buffer1000Toggle"><label for="buffer1000Toggle">Zone de couverture 1 km</label></div>
-            <div class="switch"><input type="checkbox" id="boundaryToggle" checked><label for="boundaryToggle">Limite de Yopougon</label></div>
-            <hr style="border:none;border-top:1px solid var(--line);margin:8px 0">
-            <div class="switch"><input type="checkbox" id="isoToggle"><label for="isoToggle">🕒 <b>Isochrones</b> — accessibilité à pied</label></div>
-            <select class="sel" id="isoCentre" style="width:100%;margin:3px 0;font-size:11px"><option value="">— Choisir un centre de santé —</option></select>
-            <div class="isolegend" id="isoLegend">
-              <span><i style="background:#1a9850"></i>5 min</span>
-              <span><i style="background:#f9a825"></i>10 min</span>
-              <span><i style="background:#c62828"></i>15 min</span>
+          </details>
+          <details class="mcpanel">
+            <summary>Style cartographique</summary>
+            <div class="card">
+              <div style="margin:6px 0"><label class="lbl" for="mapPalette">Palette de couleurs</label>
+                <select class="sel" id="mapPalette" style="width:100%;margin-top:3px">
+                  <option value="bleu">Bleu</option>
+                  <option value="vert">Vert</option>
+                  <option value="jor">Jaune-orange-rouge</option>
+                  <option value="violet">Violet</option>
+                  <option value="turquoise">Turquoise</option>
+                  <option value="rouge">Rouge</option>
+                  <option value="sombre">Sombre</option>
+                  <option value="claire">Claire</option>
+                  <option value="daltonienne">Daltonienne (accessible)</option>
+                </select></div>
+              <div class="switch"><input type="checkbox" id="mapDarkToggle"><label for="mapDarkToggle">Mode sombre (interface)</label></div>
+              <div style="margin:6px 0"><label class="lbl" for="mapOpacity">Opacité des couches (<span id="mapOpacityVal">50</span>%)</label>
+                <input type="range" id="mapOpacity" min="0" max="100" value="50" style="width:100%"></div>
+              <div style="margin:6px 0"><label class="lbl" for="mapPointSize">Taille des points (<span id="mapPointSizeVal">5.5</span> px)</label>
+                <input type="range" id="mapPointSize" min="2" max="12" step="0.5" value="5.5" style="width:100%"></div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:6px 0 2px">
+                <label class="lbl" style="display:flex;align-items:center;gap:5px">Centres <input type="color" class="colorpick" id="colCentres" value="#0d8a6a"></label>
+                <label class="lbl" style="display:flex;align-items:center;gap:5px">Quartiers <input type="color" class="colorpick" id="colQuartier" value="#0f5e8f"></label>
+                <label class="lbl" style="display:flex;align-items:center;gap:5px">Couverture <input type="color" class="colorpick" id="colCouverture" value="#0d8a6a"></label>
+                <label class="lbl" style="display:flex;align-items:center;gap:5px">Grille <input type="color" class="colorpick" id="colGrille" value="#5f6b7a"></label>
+                <label class="lbl" style="display:flex;align-items:center;gap:5px;grid-column:1/-1">Isochrones <input type="color" class="colorpick" id="colIsochrones" value="#2e7d32"></label>
+              </div>
+              <button class="btn" id="resetMapStyle" style="width:100%;margin-top:2px">↺ Réinitialiser le style</button>
             </div>
-            <div id="isoInfo" class="note" style="min-height:14px;color:var(--brand)"></div>
-            <div class="switch"><input type="checkbox" id="underToggle"><label for="underToggle">🚩 Zones faiblement desservies (hors 15 min)</label></div>
-            <input id="orsKey" class="sel" style="width:100%;margin-top:2px;font-size:11px" placeholder="Clé OpenRouteService (optionnelle)">
-            <div class="note">Choisissez un centre (ou cochez Isochrones puis cliquez un centre) pour voir les zones atteignables en 5/10/15 min. Sans clé : zones approximatives par distance. Clé gratuite sur openrouteservice.org pour des isochrones réseau réelles.</div>
-            <hr style="border:none;border-top:1px solid var(--line);margin:8px 0">
-            <div class="switch"><input type="checkbox" id="gridToggle"><label for="gridToggle">▦ Grille d'échantillonnage (500 m)</label></div>
-            <div class="switch"><input type="checkbox" id="gridViewToggle"><label for="gridViewToggle"><b>Vue échantillonnage</b> (1 point/personne par cellule)</label></div>
-            <div class="note">Chaque point = un enquêté. La <b>vue échantillonnage</b> repositionne chaque personne dans sa cellule (1H + 1F par cellule, max 4) pour respecter le plan de la grille ; décochez-la pour revenir aux positions GPS réelles. La grille est colorée par nombre d'enquêtés par cellule.</div>
-            <hr style="border:none;border-top:1px solid var(--line);margin:8px 0">
-            <div class="switch"><input type="checkbox" id="editToggle"><label for="editToggle">✏️ <b>Mode édition</b> — déplacer les points</label></div>
-            <div id="editInfo" class="note" style="min-height:14px;color:var(--brand)"></div>
-            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">
-              <button class="btn" id="exportPositions">⬇ Données actualisées (CSV)</button>
-              <button class="btn" id="exportDataJs">⬇ data.js (publication)</button>
-              <label class="btn" for="importPositions" style="cursor:pointer">⬆ Importer</label>
-              <input type="file" id="importPositions" accept=".csv" style="display:none">
-              <button class="btn" id="resetPositions">↺ Réinitialiser</button>
+          </details>
+          <details class="mcpanel">
+            <summary>Couches</summary>
+            <div class="card">
+              <div class="switch"><input type="checkbox" id="centresToggle" checked><label for="centresToggle">Centres de santé (108)</label></div>
+              <div class="switch"><input type="checkbox" id="buffer500Toggle"><label for="buffer500Toggle">Zone de couverture 500 m</label></div>
+              <div class="switch"><input type="checkbox" id="buffer1000Toggle"><label for="buffer1000Toggle">Zone de couverture 1 km</label></div>
+              <div class="switch"><input type="checkbox" id="boundaryToggle" checked><label for="boundaryToggle">Limite de Yopougon</label></div>
             </div>
-            <div class="note">Glissez un point mal placé (forêt, zone non habitée) vers une zone habitée : ses coordonnées GPS et sa cellule se mettent à jour tout seuls. Vos déplacements sont enregistrés dans <b>votre</b> navigateur. <b>Données actualisées (CSV)</b> exporte tout le tableau à jour ; <b>data.js</b> génère le fichier à replacer dans le dépôt pour rendre les modifications définitives pour tous ; <b>Importer</b> recharge un CSV exporté.</div>
-            <hr style="border:none;border-top:1px solid var(--line);margin:8px 0">
-            <div style="font-weight:600;font-size:12px;margin-bottom:4px">☁ Enregistrement automatique en ligne (optionnel)</div>
-            <input id="sbUrl" class="sel" style="width:100%;font-size:11px;margin-bottom:4px" placeholder="URL du projet Supabase">
-            <input id="sbKey" class="sel" style="width:100%;font-size:11px" placeholder="Clé « anon » Supabase">
-            <button class="btn" id="cloudPublish" style="margin-top:5px;width:100%">☁ Publier mes modifications en ligne</button>
-            <div id="cloudInfo" class="note" style="min-height:14px;color:var(--brand);font-weight:600"></div>
-            <div class="note">Une fois configuré (projet Supabase gratuit, voir GUIDE), tes déplacements sont sauvegardés en ligne et rechargés automatiquement sur tous les appareils, sans exporter. Sans configuration, tout reste local.</div>
-          </div>
+          </details>
+          <details class="mcpanel">
+            <summary>Isochrones</summary>
+            <div class="card">
+              <div class="switch"><input type="checkbox" id="isoToggle"><label for="isoToggle"><b>Isochrones</b> — accessibilité à pied</label></div>
+              <select class="sel" id="isoCentre" style="width:100%;margin:3px 0;font-size:11px"><option value="">— Choisir un centre de santé —</option></select>
+              <div class="isolegend" id="isoLegend">
+                <span><i style="background:#1a9850"></i>5 min</span>
+                <span><i style="background:#f9a825"></i>10 min</span>
+                <span><i style="background:#c62828"></i>15 min</span>
+              </div>
+              <div id="isoInfo" class="note" style="min-height:14px;color:var(--brand)"></div>
+              <div class="switch"><input type="checkbox" id="underToggle"><label for="underToggle">Zones faiblement desservies (hors 15 min)</label></div>
+              <input id="orsKey" class="sel" style="width:100%;margin-top:2px;font-size:11px" placeholder="Clé OpenRouteService (optionnelle)">
+              <div class="note">Choisissez un centre (ou cochez Isochrones puis cliquez un centre) pour voir les zones atteignables en 5/10/15 min. Sans clé : zones approximatives par distance. Clé gratuite sur openrouteservice.org pour des isochrones réseau réelles.</div>
+            </div>
+          </details>
+          <details class="mcpanel">
+            <summary>Grille d'échantillonnage</summary>
+            <div class="card">
+              <div class="switch"><input type="checkbox" id="gridToggle"><label for="gridToggle">Grille d'échantillonnage (500 m)</label></div>
+              <div class="switch"><input type="checkbox" id="gridViewToggle"><label for="gridViewToggle"><b>Vue échantillonnage</b> (1 point/personne par cellule)</label></div>
+              <div class="note">Chaque point = un enquêté. La <b>vue échantillonnage</b> repositionne chaque personne dans sa cellule (1H + 1F par cellule, max 4) pour respecter le plan de la grille ; décochez-la pour revenir aux positions GPS réelles. La grille est colorée par nombre d'enquêtés par cellule.</div>
+            </div>
+          </details>
+          <details class="mcpanel">
+            <summary>Mode édition</summary>
+            <div class="card">
+              <div class="switch"><input type="checkbox" id="editToggle"><label for="editToggle"><b>Mode édition</b> — déplacer les points</label></div>
+              <div id="editInfo" class="note" style="min-height:14px;color:var(--brand)"></div>
+              <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">
+                <button class="btn" id="exportPositions">⬇ Données actualisées (CSV)</button>
+                <button class="btn" id="exportDataJs">⬇ data.js (publication)</button>
+                <label class="btn" for="importPositions" style="cursor:pointer">⬆ Importer</label>
+                <input type="file" id="importPositions" accept=".csv" style="display:none">
+                <button class="btn" id="resetPositions">↺ Réinitialiser</button>
+              </div>
+              <div class="note">Glissez un point mal placé (forêt, zone non habitée) vers une zone habitée : ses coordonnées GPS et sa cellule se mettent à jour tout seuls. Vos déplacements sont enregistrés dans <b>votre</b> navigateur. <b>Données actualisées (CSV)</b> exporte tout le tableau à jour ; <b>data.js</b> génère le fichier à replacer dans le dépôt pour rendre les modifications définitives pour tous ; <b>Importer</b> recharge un CSV exporté.</div>
+            </div>
+          </details>
+          <details class="mcpanel">
+            <summary>Enregistrement en ligne</summary>
+            <div class="card">
+              <input id="sbUrl" class="sel" style="width:100%;font-size:11px;margin-bottom:4px" placeholder="URL du projet Supabase">
+              <input id="sbKey" class="sel" style="width:100%;font-size:11px" placeholder="Clé « anon » Supabase">
+              <button class="btn" id="cloudPublish" style="margin-top:5px;width:100%">Publier mes modifications en ligne</button>
+              <div id="cloudInfo" class="note" style="min-height:14px;color:var(--brand);font-weight:600"></div>
+              <div class="note">Une fois configuré (projet Supabase gratuit, voir GUIDE), tes déplacements sont sauvegardés en ligne et rechargés automatiquement sur tous les appareils, sans exporter. Sans configuration, tout reste local.</div>
+            </div>
+          </details>
           <!-- La légende est désormais un bloc flottant sur la carte (voir addGisTools). -->
         </div>
       </div>
@@ -766,7 +830,7 @@ body.presentation-mode .maprow{grid-template-columns:1fr}
         <div class="note" id="crossInfo"></div>
       </div>
       <div class="card" style="margin-top:16px">
-        <h3>Tableau de contingence <button class="popout-btn" id="popoutCrossTable" title="Ouvrir dans une fenêtre flottante">🗗</button></h3>
+        <h3>Tableau de contingence <button class="popout-btn" id="popoutCrossTable" title="Ouvrir dans une fenêtre flottante"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg></button></h3>
         <div class="sub">Effectifs, avec en couleur le % en ligne (part de chaque colonne dans la ligne). Dernière colonne = total de la ligne.</div>
         <div id="crossTable"></div>
       </div>
@@ -790,11 +854,11 @@ body.presentation-mode .maprow{grid-template-columns:1fr}
           <select class="sel" id="mxPalette"></select>
         </div>
         <div class="toolbar" style="margin-top:-6px">
-          <input class="sel" id="mxSearch" placeholder="🔎 Rechercher (quartier, modalité…)" style="min-width:240px">
+          <input class="sel" id="mxSearch" placeholder="Rechercher (quartier, modalité…)" style="min-width:240px">
           <button class="btn" id="mxExportCsv">⬇ CSV</button>
           <button class="btn" id="mxExportXlsx">⬇ Excel</button>
           <button class="btn" id="mxExportPdf">⬇ PDF</button>
-          <button class="btn" id="popoutMatriceTable" title="Ouvrir dans une fenêtre flottante">🗗 Fenêtre flottante</button>
+          <button class="btn" id="popoutMatriceTable" title="Ouvrir dans une fenêtre flottante"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg> Fenêtre flottante</button>
           <span class="note" id="mxInfo" style="margin:0 0 0 auto"></span>
         </div>
         <div id="matriceTable"></div>
@@ -820,10 +884,10 @@ body.presentation-mode .maprow{grid-template-columns:1fr}
     <!-- TAB: DONNEES (etape 5c) : import CSV/Excel/GeoJSON/JSON en couche complementaire -->
     <section id="tab-donnees" class="hidden">
       <div class="card">
-        <h3>📥 Importer des données externes</h3>
+        <h3>Importer des données externes</h3>
         <div class="sub">Ajoutez un jeu de données complémentaire (CSV, Excel, GeoJSON, JSON) comme couche sur la carte, sans modifier les données de l'enquête. Utile pour comparer une autre source (recensement, autre campagne, autre commune…).</div>
         <div class="toolbar">
-          <label class="btn" for="importFile" style="cursor:pointer">📁 Choisir un fichier</label>
+          <label class="btn" for="importFile" style="cursor:pointer">Choisir un fichier</label>
           <input type="file" id="importFile" accept=".csv,.xlsx,.xls,.geojson,.json" style="display:none">
           <span class="note" id="importFileName" style="margin:0"></span>
         </div>
@@ -835,8 +899,8 @@ body.presentation-mode .maprow{grid-template-columns:1fr}
           <div class="grid g2" id="importMappingGrid" style="margin-top:6px"></div>
 
           <div class="toolbar" style="margin-top:14px">
-            <button class="btn" id="importPreviewBtn">👁 Prévisualiser</button>
-            <button class="btn solid" id="importValidateBtn">✅ Valider (ajouter à la carte)</button>
+            <button class="btn" id="importPreviewBtn">Prévisualiser</button>
+            <button class="btn solid" id="importValidateBtn">✓ Valider (ajouter à la carte)</button>
             <button class="btn" id="importExportBtn">⬇ Exporter</button>
             <button class="btn" id="importResetBtn">↺ Réinitialiser les données importées</button>
           </div>
@@ -851,16 +915,16 @@ body.presentation-mode .maprow{grid-template-columns:1fr}
     <!-- TAB: EXPORTS (etape 5f) : carte PNG/PDF, donnees CSV/Excel/GeoJSON, graphiques, tableaux, rapport complet -->
     <section id="tab-exports" class="hidden">
       <div class="card">
-        <h3>📤 Exports professionnels</h3>
+        <h3>Exports professionnels</h3>
         <div class="sub">Choisissez ce que vous voulez exporter. « Graphiques » et « Tableaux » portent sur le dernier onglet d'analyse consulté avant celui-ci.</div>
         <div class="toolbar">
           <label class="lbl">Que voulez-vous exporter ?</label>
           <select class="sel" id="exportScope" style="width:100%;max-width:280px">
-            <option value="carte">🗺️ Carte seule</option>
-            <option value="donnees">📋 Données seules</option>
-            <option value="graphiques">📊 Graphiques seuls</option>
-            <option value="tableaux">📑 Tableaux seuls</option>
-            <option value="rapport">📄 Rapport complet (PDF)</option>
+            <option value="carte">Carte seule</option>
+            <option value="donnees">Données seules</option>
+            <option value="graphiques">Graphiques seuls</option>
+            <option value="tableaux">Tableaux seuls</option>
+            <option value="rapport">Rapport complet (PDF)</option>
           </select>
         </div>
         <div id="exportStatus" class="note"></div>
@@ -900,7 +964,7 @@ body.presentation-mode .maprow{grid-template-columns:1fr}
 
         <div id="exportPanelRapport" class="hidden">
           <div class="toolbar">
-            <button class="btn solid" id="exportRapportBtn">📄 Générer le rapport de synthèse (PDF)</button>
+            <button class="btn solid" id="exportRapportBtn">Générer le rapport de synthèse (PDF)</button>
           </div>
           <div class="note">Le rapport combine les indicateurs clés, une capture de la carte, une interprétation courte générée automatiquement et le tableau des quartiers prioritaires.</div>
           <div id="exportRapportStatus" class="note"></div>
@@ -914,51 +978,60 @@ body.presentation-mode .maprow{grid-template-columns:1fr}
        l'onglet actif. Contenu genere par app.js, la structure des groupes est ci-dessous. -->
   <aside class="statspanel" id="statsPanel">
     <div class="sp-head">
-      <b>📈 Panneau statistique</b>
+      <b>Panneau statistique</b>
       <button class="sp-toggle" id="spToggle" title="Réduire / agrandir le panneau">»</button>
     </div>
     <div class="sp-body">
 
+      <div class="sp-group mapranking" id="mapRanking">
+        <div class="mr-head">
+          <b>Classement des quartiers</b>
+          <span class="mr-sub">Accès aux soins — sélection actuelle</span>
+          <span class="mr-sub" style="margin-top:5px" title="Score indicatif propre à cette plateforme, pas une mesure officielle">Score = 50% couverture ≤ 15 min + 30% proximité + 20% population enquêtée. Cliquez une carte pour isoler ce quartier.</span>
+        </div>
+        <div class="mr-list" id="mapRankingList"></div>
+      </div>
+
       <div class="sp-group">
-        <div class="sp-gtitle">👥 Population</div>
+        <div class="sp-gtitle">Population</div>
         <div class="spgrid">
-          <div class="spstat wide"><div class="ic">👥</div><div class="v" id="sp-n">—</div><div class="l">Enquêtés (sélection)</div></div>
-          <div class="spstat"><div class="ic">♂</div><div class="v" id="sp-h">—</div><div class="l">Hommes</div></div>
-          <div class="spstat"><div class="ic">♀</div><div class="v" id="sp-f">—</div><div class="l">Femmes</div></div>
-          <div class="spstat"><div class="ic">🏘️</div><div class="v" id="sp-quart">—</div><div class="l">Quartiers concernés</div></div>
-          <div class="spstat"><div class="ic">🏥</div><div class="v" id="sp-centres">—</div><div class="l">Centres de santé visibles</div></div>
+          <div class="spstat wide"><div class="v" id="sp-n">—</div><div class="l">Enquêtés (sélection)</div></div>
+          <div class="spstat"><div class="v" id="sp-h">—</div><div class="l">Hommes</div></div>
+          <div class="spstat"><div class="v" id="sp-f">—</div><div class="l">Femmes</div></div>
+          <div class="spstat"><div class="v" id="sp-quart">—</div><div class="l">Quartiers concernés</div></div>
+          <div class="spstat"><div class="v" id="sp-centres">—</div><div class="l">Centres de santé visibles</div></div>
         </div>
       </div>
 
       <div class="sp-group">
-        <div class="sp-gtitle">🧭 Accessibilité</div>
+        <div class="sp-gtitle">Accessibilité</div>
         <div class="spgrid">
-          <div class="spstat"><div class="ic">📏</div><div class="v" id="sp-dmoy">—</div><div class="l">Distance moyenne au + proche</div></div>
-          <div class="spstat"><div class="ic">📉</div><div class="v" id="sp-dmin">—</div><div class="l">Distance minimale</div></div>
-          <div class="spstat"><div class="ic">📈</div><div class="v" id="sp-dmax">—</div><div class="l">Distance maximale</div></div>
-          <div class="spstat"><div class="ic">🚩</div><div class="v" id="sp-hors">—</div><div class="l">Personnes hors couverture</div></div>
-          <div class="spstat"><div class="ic">⭕</div><div class="v" id="sp-cov500">—</div><div class="l">Couverts à 500 m</div></div>
-          <div class="spstat"><div class="ic">⭕</div><div class="v" id="sp-cov1000">—</div><div class="l">Couverts à 1 km</div></div>
-          <div class="spstat"><div class="ic">🚶</div><div class="v" id="sp-c5">—</div><div class="l">Couverts à 5 min</div></div>
-          <div class="spstat"><div class="ic">🚶</div><div class="v" id="sp-c10">—</div><div class="l">Couverts à 10 min</div></div>
-          <div class="spstat wide"><div class="ic">🚶</div><div class="v" id="sp-c15">—</div><div class="l">Couverts à 15 min de marche</div></div>
+          <div class="spstat"><div class="v" id="sp-dmoy">—</div><div class="l">Distance moyenne au + proche</div></div>
+          <div class="spstat"><div class="v" id="sp-dmin">—</div><div class="l">Distance minimale</div></div>
+          <div class="spstat"><div class="v" id="sp-dmax">—</div><div class="l">Distance maximale</div></div>
+          <div class="spstat"><div class="v" id="sp-hors">—</div><div class="l">Personnes hors couverture</div></div>
+          <div class="spstat"><div class="v" id="sp-cov500">—</div><div class="l">Couverts à 500 m</div></div>
+          <div class="spstat"><div class="v" id="sp-cov1000">—</div><div class="l">Couverts à 1 km</div></div>
+          <div class="spstat"><div class="v" id="sp-c5">—</div><div class="l">Couverts à 5 min</div></div>
+          <div class="spstat"><div class="v" id="sp-c10">—</div><div class="l">Couverts à 10 min</div></div>
+          <div class="spstat wide"><div class="v" id="sp-c15">—</div><div class="l">Couverts à 15 min de marche</div></div>
         </div>
       </div>
 
       <div class="sp-group">
-        <div class="sp-gtitle">🏥 Recours aux soins</div>
+        <div class="sp-gtitle">Recours aux soins</div>
         <div class="spgrid">
-          <div class="spstat wide"><div class="ic">🏆</div><div class="v" id="sp-rectop" style="font-size:13px">—</div><div class="l">Premier recours dominant</div></div>
-          <div class="spstat"><div class="ic">💊</div><div class="v" id="sp-pmod">—</div><div class="l">Médecine moderne</div></div>
-          <div class="spstat"><div class="ic">🌿</div><div class="v" id="sp-ptrad">—</div><div class="l">Médecine traditionnelle</div></div>
-          <div class="spstat"><div class="ic">🏠</div><div class="v" id="sp-pauto">—</div><div class="l">Automédication</div></div>
-          <div class="spstat wide"><div class="ic">🥇</div><div class="v" id="sp-qmax" style="font-size:12.5px">—</div><div class="l">Quartier le plus représenté</div></div>
-          <div class="spstat wide"><div class="ic">🥉</div><div class="v" id="sp-qmin" style="font-size:12.5px">—</div><div class="l">Quartier le moins représenté</div></div>
+          <div class="spstat wide"><div class="v" id="sp-rectop" style="font-size:13px">—</div><div class="l">Premier recours dominant</div></div>
+          <div class="spstat"><div class="v" id="sp-pmod">—</div><div class="l">Médecine moderne</div></div>
+          <div class="spstat"><div class="v" id="sp-ptrad">—</div><div class="l">Médecine traditionnelle</div></div>
+          <div class="spstat"><div class="v" id="sp-pauto">—</div><div class="l">Automédication</div></div>
+          <div class="spstat wide"><div class="v" id="sp-qmax" style="font-size:12.5px">—</div><div class="l">Quartier le plus représenté</div></div>
+          <div class="spstat wide"><div class="v" id="sp-qmin" style="font-size:12.5px">—</div><div class="l">Quartier le moins représenté</div></div>
         </div>
       </div>
 
       <div class="sp-group">
-        <div class="sp-gtitle">📶 Classements par quartier</div>
+        <div class="sp-gtitle">Classements par quartier</div>
         <div class="sp-gtitle" style="margin-bottom:4px;font-size:10.5px">Quartiers les plus représentés</div>
         <div class="sprank" id="sp-rank-pop"></div>
       </div>
@@ -975,7 +1048,7 @@ body.presentation-mode .maprow{grid-template-columns:1fr}
         <div class="sprank" id="sp-rank-worst"></div>
       </div>
       <div class="sp-group">
-        <div class="sp-gtitle" style="margin-bottom:4px;font-size:10.5px">🎯 Quartiers prioritaires (offre sanitaire)</div>
+        <div class="sp-gtitle" style="margin-bottom:4px;font-size:10.5px">Quartiers prioritaires (offre sanitaire)</div>
         <div class="sprank" id="sp-rank-priority"></div>
       </div>
 
@@ -988,10 +1061,10 @@ body.presentation-mode .maprow{grid-template-columns:1fr}
      les reponses sont generees par app.js a partir des memes agregations que le reste
      du tableau de bord (voir section "16. ASSISTANT..."). -->
 <div class="chat-widget collapsed" id="chatWidget">
-  <button class="chat-fab" id="chatToggle" title="Assistant Bakusm@p">💬</button>
+  <button class="chat-fab" id="chatToggle" title="Assistant Bakusm@p"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5Z"/></svg></button>
   <div class="chat-panel" id="chatPanel">
     <div class="chat-head">
-      <b>🤖 Assistant Bakusm@p</b>
+      <b>Assistant Bakusm@p</b>
       <span style="display:flex;gap:4px">
         <button class="chat-close" id="chatSettingsBtn" title="Connecter une IA (Claude / ChatGPT)">⚙</button>
         <button class="chat-close" id="chatClose" title="Réduire">✕</button>
