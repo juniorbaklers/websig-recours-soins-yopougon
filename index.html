@@ -47,16 +47,17 @@ html{scroll-behavior:smooth}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.reveal{opacity:1;transform:none;transition:none}}
 
 /* ---------- Hero ---------- */
-.hero{position:relative;overflow:hidden;background:var(--bg);border-bottom:1px solid var(--line)}
-.hero::before{content:"";position:absolute;inset:-44px;opacity:.55;z-index:0;
-  background-image:linear-gradient(rgba(250,255,105,.06) 1px,transparent 1px),linear-gradient(90deg,rgba(250,255,105,.06) 1px,transparent 1px);
-  background-size:44px 44px;-webkit-mask:radial-gradient(circle at 68% 26%,#000,transparent 72%);mask:radial-gradient(circle at 68% 26%,#000,transparent 72%);
-  animation:gridDrift 30s linear infinite}
-/* Halo jaune diffus derrière le contenu du hero (accent atmosphérique maîtrisé, direction « riche ») */
-.hero::after{content:"";position:absolute;top:-160px;left:50%;width:760px;height:520px;transform:translateX(-50%);z-index:0;pointer-events:none;
-  background:radial-gradient(ellipse at center,rgba(250,255,105,.10),transparent 68%)}
-@keyframes gridDrift{to{background-position:44px 44px,44px 44px}}
-@media(prefers-reduced-motion:reduce){.hero::before{animation:none}}
+.hero{position:relative;overflow:hidden;background:#0a0a0a;border-bottom:1px solid var(--line);
+  min-height:min(90vh,780px);display:flex;flex-direction:column}
+/* Photo de fond fortement assombrie (dégradé sombre + image). Absente = simple fond noir, pas d'image cassée. */
+.hero-photo{position:absolute;inset:0;z-index:0;
+  background:linear-gradient(180deg,rgba(10,10,10,.80),rgba(10,10,10,.64) 42%,rgba(10,10,10,.94)),url('assets/hero.jpg') center 28%/cover no-repeat,#0a0a0a}
+/* Réseau de particules jaunes animé, par-dessus la photo, sous le texte */
+.hero-canvas{position:absolute;inset:0;z-index:1;pointer-events:none}
+.hero::before{display:none} /* la grille est remplacée par le réseau de particules */
+/* Halo jaune diffus, très subtil, derrière le contenu */
+.hero::after{content:"";position:absolute;top:-140px;left:50%;width:820px;height:520px;transform:translateX(-50%);z-index:0;pointer-events:none;
+  background:radial-gradient(ellipse at center,rgba(250,255,105,.08),transparent 70%)}
 .blob{display:none}
 .blob.b1{width:440px;height:440px;background:var(--brand2);top:-120px;right:4%;animation:float1 18s ease-in-out infinite}
 .blob.b2{width:360px;height:360px;background:var(--brand);bottom:-140px;left:2%;opacity:.22;animation:float2 22s ease-in-out infinite}
@@ -78,7 +79,7 @@ html{scroll-behavior:smooth}
 .navcta:hover{background:var(--primary-active);transform:translateY(-1px);box-shadow:0 8px 22px rgba(250,255,105,.26)}
 @media(prefers-reduced-motion:reduce){.navcta:hover{transform:none}}
 
-.wrap{max-width:900px;margin:0 auto;padding:44px 6vw 30px;text-align:center}
+.wrap{max-width:920px;margin:auto;padding:48px 6vw;text-align:center}
 .sub{font-size:12px;text-transform:uppercase;letter-spacing:1.5px;color:var(--primary);font-weight:600;margin-bottom:18px}
 h1{font-size:38px;line-height:1.05;font-weight:600;letter-spacing:-1.5px;margin-bottom:18px;color:var(--ink)}
 @media(min-width:760px){h1{font-size:56px;letter-spacing:-2px}}
@@ -153,7 +154,9 @@ section .shead{color:var(--muted);font-size:15px;line-height:1.55;margin-bottom:
 <noscript><style>.reveal{opacity:1!important;transform:none!important}</style></noscript>
 
 <div class="hero">
-  <div class="blob b1"></div><div class="blob b2"></div>
+  <!-- Fond du hero : photo assombrie (assets/hero.jpg) + réseau de particules jaunes animé -->
+  <div class="hero-photo" aria-hidden="true"></div>
+  <canvas id="heroCanvas" class="hero-canvas" aria-hidden="true"></canvas>
   <div class="nav reveal">
     <div class="brand"><div class="logo">B<span>@</span></div><div><b>Bakusm@p</b><div class="tag">Plateforme WebSIG interactive</div></div></div>
     <a class="navcta" href="plateforme.html">Ouvrir la plateforme →</a>
@@ -291,9 +294,45 @@ function countUp(el){
   })(performance.now());
 }
 
+// initHeroCanvas() : réseau de particules jaunes animé dans le hero (concept « Aether Flow » réadapté
+// en vanilla). Canvas transparent posé sur la photo assombrie ; les particules réagissent à la souris.
+// Entièrement désactivé sous prefers-reduced-motion (aucun mouvement, aucun coût CPU).
+function initHeroCanvas(){
+  const canvas=document.getElementById('heroCanvas'), hero=document.querySelector('.hero');
+  if(!canvas || !hero || REDUCE) return;
+  const ctx=canvas.getContext('2d'); const Y='250,255,105';
+  let particles=[], W=0, H=0; const mouse={x:null,y:null,radius:160};
+  function build(){ particles=[]; const n=Math.min(140,Math.floor((W*H)/11000));
+    for(let i=0;i<n;i++) particles.push({x:Math.random()*W,y:Math.random()*H,vx:Math.random()*0.4-0.2,vy:Math.random()*0.4-0.2,s:Math.random()*2+1}); }
+  function size(){ W=canvas.width=hero.clientWidth; H=canvas.height=hero.clientHeight; build(); }
+  function step(p){
+    if(p.x>W||p.x<0) p.vx=-p.vx; if(p.y>H||p.y<0) p.vy=-p.vy;
+    if(mouse.x!=null){ const dx=mouse.x-p.x, dy=mouse.y-p.y, d=Math.hypot(dx,dy)||1;
+      if(d<mouse.radius+p.s){ const f=(mouse.radius-d)/mouse.radius; p.x-=(dx/d)*f*4; p.y-=(dy/d)*f*4; } }
+    p.x+=p.vx; p.y+=p.vy;
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.s,0,Math.PI*2); ctx.fillStyle='rgba('+Y+',.75)'; ctx.fill();
+  }
+  function connect(){
+    for(let a=0;a<particles.length;a++) for(let b=a+1;b<particles.length;b++){
+      const dx=particles[a].x-particles[b].x, dy=particles[a].y-particles[b].y, dist=dx*dx+dy*dy;
+      if(dist<(W/7)*(H/7)){ const op=1-dist/20000; if(op<=0) continue;
+        let near=false; if(mouse.x!=null){ const mx=particles[a].x-mouse.x, my=particles[a].y-mouse.y; near=(mx*mx+my*my)<mouse.radius*mouse.radius; }
+        ctx.strokeStyle= near ? 'rgba(255,255,255,'+op+')' : 'rgba('+Y+','+(op*0.5)+')';
+        ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(particles[a].x,particles[a].y); ctx.lineTo(particles[b].x,particles[b].y); ctx.stroke();
+      }
+    }
+  }
+  function frame(){ requestAnimationFrame(frame); ctx.clearRect(0,0,W,H); for(const p of particles) step(p); connect(); }
+  addEventListener('resize',size,{passive:true});
+  hero.addEventListener('mousemove',e=>{ const r=canvas.getBoundingClientRect(); mouse.x=e.clientX-r.left; mouse.y=e.clientY-r.top; });
+  hero.addEventListener('mouseleave',()=>{ mouse.x=null; mouse.y=null; });
+  size(); frame();
+}
+
 // initPremium() : révélation au défilement (IntersectionObserver), compteurs animés au 1er passage,
 // barre de nav qui se teinte au scroll. Filets de sécurité pour ne JAMAIS laisser la page invisible.
 function initPremium(){
+  initHeroCanvas();
   const els=[...document.querySelectorAll('.reveal')];
   const vh=window.innerHeight; let k=0;
   els.forEach(el=>{ if(el.getBoundingClientRect().top < vh*0.9) el.style.transitionDelay=(k++*90)+'ms'; }); // cascade 1er écran
