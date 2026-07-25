@@ -35,13 +35,14 @@
 <!-- Polices : Manrope (grands titres/boutons), Inter (interface), Noto Sans (le reste) -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800&family=Inter:wght@400;500;600;700&family=Noto+Sans:wght@400;500;600&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Manrope:wght@600;700;800&family=Inter:wght@400;500;600;700&family=Noto+Sans:wght@400;500;600&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
 <!-- STYLES : couleurs, mise en page, cartes, tableaux. Les couleurs de base sont dans :root (variables CSS reutilisables). -->
 <style>
 :root{
-  /* Couleurs sémantiques — thème clair (option) : crème chaud + or, cohérent avec l'identité noir/jaune */
-  --bg:#f5f0e4; --panel:#ffffff; --panel-2:#fbf7ee; --ink:#1c1c14; --muted:#6b6b5e; --line:#e7e0cf;
+  /* Couleurs sémantiques — thème clair (option) : ivoire chaud en couches + or + teal, cohérent avec la page d'accueil */
+  --bg:#f4efe3; --panel:#fffdf8; --panel-2:#f6f0e4; --ink:#1a1d21; --muted:#6d7078; --line:#e7ddc9;
   --brand:#8f7d00; --brand2:#b59a1e; --accent:#e4c05c; --danger:#d9534f; --ok:#4c9a4c;
+  --teal:#0f766e; --teal-soft:rgba(15,118,110,.10);
   --brand-ink:#ffffff;        /* texte lisible posé sur --brand */
   --focus:#2563eb;            /* anneau de focus clavier */
 
@@ -71,8 +72,10 @@ body{font-family:'Inter','Noto Sans','Segoe UI',Roboto,Helvetica,Arial,sans-seri
 :where(a,button,input,select,textarea,summary,[tabindex]):focus:not(:focus-visible){outline:none}
 /* Chiffres alignés (données, KPI, tableaux) : évite le décalage colonne à colonne */
 .kpi .v,.mr-score,.mr-bar-val,.opt .cnt,table.ct td,.spstat .v,.gis-coord{font-variant-numeric:tabular-nums}
-/* Manrope : grands titres + boutons importants */
-header.app h1,.card h3,.kpi .v,.tab,.cta,.btn.solid,.gauge text{font-family:'Manrope','Inter',sans-serif}
+/* Manrope : boutons importants et éléments d'UI denses */
+.kpi .v,.tab,.cta,.btn.solid,.gauge text{font-family:'Manrope','Inter',sans-serif}
+/* Fraunces : titres d'affichage (serif de caractère), cohérent avec la page d'accueil */
+header.app h1,.card h3{font-family:'Fraunces','Georgia',serif;font-weight:600;letter-spacing:-.3px}
 /* Noto Sans : textes secondaires (notes, sous-titres, paragraphes) */
 .note,.card .sub,.kpi .l,.kpi .s,.foot,.glabel,p{font-family:'Noto Sans','Inter',sans-serif}
 a{color:var(--brand)}
@@ -148,7 +151,7 @@ details.fg[open]>summary .chev{transform:rotate(90deg)}
 @media(prefers-reduced-motion:reduce){#tabs .tab,#tabs .tab:hover,#tabs .tab.active{transform:none}}
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(124px,1fr));gap:var(--sp-2);margin-bottom:var(--sp-3)}
 .kpi{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:var(--r-md);padding:var(--sp-3) var(--sp-3) var(--sp-3) var(--sp-4);box-shadow:var(--e-1);overflow:hidden;transition:transform .15s,box-shadow .15s;animation:fadeUp .5s both}
-.kpi::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:linear-gradient(180deg,var(--brand),var(--brand2))}
+.kpi::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:linear-gradient(180deg,var(--brand),var(--teal))}
 .kpi:hover{transform:translateY(-2px);box-shadow:var(--e-3)}
 .kpi .v{font-size:var(--fs-lg);font-weight:800;letter-spacing:-.5px;color:var(--brand);font-variant-numeric:tabular-nums;line-height:1.1}
 .kpi .l{font-size:var(--fs-2xs);color:var(--muted);margin-top:3px;line-height:1.3}
@@ -171,7 +174,7 @@ section.anim .card:nth-child(3){animation-delay:.1s}
 section.anim .card:nth-child(4){animation-delay:.15s}
 .card:hover{box-shadow:var(--e-2)}
 .card h3{margin:0 0 4px;font-size:var(--fs-sm);font-weight:700;position:relative;padding-left:11px}
-.card h3::before{content:"";position:absolute;left:0;top:2px;bottom:2px;width:3px;border-radius:2px;background:linear-gradient(180deg,var(--brand),var(--brand2))}
+.card h3::before{content:"";position:absolute;left:0;top:2px;bottom:2px;width:3px;border-radius:2px;background:linear-gradient(180deg,var(--brand),var(--teal))}
 .card .sub{color:var(--muted);font-size:var(--fs-xs);margin-bottom:var(--sp-3);line-height:1.45}
 .card.wide{grid-column:1/-1}
 .chartbox{position:relative;height:225px}
@@ -307,7 +310,8 @@ table.ct tr.rowclick:hover td{background:#f7f3df}
 :root[data-accent="alert"]{ --brand:#b95a2b; --brand2:#e0894f }
 /* --- Thème sombre : palette de la page d'accueil (toile noire + jaune électrique) --- */
 :root[data-theme="dark"]{
-  --bg:#0a0a0a; --panel:#1a1a1a; --panel-2:#242424; --ink:#ffffff; --muted:#adadad; --line:#2a2a2a;
+  --bg:#0e0f12; --panel:#16181d; --panel-2:#1e2128; --ink:#f3f5f8; --muted:#a2abb8; --line:#252932;
+  --teal:#2dd4bf; --teal-soft:rgba(45,212,191,.14);
   --focus:#faff69;
   --e-1:0 1px 2px rgba(0,0,0,.4);
   --e-2:0 1px 3px rgba(0,0,0,.45),0 8px 26px rgba(0,0,0,.35);
@@ -318,7 +322,7 @@ table.ct tr.rowclick:hover td{background:#f7f3df}
 :root[data-theme="dark"][data-accent="green"]{ --brand:#34d399; --brand2:#7dd3a8 }
 :root[data-theme="dark"][data-accent="alert"]{ --brand:#f0a06a; --brand2:#f2c17a }
 /* --- Composants dont la couleur était figée : on les rend compatibles sombre --- */
-[data-theme="dark"] header.app{background:linear-gradient(100deg,#111111,#1a1a1a 55%,#0a0a0a)}
+[data-theme="dark"] header.app{background:linear-gradient(100deg,#131519,#1c1f26 55%,#0e0f12)}
 [data-theme="dark"] .btn,[data-theme="dark"] .tab,
 [data-theme="dark"] select.sel,[data-theme="dark"] .fg .search,
 [data-theme="dark"] input[type=text],[data-theme="dark"] input:not([type=checkbox]){background:#242424;color:var(--ink);border-color:var(--line)}
