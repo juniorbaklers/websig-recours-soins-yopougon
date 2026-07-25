@@ -171,6 +171,11 @@ h1 .hl,.sub,.stat b{
   background-size:200% auto;-webkit-background-clip:text;background-clip:text;
   -webkit-text-fill-color:transparent;color:transparent;animation:shine 5.5s linear infinite}
 h1 .hl{filter:drop-shadow(0 0 16px rgba(250,255,105,.28))}
+/* Titres de section « défilants » : texte blanc avec un reflet jaune de marque qui le traverse en continu */
+section h2{
+  background:linear-gradient(100deg,var(--ink) 0%,var(--ink) 30%,var(--primary) 50%,var(--ink) 70%,var(--ink) 100%);
+  background-size:200% auto;-webkit-background-clip:text;background-clip:text;
+  -webkit-text-fill-color:transparent;color:transparent;animation:shine 5s linear infinite}
 
 /* Objectifs : carte vivante + pastille numéro qui rebondit au survol */
 .obj{transition:transform .32s cubic-bezier(.22,1,.36,1),border-color .3s,box-shadow .32s,background .3s}
@@ -201,7 +206,7 @@ h1 .hl{filter:drop-shadow(0 0 16px rgba(250,255,105,.28))}
 .navcta:hover::after{left:150%}
 
 @media(prefers-reduced-motion:reduce){
-  h1 .hl,.sub,.stat b{animation:none}
+  h1 .hl,.sub,.stat b,section h2{animation:none}
   .obj,.src,.obj .n{transition:none}
   .obj:hover,.src:hover{transform:none}
   .obj:hover .n{transform:none}
