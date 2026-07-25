@@ -188,7 +188,8 @@ function chartPal(){ return MAP_PALETTES[mapStyle.palette]||PAL; }
 function chartPalRGBA(i,a){ const c=chartPal()[i%chartPal().length]||PAL[0]; const h=c.replace('#',''); const n=parseInt(h.length===3?h.split('').map(x=>x+x).join(''):h,16); return 'rgba('+((n>>16)&255)+','+((n>>8)&255)+','+(n&255)+','+a+')'; }
 // Cas particulier des reponses Oui/Non : vert = Oui, rouge = Non (plus intuitif).
 // Couleurs des classes d'accessibilite (marche) : du vert (proche) au rouge (hors zone)
-const COVER_COL = { '5 min':'#1a9850','10 min':'#91cf60','15 min':'#fee08b','Hors 15 min':'#d73027' };
+// couverture par temps de marche : 4 teintes de la palette active (foncee -> claire), du plus proche au plus loin
+function coverCol(cls){ const i={'5 min':0,'10 min':2,'15 min':4,'Hors 15 min':6}[cls]; return i==null?null:chartPal()[i%chartPal().length]; }
 
 // mapStyle (etape 5b) : etat central du style cartographique, memorise dans le
 // navigateur (localStorage) et applique a la carte (palette, opacite, taille
@@ -250,10 +251,9 @@ function reprOf(key,normv){const f=DATA.find(d=>norm(d[key])===normv); return f?
 // CATS : cache des modalites de chaque variable (calcule au chargement)
 const CATS={}; Object.keys(DIMS).forEach(k=>CATS[k]=catsOf(k));
 
-// colorFor(cle, valeur) : couleur d'une modalite. Si la variable est de type
-// Oui/Non on utilise le code vert/rouge, sinon la position dans la palette.
+// colorFor(cle, valeur) : couleur d'une modalite, toujours tiree de la palette active.
 function colorFor(key,val){
-  if(key==='coverClass' && COVER_COL[(val||'').trim()]) return COVER_COL[val.trim()]; // classes de marche
+  if(key==='coverClass'){ const cc=coverCol((val||'').trim()); if(cc) return cc; } // classes de marche
   const cats=CATS[key]||catsOf(key);
   const pal=MAP_PALETTES[mapStyle.palette]||PAL;
   const i=cats.indexOf(val); return pal[(i<0?0:i)%pal.length];
@@ -458,7 +458,7 @@ function renderKPIs(recs){
    7. LA CARTE (Leaflet)
    ============================================================================ */
 
-let map,baseLayers,currentBase,markerLayer,clusterLayer;
+let map,baseLayers,currentBase,markerLayer,clusterLayer,enqRenderer;
 let centresLayer,buffer500Layer,buffer1000Layer,boundaryLayer,gridLayer; // couches de l'analyse spatiale
 let homeBounds=null, measureOn=false, measurePts=[], measureLayer=null; // outils SIG
 let isoMode=false, isoLayer=null, lastIsoCentre=null; // isochrones d'accessibilite (lastIsoCentre = dernier centre affiche, pour re-dessiner au changement de couleur)
@@ -497,6 +497,9 @@ const CENTRE_COL={'Hopital':'#b5121b','Clinique privee':'#7a3fa0','Centre de san
 // initMap() : cree la carte une seule fois, centree sur Yopougon
 function initMap(){
   map=L.map('map',{preferCanvas:true}).setView([5.345,-4.075],13);
+  // pane + canvas dedies aux points enquetes : permet d'appliquer le halo lumineux (CSS) a ces seuls points, sans toucher la limite/grille/isochrones
+  map.createPane('enqGlow'); map.getPane('enqGlow').style.zIndex=450;
+  enqRenderer=L.canvas({pane:'enqGlow',padding:0.5});
   // fonds de carte disponibles (plan, clair, satellite Google, satellite + rues)
   baseLayers={
     osm:  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}),
@@ -588,7 +591,7 @@ function popupHtml(d){
     ['Mode de déplacement',d.locomotion],['Coût du transport',d.coutTransport],
     ['Perception distance',d.opinionDistance],['Maladie',d.maladieCat],['Résultat',d.resultatTraitement]]
     .filter(r=>r[1]!=null && r[1]!=='');
-  const badgeCol=COVER_COL[d.coverClass]||'rgba(255,255,255,.25)';
+  const badgeCol=coverCol(d.coverClass)||'rgba(255,255,255,.25)';
   return `<div class="pop"><span class="ttl">Enquêté n°${d.id}${d.coverClass?` <span class="badge" style="background:${badgeCol}">${d.coverClass}</span>`:''}</span>
     <table>${rows.map(r=>`<tr><td class="k">${r[0]}</td><td class="v">${r[1]}</td></tr>`).join('')}</table></div>`;
 }
@@ -667,7 +670,7 @@ function renderMap(recs){
         html:`<div style="width:${editInner}px;height:${editInner}px;border-radius:50%;background:${col};border:2px solid #fff;box-shadow:0 0 3px rgba(0,0,0,.7);cursor:move"></div>`})});
       mk.on('dragend',()=>onDragEnd(d,mk));
     } else {
-      mk=L.circleMarker([la,ln],{radius:baseR,color:'#ffffff',weight:1.4,fillColor:col,fillOpacity:.9});
+      mk=L.circleMarker([la,ln],{radius:baseR,color:'#ffffff',weight:1.4,fillColor:col,fillOpacity:.9,renderer:enqRenderer});
       // interactivite : survol qui met en avant le point, clic qui le fait "pulser" brievement (etape 5g)
       mk.on('mouseover',function(){ this.setStyle({radius:hoverR,weight:2,fillOpacity:1}); this.bringToFront&&this.bringToFront(); });
       mk.on('mouseout', function(){ this.setStyle({radius:baseR,weight:1.4,fillOpacity:.9}); });
@@ -1211,10 +1214,10 @@ function renderDeterminants(recs){
   cats.forEach(c=>{ const g=recs.filter(d=>(d[f]??'').toString().trim()===c); const r=targetRate(g,tgt); if(r.n>0)rows.push({c,rate:r.rate,n:r.n}); });
   const moy=targetRate(recs,tgt).rate||0;
   draw('det_detail',{type:'bar',data:{labels:rows.map(r=>`${r.c} (n=${r.n})`),datasets:[{data:rows.map(r=>+r.rate.toFixed(1)),
-    backgroundColor:rows.map(r=>r.rate>=moy?'#4c9a4c':'#d9534f'),borderRadius:4}]},
+    backgroundColor:rows.map(r=>r.rate>=moy?chartPal()[0]:chartPal()[6]),borderRadius:4}]},
     options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},
       tooltip:{callbacks:{label:c=>`${c.parsed.x}% (moyenne ${moy.toFixed(1)}%)`}}},
-      scales:{x:{max:100,title:{display:true,text:'% de recours — vert=au-dessus, rouge=en-dessous de la moyenne'},ticks:{callback:v=>v+'%'}},y:{ticks:{autoSkip:false}}}}});
+      scales:{x:{max:100,title:{display:true,text:'% de recours — teinte pleine = au-dessus, teinte claire = en-dessous de la moyenne'},ticks:{callback:v=>v+'%'}},y:{ticks:{autoSkip:false}}}}});
   const targetLbl={mod:'à la médecine moderne',pub:'à l\'hôpital public',trad:'à la médecine traditionnelle',auto:'à l\'automédication'}[tgtKey];
   document.getElementById('detNote').innerHTML=`Recours ${targetLbl} : <b>${moy.toFixed(1)}%</b> en moyenne sur la sélection. Le graphique du haut classe les facteurs du plus discriminant au moins discriminant.`;
 }
@@ -1368,8 +1371,8 @@ function renderCross(recs){
   html+='</tbody></table>';
   document.getElementById('crossTable').innerHTML=html;
 }
-// heat() : couleur de fond d'une cellule selon son % (plus c'est fort, plus c'est bleu)
-function heat(p){const a=Math.min(1,p/100);return `rgba(15,94,143,${(0.08+0.72*a).toFixed(3)})`;}
+// heat() : couleur de fond d'une cellule selon son % (plus c'est fort, plus la teinte de la palette est marquee)
+function heat(p){const a=Math.min(1,p/100);return chartPalRGBA(0,+(0.08+0.72*a).toFixed(3));}
 
 
 /* ============================================================================

@@ -247,6 +247,8 @@ table.ct tr.rowclick:hover td{background:#eaf2f8}
 .marker-cluster-small div{width:32px!important;height:32px!important;margin-left:4px!important;margin-top:4px!important;font-size:11px}
 .marker-cluster-medium div{width:38px!important;height:38px!important;margin-left:1px!important;margin-top:1px!important;font-size:12.5px}
 .marker-cluster-large div{width:46px!important;height:46px!important;margin-left:-3px!important;margin-top:-3px!important;font-size:14px}
+/* halo lumineux des points enquetes : filtre applique au canvas dedie (pane enqGlow), pilote par la couleur du theme (--brand), donc il s'actualise avec le theme et l'accent choisis */
+.leaflet-enqGlow-pane{filter:drop-shadow(0 0 2px var(--brand)) drop-shadow(0 0 5px var(--brand))}
 .switch{display:flex;align-items:center;gap:8px;font-size:12.5px;margin:6px 0}
 .hidden{display:none}
 .gis-coord{background:rgba(255,255,255,.9);padding:2px 8px;border-radius:6px;font-size:11px;color:#334155;font-variant-numeric:tabular-nums;box-shadow:0 1px 4px rgba(0,0,0,.2)}
