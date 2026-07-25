@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <!-- Inter : néo-grotesque nette et pro (style shadcn/Helvetica), famille unique du site. -->
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <!-- Leaflet : mini-carte animée de Yopougon dans le hero -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -19,13 +19,14 @@
 /* Palette sombre sanitaire, identique à plateforme.html (data-theme="dark", data-accent="cyan") */
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
-  /* Système Bakusm@p : toile noire + jaune électrique (identité de marque) */
-  --bg:#0a0a0a; --surface-soft:#121212; --panel:#1a1a1a; --panel2:#242424;
-  --ink:#ffffff; --body:#cccccc; --body-strong:#e6e6e6; --muted:#888888; --muted-soft:#5a5a5a;
-  --line:#2a2a2a; --line-strong:#3a3a3a;
-  --primary:#faff69; --primary-active:#e6eb52; --on-primary:#0a0a0a;
-  --shadow:none; --focus:#faff69;
-  /* alias des anciens noms (tout renvoie au jaune de marque) */
+  /* Système Bakusm@p : charbon profond + jaune électrique (highlight) + teal lagune (structure) */
+  --bg:#0e0f12; --surface-soft:#141519; --panel:#16181d; --panel2:#1e2128;
+  --ink:#f3f5f8; --body:#c6ccd6; --body-strong:#e9edf2; --muted:#98a1af; --muted-soft:#5f6672;
+  --line:#252932; --line-strong:#333a46;
+  --primary:#faff69; --primary-active:#e6eb52; --on-primary:#0e0f12;
+  --teal:#2dd4bf; --teal-strong:#14b8a6; --teal-soft:rgba(45,212,191,.13);
+  --shadow:0 18px 50px -20px rgba(0,0,0,.7); --focus:#faff69;
+  /* alias des anciens noms */
   --brand:#faff69; --brand2:#faff69; --gold:#faff69;
 }
 html,body{height:100%}
@@ -165,6 +166,21 @@ section .shead{color:var(--muted);font-size:15px;line-height:1.55;margin-bottom:
 /* Titres d'affichage en graisse 700 (comme Mapbox) — placé en fin de feuille pour l'emporter sur les poids individuels */
 h2,section h2,.brand b,.logo,.stat b,.mod b,.src b,.cta-band h3{font-weight:700}
 
+/* Typo d'affichage : Fraunces (serif de caractère) sur les grands titres ; Inter partout ailleurs */
+h1,section h2,.cta-band h3,.brand b{font-family:'Fraunces','Georgia',serif;font-optical-sizing:auto;font-weight:600;letter-spacing:-.4px}
+
+/* Texture cartographique : lignes de contour très subtiles en fond du contenu (ancrage géographique) */
+main{position:relative;background-color:var(--bg);
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='260'%3E%3Cg fill='none' stroke='%239aa3b2' stroke-opacity='0.05' stroke-width='1'%3E%3Cpath d='M0 65 Q65 32 130 65 T260 65'/%3E%3Cpath d='M0 130 Q65 97 130 130 T260 130'/%3E%3Cpath d='M0 195 Q65 162 130 195 T260 195'/%3E%3C/g%3E%3C/svg%3E");background-size:260px 260px}
+:root[data-theme="light"] main{
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='260'%3E%3Cg fill='none' stroke='%235a4a20' stroke-opacity='0.06' stroke-width='1'%3E%3Cpath d='M0 65 Q65 32 130 65 T260 65'/%3E%3Cpath d='M0 130 Q65 97 130 130 T260 130'/%3E%3Cpath d='M0 195 Q65 162 130 195 T260 195'/%3E%3C/g%3E%3C/svg%3E")}
+section{position:relative;z-index:1}
+
+/* Accent teal : filet structurant sous chaque titre de section (système à deux couleurs) */
+section h2{position:relative;padding-bottom:16px}
+section h2::after{content:"";position:absolute;left:0;bottom:0;width:46px;height:3px;border-radius:3px;
+  background:linear-gradient(90deg,var(--teal),color-mix(in srgb,var(--teal) 25%,transparent))}
+
 /* ============ INTERACTIONS PREMIUM : rien de statique, survols riches, textes de marque « défilants » ============ */
 @keyframes shine{to{background-position:-200% center}}
 /* Textes de marque « défilants » : un dégradé lumineux traverse le texte en continu */
@@ -228,21 +244,27 @@ section h2{
 .navright{display:flex;align-items:center;gap:10px}
 @media(prefers-reduced-motion:reduce){.themetgl:hover{transform:none}}
 
-/* --- Mode clair : contenu en crème chaud, hero toujours sombre (photo + carte) --- */
+/* --- Mode clair : ivoire chaud en couches (ambre + teal), hero toujours sombre (photo + carte) --- */
 :root[data-theme="light"]{
-  --bg:#f5f0e4;--surface-soft:#efe9db;--panel:#ffffff;--panel2:#faf5ec;
-  --ink:#1c1c14;--body:#45453a;--body-strong:#26261e;--muted:#6f6f62;--muted-soft:#a7a798;
-  --line:#e7e0cf;--line-strong:#d9d0bd;
-  --primary:#a88700;--primary-active:#8f7300;--on-primary:#ffffff;
-  --brand:#a88700;--brand2:#a88700;--gold:#a88700}
+  --bg:#f4efe3;--surface-soft:#efe8d9;--panel:#fffdf8;--panel2:#f6f0e4;
+  --ink:#1a1d21;--body:#4a4f56;--body-strong:#23272c;--muted:#6d7078;--muted-soft:#a49f92;
+  --line:#e7ddc9;--line-strong:#d8ccb2;
+  --primary:#c9a227;--primary-active:#a9861a;--on-primary:#ffffff;
+  --teal:#0f766e;--teal-strong:#0d5f59;--teal-soft:rgba(15,118,110,.10);
+  --shadow:0 18px 44px -22px rgba(70,55,15,.35);
+  --brand:#c9a227;--brand2:#c9a227;--gold:#c9a227}
 :root[data-theme="light"] body{background:var(--bg)}
 /* le hero garde son contexte sombre quel que soit le thème (fond photo + mini-carte) */
 :root[data-theme="light"] .hero{
-  --bg:#0a0a0a;--panel:#1a1a1a;--panel2:#242424;--ink:#ffffff;--body:#cccccc;--body-strong:#e6e6e6;--muted:#888888;
-  --line:#2a2a2a;--line-strong:#3a3a3a;--primary:#faff69;--primary-active:#e6eb52;--on-primary:#0a0a0a;--brand:#faff69;--brand2:#faff69}
-/* cartes modules : version claire (verre dépoli clair au lieu de sombre) */
-:root[data-theme="light"] .mod{background:linear-gradient(105deg,rgba(168,135,0,.10),rgba(255,255,255,.5) 45%),#ffffff;border-color:rgba(0,0,0,.09)}
-:root[data-theme="light"] .mod:hover{background:linear-gradient(105deg,rgba(168,135,0,.16),rgba(255,255,255,.6) 45%),#fffdf5;border-color:color-mix(in srgb,var(--primary) 45%,var(--line));box-shadow:0 20px 46px rgba(120,100,0,.16)}
+  --bg:#0e0f12;--panel:#16181d;--panel2:#1e2128;--ink:#f3f5f8;--body:#c6ccd6;--body-strong:#e9edf2;--muted:#98a1af;
+  --line:#252932;--line-strong:#333a46;--primary:#faff69;--primary-active:#e6eb52;--on-primary:#0e0f12;--brand:#faff69;--brand2:#faff69;
+  --teal:#2dd4bf;--teal-soft:rgba(45,212,191,.13)}
+/* profondeur en clair : cartes légèrement élevées (ombres chaudes) */
+:root[data-theme="light"] .obj,:root[data-theme="light"] .src{box-shadow:0 1px 2px rgba(70,55,15,.05),0 10px 26px -18px rgba(70,55,15,.30)}
+:root[data-theme="light"] .stat{box-shadow:0 1px 2px rgba(70,55,15,.05),0 10px 26px -18px rgba(70,55,15,.30)}
+/* cartes modules : verre dépoli clair (au lieu du sombre) */
+:root[data-theme="light"] .mod{background:linear-gradient(105deg,rgba(201,162,39,.10),rgba(255,255,255,.55) 45%),var(--panel);border-color:var(--line);box-shadow:0 1px 2px rgba(70,55,15,.05),0 12px 30px -20px rgba(70,55,15,.30)}
+:root[data-theme="light"] .mod:hover{background:linear-gradient(105deg,rgba(201,162,39,.16),rgba(255,255,255,.65) 45%),#fffef9;border-color:color-mix(in srgb,var(--primary) 45%,var(--line));box-shadow:0 22px 48px -22px rgba(70,55,15,.35)}
 :root[data-theme="light"] .foot{color:var(--muted)}
 </style>
 </head>
