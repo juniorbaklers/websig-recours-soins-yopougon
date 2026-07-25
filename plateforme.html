@@ -187,7 +187,7 @@ input.colorpick{width:32px;height:24px;padding:1px;border:1px solid var(--line);
 input[type=range]{accent-color:var(--brand)}
 #map{width:100%;height:calc(100vh - 230px);min-height:600px;border-radius:var(--radius);border:1px solid var(--line);z-index:1}
 @media(max-width:900px){#map{height:560px;min-height:0}}
-.legend{background:#fff;padding:8px 10px;border-radius:8px;box-shadow:0 1px 6px rgba(0,0,0,.2);font-size:12px;line-height:1.7;max-height:240px;overflow:auto}
+.legend{background:var(--panel);color:var(--ink);padding:8px 10px;border-radius:8px;box-shadow:0 1px 6px rgba(0,0,0,.2);font-size:12px;line-height:1.7;max-height:240px;overflow:auto}
 .legend b{display:block;margin-bottom:4px;font-size:11.5px}
 .legend .li{display:flex;align-items:center;gap:6px}
 .legend .sw{width:12px;height:12px;border-radius:3px;flex:none;border:1px solid rgba(0,0,0,.15)}
@@ -230,7 +230,7 @@ table.ct tr.rowclick:hover td{background:#f7f3df}
   border:1px solid var(--line);background:var(--panel);box-shadow:0 2px 10px rgba(0,0,0,.25);
   display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--ink);transition:.15s}
 .mc-toggle:hover{color:var(--brand);border-color:var(--brand)}
-.mc-toggle.on{color:#fff;background:var(--brand);border-color:var(--brand)}
+.mc-toggle.on{color:var(--brand-ink);background:var(--brand);border-color:var(--brand)}
 .mapctrls{position:fixed;top:70px;right:24px;width:290px;max-height:calc(100vh - 100px);overflow:auto;padding:8px;z-index:950;
   background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:0 10px 34px rgba(0,0,0,.35);
   transform:translateX(calc(100% + 40px));opacity:0;pointer-events:none;transition:transform .2s ease,opacity .2s ease}
@@ -240,6 +240,9 @@ table.ct tr.rowclick:hover td{background:#f7f3df}
   cursor:move;font-size:12px;font-weight:700;color:var(--ink);border-radius:calc(var(--radius) - 1px) calc(var(--radius) - 1px) 0 0;
   background:rgba(127,127,127,.08)}
 .mc-head svg{opacity:.55;flex:none}
+.mc-head span{flex:1;min-width:0}
+.mc-close{flex:none;width:26px;height:26px;border-radius:7px;border:1px solid var(--line);background:var(--panel-2);color:var(--ink);font-size:13px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.15s}
+.mc-close:hover{border-color:var(--danger);color:var(--danger)}
 @media(max-width:640px){.mapctrls{width:calc(100% - 20px);left:10px!important;right:10px}}
 
 /* --- Sections repliables de la colonne "Options de la carte" --- */
@@ -260,7 +263,7 @@ table.ct tr.rowclick:hover td{background:#f7f3df}
 .mr-card:hover{border-color:var(--brand);transform:translateY(-1px)}
 .mr-card.active{border-color:var(--brand);box-shadow:0 0 0 2px var(--brand) inset}
 .mr-top{display:flex;align-items:center;gap:8px}
-.mr-rank{width:20px;height:20px;border-radius:6px;background:var(--brand);color:#fff;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;flex:none}
+.mr-rank{width:20px;height:20px;border-radius:6px;background:var(--brand);color:var(--brand-ink);font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;flex:none}
 .mr-name{flex:1;font-size:12.5px;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mr-score{font-size:15px;font-weight:800;color:var(--brand);font-variant-numeric:tabular-nums}
 .mr-bars{margin-top:8px;display:flex;flex-direction:column;gap:4px}
@@ -582,12 +585,12 @@ body.presentation-mode .wrap.sp-collapsed{grid-template-columns:1fr}
 .floating-window{position:absolute;pointer-events:auto;width:420px;max-width:92vw;
   background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:0 10px 34px rgba(0,0,0,.3);
   display:flex;flex-direction:column;overflow:hidden}
-.fw-head{background:linear-gradient(120deg,var(--brand),var(--brand2));color:#fff;padding:8px 10px;
+.fw-head{background:linear-gradient(120deg,var(--brand),var(--brand2));color:var(--brand-ink);padding:8px 10px;
   display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:move;touch-action:none;flex:none}
 .fw-title{font-size:12.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .fw-actions{display:flex;gap:4px;flex:none}
-.fw-btn{width:20px;height:20px;border:none;border-radius:5px;background:rgba(255,255,255,.22);color:#fff;cursor:pointer;font-size:12px;line-height:1;display:flex;align-items:center;justify-content:center}
-.fw-btn:hover{background:rgba(255,255,255,.38)}
+.fw-btn{width:20px;height:20px;border:none;border-radius:5px;background:rgba(0,0,0,.16);color:var(--brand-ink);cursor:pointer;font-size:12px;line-height:1;display:flex;align-items:center;justify-content:center}
+.fw-btn:hover{background:rgba(0,0,0,.28)}
 .fw-toolbar{display:flex;gap:6px;padding:6px 8px;border-bottom:1px solid var(--line);flex:none}
 .fw-toolbar:empty{display:none}
 .fw-body{padding:10px;overflow:auto;max-height:60vh}
@@ -791,6 +794,7 @@ body.presentation-mode .wrap.sp-collapsed{grid-template-columns:1fr}
           <div class="mc-head" id="mapCtrlsHead">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>
             <span>Options de la carte</span>
+            <button class="mc-close" id="mapCtrlsClose" type="button" title="Fermer" aria-label="Fermer les options">✕</button>
           </div>
           <details class="mcpanel" open>
             <summary>Affichage</summary>
@@ -1032,6 +1036,7 @@ body.presentation-mode .wrap.sp-collapsed{grid-template-columns:1fr}
             <option value="grp">Barres groupées (effectifs)</option>
           </select>
           <button class="btn" id="swapXY">↔ Inverser X/Y</button>
+          <button class="btn" id="exportCross" title="Exporter ce graphique croisé en image PNG">⬇ PNG</button>
         </div>
         <div class="chartbox tall"><canvas id="crossChart"></canvas></div>
         <div class="note" id="crossInfo"></div>

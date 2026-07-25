@@ -1890,12 +1890,16 @@ function initMapCtrls(){
   };
   setOpen(localStorage.getItem('mc_open')==='1');
   btn.addEventListener('click',()=>setOpen(!panel.classList.contains('open')));
+  // bouton de fermeture (indispensable sur mobile ou le panneau couvre l'ecran)
+  const closeBtn=document.getElementById('mapCtrlsClose');
+  if(closeBtn) closeBtn.addEventListener('click',()=>setOpen(false));
 
   // deplacement libre du panneau par sa poignee (Pointer Events : souris + tactile)
   const head=document.getElementById('mapCtrlsHead');
   if(head){
     let dragging=false,dx=0,dy=0;
     head.addEventListener('pointerdown',e=>{
+      if(e.target.closest('.mc-close')) return; // ne pas demarrer le deplacement depuis le bouton fermer
       dragging=true; panel.classList.add('dragging');
       const r=panel.getBoundingClientRect();
       dx=e.clientX-r.left; dy=e.clientY-r.top;
@@ -2002,6 +2006,13 @@ document.addEventListener('DOMContentLoaded',async ()=>{
   // 6. branchements des menus et boutons
   ['cx','cy','cmode'].forEach(id=>document.getElementById(id).addEventListener('change',()=>renderCross(filtered())));
   document.getElementById('swapXY').addEventListener('click',()=>{const a=document.getElementById('cx'),b=document.getElementById('cy');const t=a.value;a.value=b.value;b.value=t;renderCross(filtered());});
+  // export PNG du graphique croise courant (selon les variables choisies)
+  const exCrossBtn=document.getElementById('exportCross');
+  if(exCrossBtn) exCrossBtn.addEventListener('click',()=>{
+    const kx=document.getElementById('cx').value, ky=document.getElementById('cy').value;
+    const box=document.getElementById('crossChart').closest('.chartbox');
+    if(box) exportElementCanvasPng(box, 'croise_'+kx+'_x_'+ky);
+  });
   document.getElementById('ex').addEventListener('change',()=>renderExplorer(filtered()));
   // menus de l'onglet Determinants
   document.getElementById('detFactor').innerHTML=DET_FACTORS.map(f=>`<option value="${f}">${DIMS[f]}</option>`).join('');
