@@ -135,19 +135,19 @@ details.fg[open]>summary .chev{transform:rotate(90deg)}
 @media(prefers-reduced-motion:reduce){#tabs .tab{animation:none!important}}
 /* Balayage lumineux qui traverse l'onglet au survol (couleur de marque) */
 #tabs .tab::before{content:"";position:absolute;top:0;left:-135%;width:55%;height:100%;transform:skewX(-20deg);pointer-events:none;
-  background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--brand) 34%,transparent),transparent);
+  background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--brand) 22%,transparent),transparent);
   transition:left .6s cubic-bezier(.22,1,.36,1)}
 #tabs .tab:hover::before{left:155%}
-/* Survol : contour de marque + halo coloré + léger soulèvement */
+/* Survol : contour de marque + halo discret + léger soulèvement */
 #tabs .tab:hover{color:var(--ink);border-color:var(--brand);transform:translateY(-2px);
-  box-shadow:0 8px 20px -6px rgba(0,0,0,.5),0 0 0 1px color-mix(in srgb,var(--brand) 38%,transparent),0 12px 28px -8px color-mix(in srgb,var(--brand) 55%,transparent)}
+  box-shadow:0 6px 16px -8px rgba(0,0,0,.5),0 0 0 1px color-mix(in srgb,var(--brand) 22%,transparent),0 8px 20px -10px color-mix(in srgb,var(--brand) 30%,transparent)}
 #tabs .tab:active{transform:translateY(0) scale(.97)}
-/* Onglet actif : dégradé de marque, texte lisible, halo prononcé */
+/* Onglet actif : dégradé de marque, texte lisible, halo mesuré */
 #tabs .tab.active{background:linear-gradient(120deg,var(--brand),var(--brand2));color:var(--brand-ink);border-color:transparent;transform:translateY(-1px);
-  box-shadow:0 2px 8px rgba(0,0,0,.35),0 8px 22px -6px color-mix(in srgb,var(--brand) 62%,transparent)}
+  box-shadow:0 2px 8px rgba(0,0,0,.35),0 6px 16px -8px color-mix(in srgb,var(--brand) 36%,transparent)}
 #tabs .tab.active::before{display:none}
 #tabs .tab.active:hover{transform:translateY(-2px);
-  box-shadow:0 3px 10px rgba(0,0,0,.4),0 14px 32px -6px color-mix(in srgb,var(--brand) 78%,transparent)}
+  box-shadow:0 3px 10px rgba(0,0,0,.4),0 10px 22px -8px color-mix(in srgb,var(--brand) 46%,transparent)}
 @media(prefers-reduced-motion:reduce){#tabs .tab,#tabs .tab:hover,#tabs .tab.active{transform:none}}
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(124px,1fr));gap:var(--sp-2);margin-bottom:var(--sp-3)}
 .kpi{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:var(--r-md);padding:var(--sp-3) var(--sp-3) var(--sp-3) var(--sp-4);box-shadow:var(--e-1);overflow:hidden;transition:transform .15s,box-shadow .15s;animation:fadeUp .5s both}
@@ -599,8 +599,8 @@ body.presentation-mode .wrap.sp-collapsed{grid-template-columns:1fr}
 .floating-window .chartbox{height:220px}
 .popout-placeholder{border:1px dashed var(--line);border-radius:10px;padding:16px;text-align:center;
   color:var(--muted);font-size:11.5px;display:flex;flex-direction:column;align-items:center;gap:8px}
-.popout-btn{background:none;border:none;cursor:pointer;font-size:12px;opacity:.55;margin-left:6px;vertical-align:middle}
-.popout-btn:hover{opacity:1}
+.popout-btn{background:none;border:none;cursor:pointer;font-size:12px;opacity:.85;color:var(--muted);margin-left:6px;vertical-align:middle;transition:.15s}
+.popout-btn:hover{opacity:1;color:var(--brand)}
 
 /* ===================== RESPONSIVE : tablette et telephone (Android/iOS) ===================== */
 /* Tablette (<=980px deja couvert par les regles .wrap/.sidebar/.statspanel ci-dessus) */

@@ -219,12 +219,18 @@ function haversine(la1,lo1,la2,lo2){ const R=6371000,r=Math.PI/180;
 function computeNearest(){
   if(!CENTRES||!CENTRES.length) return;
   DATA.forEach(d=>{
-    if(typeof d.lat!=='number'||typeof d.lng!=='number'||!d.lat){ d.nearestDist=null; d.nearestName=''; d.walkMin=null; d.coverClass=''; return; }
-    let best=1e18,bn='',bt='';
-    for(const c of CENTRES){ const dist=haversine(d.lat,d.lng,c.lat,c.lon); if(dist<best){best=dist;bn=c.nom;bt=c.type;} }
+    if(typeof d.lat!=='number'||typeof d.lng!=='number'||!d.lat){ d.nearestDist=null; d.nearestName=''; d.walkMin=null; d.coverClass=''; d.nearestPubDist=null; d.walkMinPub=null; d.coverClassPub=''; return; }
+    let best=1e18,bn='',bt='',bestPub=1e18;
+    for(const c of CENTRES){ const dist=haversine(d.lat,d.lng,c.lat,c.lon);
+      if(dist<best){best=dist;bn=c.nom;bt=c.type;}
+      if(c.public && dist<bestPub){ bestPub=dist; } }
     d.nearestDist=Math.round(best); d.nearestName=bn; d.nearestType=bt;
     d.walkMin=Math.max(1,Math.round(best/WALK_M_MIN));
     d.coverClass = best<=400?'5 min':best<=800?'10 min':best<=1200?'15 min':'Hors 15 min';
+    // couverture par les centres de sante PUBLICS uniquement
+    d.nearestPubDist = bestPub<1e18?Math.round(bestPub):null;
+    d.walkMinPub = d.nearestPubDist!=null?Math.max(1,Math.round(bestPub/WALK_M_MIN)):null;
+    d.coverClassPub = d.nearestPubDist==null ? '' : (bestPub<=400?'5 min':bestPub<=800?'10 min':bestPub<=1200?'15 min':'Hors 15 min');
   });
 }
 
@@ -1253,10 +1259,17 @@ function renderAccessibility(recs){
   const taux=n?100*(c5+c10+c15)/n:0;
   const dm=median(wc.map(d=>d.nearestDist).filter(x=>typeof x==='number'));
   const wm=median(wc.map(d=>d.walkMin).filter(x=>typeof x==='number'));
+  // couverture par les centres PUBLICS uniquement
+  const wcp=recs.filter(d=>d.coverClassPub);
+  const np=wcp.length, cp=v=>wcp.filter(d=>d.coverClassPub===v).length;
+  const tauxPub=np?100*(cp('5 min')+cp('10 min')+cp('15 min'))/np:0;
+  const dmPub=median(wcp.map(d=>d.nearestPubDist).filter(x=>typeof x==='number'));
   const kp=[
-    {v:taux.toFixed(0)+'%',l:'Couverts à ≤ 15 min de marche'},
+    {v:taux.toFixed(0)+'%',l:'Couverts à ≤ 15 min de marche (tous centres)'},
+    {v:tauxPub.toFixed(0)+'%',l:'Couverts à ≤ 15 min d\'un centre public'},
     {v:hors,l:'Hors zone 15 min',s:n?`${(100*hors/n).toFixed(0)}% de la sélection`:''},
     {v:dm!=null?Math.round(dm)+' m':'—',l:'Distance médiane au centre le + proche'},
+    {v:dmPub!=null?Math.round(dmPub)+' m':'—',l:'Distance médiane au centre public le + proche'},
     {v:wm!=null?wm+' min':'—',l:'Temps de marche médian'}
   ];
   const ak=document.getElementById('accKpis'); if(ak) ak.innerHTML=kp.map(k=>`<div class="kpi"><div class="v">${k.v}</div><div class="l">${k.l}</div>${k.s?`<div class="s">${k.s}</div>`:''}</div>`).join('');
