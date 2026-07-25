@@ -186,10 +186,10 @@ const MAP_PALETTES = {
 // les graphiques pour que leurs couleurs suivent la palette choisie. chartPalRGBA() : version translucide.
 function chartPal(){ return MAP_PALETTES[mapStyle.palette]||PAL; }
 function chartPalRGBA(i,a){ const c=chartPal()[i%chartPal().length]||PAL[0]; const h=c.replace('#',''); const n=parseInt(h.length===3?h.split('').map(x=>x+x).join(''):h,16); return 'rgba('+((n>>16)&255)+','+((n>>8)&255)+','+(n&255)+','+a+')'; }
-// Cas particulier des reponses Oui/Non : vert = Oui, rouge = Non (plus intuitif).
-// Couleurs des classes d'accessibilite (marche) : du vert (proche) au rouge (hors zone)
-// couverture par temps de marche : 4 teintes de la palette active (foncee -> claire), du plus proche au plus loin
-function coverCol(cls){ const i={'5 min':0,'10 min':2,'15 min':4,'Hors 15 min':6}[cls]; return i==null?null:chartPal()[i%chartPal().length]; }
+// Couleurs SEMANTIQUES de la carte (independantes de la palette des graphiques) :
+// Oui/Non -> vert/rouge (intuitif) ; couverture par temps de marche -> vert (proche) a rouge (hors zone).
+const YESNO = { 'Oui':'#4c9a4c','Non':'#d9534f','OUI':'#4c9a4c','NON':'#d9534f' };
+const COVER_COL = { '5 min':'#1a9850','10 min':'#91cf60','15 min':'#fee08b','Hors 15 min':'#d73027' };
 
 // mapStyle (etape 5b) : etat central du style cartographique, memorise dans le
 // navigateur (localStorage) et applique a la carte (palette, opacite, taille
@@ -251,11 +251,19 @@ function reprOf(key,normv){const f=DATA.find(d=>norm(d[key])===normv); return f?
 // CATS : cache des modalites de chaque variable (calcule au chargement)
 const CATS={}; Object.keys(DIMS).forEach(k=>CATS[k]=catsOf(k));
 
-// colorFor(cle, valeur) : couleur d'une modalite, toujours tiree de la palette active.
-function colorFor(key,val){
-  if(key==='coverClass'){ const cc=coverCol((val||'').trim()); if(cc) return cc; } // classes de marche
-  const cats=CATS[key]||catsOf(key);
+// colorFor(cle, valeur, forChart) : couleur d'une modalite.
+// forChart=true (graphiques) -> toujours la palette active.
+// forChart absent (carte) -> couleurs semantiques initiales pour Oui/Non et couverture, palette pour le reste.
+function colorFor(key,val,forChart){
+  const v=(val||'').trim();
   const pal=MAP_PALETTES[mapStyle.palette]||PAL;
+  if(!forChart){ // la carte conserve ses couleurs initiales, independantes de la palette des graphiques
+    if(key==='coverClass' && COVER_COL[v]) return COVER_COL[v]; // classes de marche
+  }
+  // couverture (ordinale) sur les graphiques : degrade de 4 teintes de la palette (CATS['coverClass'] est vide, on mappe explicitement)
+  if(forChart && key==='coverClass'){ const oi={'5 min':0,'10 min':2,'15 min':4,'Hors 15 min':6}[v]; if(oi!=null) return pal[oi%pal.length]; }
+  const cats=CATS[key]||catsOf(key);
+  if(!forChart && cats.every(c=>['Oui','Non','OUI','NON'].includes(c.trim())) && YESNO[v]) return YESNO[v]; // Oui/Non sur la carte
   const i=cats.indexOf(val); return pal[(i<0?0:i)%pal.length];
 }
 
@@ -353,7 +361,7 @@ function draw(id,cfg){
 function barSimple(id,key,recs,{horizontal=false,color=null,doughnut=false}={}){
   const m=countBy(recs,key); const cats=ordered(key,m); const vals=cats.map(c=>m.get(c)||0);
   const total=vals.reduce((a,b)=>a+b,0);
-  const colors=cats.map(c=>color||colorFor(key,c));
+  const colors=cats.map(c=>color||colorFor(key,c,true));
   if(doughnut){ // version anneau (camembert perce)
     draw(id,{type:'doughnut',data:{labels:cats,datasets:[{data:vals,backgroundColor:colors,borderWidth:1,borderColor:'#fff'}]},
       options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{boxWidth:12}},
@@ -378,7 +386,7 @@ function crossChart(id,keyX,keyY,recs,mode='pct'){
   const totX={}; catsX.forEach(x=>totX[x]=0); // total par colonne X (pour convertir en %)
   recs.forEach(d=>{const x=(d[keyX]??'').toString().trim(),y=(d[keyY]??'').toString().trim(); if(grid[x]&&y&&grid[x][y]!==undefined){grid[x][y]++;totX[x]++;}});
   // un "dataset" par modalite de keyY
-  const datasets=catsY.map(y=>({label:y,backgroundColor:colorFor(keyY,y),borderRadius:3,maxBarThickness:60,
+  const datasets=catsY.map(y=>({label:y,backgroundColor:colorFor(keyY,y,true),borderRadius:3,maxBarThickness:60,
     data:catsX.map(x=> mode==='pct' ? (totX[x]?100*grid[x][y]/totX[x]:0) : grid[x][y] )}));
   const stacked=(mode!=='grp'); // empile sauf en mode barres groupees
   draw(id,{type:'bar',data:{labels:catsX,datasets},
@@ -591,7 +599,7 @@ function popupHtml(d){
     ['Mode de déplacement',d.locomotion],['Coût du transport',d.coutTransport],
     ['Perception distance',d.opinionDistance],['Maladie',d.maladieCat],['Résultat',d.resultatTraitement]]
     .filter(r=>r[1]!=null && r[1]!=='');
-  const badgeCol=coverCol(d.coverClass)||'rgba(255,255,255,.25)';
+  const badgeCol=COVER_COL[d.coverClass]||'rgba(255,255,255,.25)';
   return `<div class="pop"><span class="ttl">Enquêté n°${d.id}${d.coverClass?` <span class="badge" style="background:${badgeCol}">${d.coverClass}</span>`:''}</span>
     <table>${rows.map(r=>`<tr><td class="k">${r[0]}</td><td class="v">${r[1]}</td></tr>`).join('')}</table></div>`;
 }
