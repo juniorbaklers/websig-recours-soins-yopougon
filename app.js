@@ -3119,7 +3119,7 @@ function initChatDrag(){
 /* ============================================================================
    APPARENCE : theme (clair/sombre) + accent (cyan/vert/alerte), memorises
    ============================================================================ */
-const THEME_DEFAULTS = { mode:'light', accent:'cyan', font:'inter', density:'standard', radius:12, anim:true };
+const THEME_DEFAULTS = { mode:'dark', accent:'jaune', font:'inter', density:'standard', radius:12, anim:true };
 const THEME_SETTINGS = Object.assign({}, THEME_DEFAULTS);
 function resolveTheme(mode){ return mode==='auto' ? (matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light') : mode; }
 // applyTheme() : applique tous les reglages (mode/accent/police/densite/rayon/animations), memorise et met a jour l'UI.
@@ -3149,8 +3149,8 @@ function applyTheme(){
 // compat : anciens appels applyAppearance(theme, accent) ailleurs dans le code
 function applyAppearance(theme,accent){ if(theme)THEME_SETTINGS.mode=theme; if(accent)THEME_SETTINGS.accent=accent; applyTheme(); }
 function initAppearance(){
-  THEME_SETTINGS.mode=localStorage.getItem('ui_theme')||'light';
-  THEME_SETTINGS.accent=localStorage.getItem('ui_accent')||'cyan';
+  THEME_SETTINGS.mode=localStorage.getItem('ui_theme')||'dark';
+  THEME_SETTINGS.accent=localStorage.getItem('ui_accent')||'jaune';
   THEME_SETTINGS.font=localStorage.getItem('ui_font')||'inter';
   THEME_SETTINGS.density=localStorage.getItem('ui_density')||'standard';
   THEME_SETTINGS.radius=parseInt(localStorage.getItem('ui_radius')||'12',10)||12;
