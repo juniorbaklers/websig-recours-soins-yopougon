@@ -268,6 +268,22 @@ section h2{
 :root[data-theme="light"] .mod{background:linear-gradient(105deg,rgba(201,162,39,.10),rgba(255,255,255,.55) 45%),var(--panel);border-color:var(--line);box-shadow:0 1px 2px rgba(70,55,15,.05),0 12px 30px -20px rgba(70,55,15,.30)}
 :root[data-theme="light"] .mod:hover{background:linear-gradient(105deg,rgba(201,162,39,.16),rgba(255,255,255,.65) 45%),#fffef9;border-color:color-mix(in srgb,var(--primary) 45%,var(--line));box-shadow:0 22px 48px -22px rgba(70,55,15,.35)}
 :root[data-theme="light"] .foot{color:var(--muted)}
+
+/* --- Mobile : barre de nav compacte, alignée à gauche, tailles réduites (rendu premium) --- */
+@media(max-width:600px){
+  .nav{flex-direction:column;align-items:flex-start;gap:12px;padding:14px 6vw}
+  .navright{order:2;width:auto}
+  .logo{width:36px;height:36px;border-radius:10px;font-size:19px}
+  .brand{gap:10px}
+  .brand b{font-size:15.5px}
+  .nav .tag{font-size:10px}
+  .navright{gap:8px}
+  .themetgl{width:34px;height:34px;font-size:14px;border-radius:9px}
+  .navcta{font-size:12px;padding:8px 14px}
+  .wrap{padding:32px 6vw 40px}
+  .sub{font-size:10px;letter-spacing:1.1px;margin-bottom:12px}
+  .stat b{font-size:29px}
+}
 </style>
 </head>
 <body>
