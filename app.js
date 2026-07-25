@@ -532,6 +532,17 @@ function initMap(){
   });
   // bascule du regroupement (cluster)
   document.getElementById('clusterToggle').addEventListener('change',()=>renderMap(filtered()));
+  // bascule du halo lumineux des points : etat memorise, applique via l'attribut data-halo sur <html>
+  const haloT=document.getElementById('haloToggle');
+  if(haloT){
+    const saved=localStorage.getItem('ui_halo'); // null=defaut (actif)
+    haloT.checked = saved!=='off';
+    document.documentElement.setAttribute('data-halo', haloT.checked?'on':'off');
+    haloT.addEventListener('change',()=>{
+      document.documentElement.setAttribute('data-halo', haloT.checked?'on':'off');
+      localStorage.setItem('ui_halo', haloT.checked?'on':'off');
+    });
+  }
   // bascules des couches spatiales : on affiche/masque la couche correspondante
   const tog=(id,layer)=>document.getElementById(id).addEventListener('change',e=>{e.target.checked?layer.addTo(map):map.removeLayer(layer);});
   tog('centresToggle',centresLayer); tog('buffer500Toggle',buffer500Layer); tog('buffer1000Toggle',buffer1000Layer); tog('boundaryToggle',boundaryLayer);

@@ -6,6 +6,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Bakusm@p — Recours aux soins des personnes du 3e âge · Yopougon</title>
 <meta name="description" content="Tableau de bord WebSIG d'analyse du recours aux soins, de l'accessibilité spatiale et des déterminants socio-sanitaires des personnes du troisième âge à Yopougon.">
+<!-- Applique le theme memorise (clair/sombre) avant le rendu, pour eviter un flash -->
+<script>(function(){try{document.documentElement.setAttribute('data-theme',localStorage.getItem('home_theme')||'dark');}catch(e){}})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <!-- Inter : néo-grotesque nette et pro (style shadcn/Helvetica), famille unique du site. -->
@@ -217,6 +219,31 @@ section h2{
   .obj:hover .n{transform:none}
   .stat::after,.navcta::after{display:none}
 }
+
+/* ============ BASCULE DE THÈME + MODE CLAIR ============ */
+.themetgl{width:42px;height:42px;border-radius:11px;background:var(--panel);border:1px solid var(--line-strong);color:var(--ink);
+  font-size:17px;line-height:1;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;flex:none;
+  transition:transform .2s,border-color .2s,color .2s,box-shadow .2s}
+.themetgl:hover{border-color:var(--primary);color:var(--primary);transform:translateY(-1px);box-shadow:0 6px 18px -6px color-mix(in srgb,var(--primary) 60%,transparent)}
+.navright{display:flex;align-items:center;gap:10px}
+@media(prefers-reduced-motion:reduce){.themetgl:hover{transform:none}}
+
+/* --- Mode clair : contenu en crème chaud, hero toujours sombre (photo + carte) --- */
+:root[data-theme="light"]{
+  --bg:#f5f0e4;--surface-soft:#efe9db;--panel:#ffffff;--panel2:#faf5ec;
+  --ink:#1c1c14;--body:#45453a;--body-strong:#26261e;--muted:#6f6f62;--muted-soft:#a7a798;
+  --line:#e7e0cf;--line-strong:#d9d0bd;
+  --primary:#a88700;--primary-active:#8f7300;--on-primary:#ffffff;
+  --brand:#a88700;--brand2:#a88700;--gold:#a88700}
+:root[data-theme="light"] body{background:var(--bg)}
+/* le hero garde son contexte sombre quel que soit le thème (fond photo + mini-carte) */
+:root[data-theme="light"] .hero{
+  --bg:#0a0a0a;--panel:#1a1a1a;--panel2:#242424;--ink:#ffffff;--body:#cccccc;--body-strong:#e6e6e6;--muted:#888888;
+  --line:#2a2a2a;--line-strong:#3a3a3a;--primary:#faff69;--primary-active:#e6eb52;--on-primary:#0a0a0a;--brand:#faff69;--brand2:#faff69}
+/* cartes modules : version claire (verre dépoli clair au lieu de sombre) */
+:root[data-theme="light"] .mod{background:linear-gradient(105deg,rgba(168,135,0,.10),rgba(255,255,255,.5) 45%),#ffffff;border-color:rgba(0,0,0,.09)}
+:root[data-theme="light"] .mod:hover{background:linear-gradient(105deg,rgba(168,135,0,.16),rgba(255,255,255,.6) 45%),#fffdf5;border-color:color-mix(in srgb,var(--primary) 45%,var(--line));box-shadow:0 20px 46px rgba(120,100,0,.16)}
+:root[data-theme="light"] .foot{color:var(--muted)}
 </style>
 </head>
 <body>
@@ -229,7 +256,10 @@ section h2{
   <div class="hero-scrim" aria-hidden="true"></div>
   <div class="nav reveal">
     <div class="brand"><div class="logo">B<span>@</span></div><div><b>Bakusm@p</b><div class="tag">Plateforme WebSIG interactive</div></div></div>
-    <a class="navcta" href="plateforme.html">Ouvrir la plateforme →</a>
+    <div class="navright">
+      <button class="themetgl" id="themeTgl" type="button" aria-label="Basculer le thème clair / sombre" title="Thème clair / sombre">☀</button>
+      <a class="navcta" href="plateforme.html">Ouvrir la plateforme →</a>
+    </div>
   </div>
 
   <div class="wrap">
@@ -312,6 +342,19 @@ section h2{
 <script src="data/routes.js"></script>
 <script>
 try{ document.getElementById('yr').textContent = new Date().getFullYear(); }catch(e){}
+
+// Bascule de thème clair / sombre (icône soleil/lune), mémorisée dans localStorage.
+(function(){
+  const tgl=document.getElementById('themeTgl'); if(!tgl) return;
+  const icon=()=>{ tgl.textContent = document.documentElement.getAttribute('data-theme')==='light' ? '☾' : '☀'; };
+  icon();
+  tgl.addEventListener('click',()=>{
+    const next = document.documentElement.getAttribute('data-theme')==='light' ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme',next);
+    try{ localStorage.setItem('home_theme',next); }catch(e){}
+    icon();
+  });
+})();
 const REDUCE = matchMedia('(prefers-reduced-motion:reduce)').matches;
 
 // stats calculées en direct à partir des mêmes données que la plateforme.
