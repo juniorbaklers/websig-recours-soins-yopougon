@@ -848,6 +848,7 @@ body.presentation-mode .wrap.sp-collapsed{grid-template-columns:1fr}
             <summary>Couches</summary>
             <div class="card">
               <div class="switch"><input type="checkbox" id="centresToggle" checked><label for="centresToggle">Centres de santé (108)</label></div>
+              <div class="switch"><input type="checkbox" id="publicOnlyToggle"><label for="publicOnlyToggle">Centres publics uniquement (17) — tous les calculs d'accessibilité</label></div>
               <div class="switch"><input type="checkbox" id="buffer500Toggle"><label for="buffer500Toggle">Zone de couverture 500 m</label></div>
               <div class="switch"><input type="checkbox" id="buffer1000Toggle"><label for="buffer1000Toggle">Zone de couverture 1 km</label></div>
               <div class="switch"><input type="checkbox" id="boundaryToggle" checked><label for="boundaryToggle">Limite de Yopougon</label></div>
@@ -1216,7 +1217,7 @@ body.presentation-mode .wrap.sp-collapsed{grid-template-columns:1fr}
       </div>
 
       <div class="sp-group">
-        <div class="sp-gtitle">Accessibilité</div>
+        <div class="sp-gtitle" id="sp-acc-title">Accessibilité</div>
         <div class="spgrid">
           <div class="spstat"><div class="v" id="sp-dmoy">—</div><div class="l">Distance moyenne au + proche</div></div>
           <div class="spstat"><div class="v" id="sp-dmin">—</div><div class="l">Distance minimale</div></div>

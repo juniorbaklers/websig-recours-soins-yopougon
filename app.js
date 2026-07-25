@@ -58,7 +58,8 @@ const ORD = {
   bandPrim:['Moins de 500 m','500 m a 1 km','1 a 1,5 km','Plus de 1,5 km'],
   bandAny:['Moins de 500 m','500 m a 1 km','1 a 1,5 km','Plus de 1,5 km'],
   // Classe d'accessibilite selon le temps de marche au centre le plus proche
-  coverClass:['5 min','10 min','15 min','Hors 15 min']
+  coverClass:['5 min','10 min','15 min','Hors 15 min'],
+  coverClassPub:['5 min','10 min','15 min','Hors 15 min']
 };
 
 // DIMS = pour chaque variable (cle technique), son libelle lisible affiche
@@ -94,7 +95,7 @@ const DIMS = {
   recommandeTradi:"Recommandé d'aller voir un tradipraticien", retourneMemeStructure:'Retournerait dans la même structure',
   // Variables issues de l'analyse spatiale (distances reelles au centre le plus proche)
   bandPrim:'Distance réelle au 1er contact', bandAny:'Distance réelle (tout centre)',
-  coverClass:'Couverture (temps de marche)',
+  coverClass:'Couverture (temps de marche)', coverClassPub:'Couverture publique (temps de marche)',
   // Centre de sante le plus proche (calcule par computeNearest(), voir section 1bis)
   nearestName:'Centre de santé le plus proche'
 };
@@ -234,6 +235,13 @@ function computeNearest(){
   });
 }
 
+// Mode "centres publics uniquement" : bascule l'affichage des centres et TOUS les calculs
+// d'accessibilite (distances, couverture) sur les centres de sante publics.
+function publicMode(){ const t=document.getElementById('publicOnlyToggle'); return !!(t && t.checked); }
+function accDist(d){ return publicMode()? d.nearestPubDist : d.nearestDist; }
+function accCover(d){ return publicMode()? d.coverClassPub : d.coverClass; }
+function accWalk(d){ return publicMode()? d.walkMinPub : d.walkMin; }
+
 // catsOf(cle) : renvoie la liste ORDONNEE des modalites d'une variable,
 // calculee une seule fois sur TOUT le jeu de donnees (pour que les couleurs
 // et l'ordre restent stables meme quand on filtre).
@@ -264,10 +272,10 @@ function colorFor(key,val,forChart){
   const v=(val||'').trim();
   const pal=MAP_PALETTES[mapStyle.palette]||PAL;
   if(!forChart){ // la carte conserve ses couleurs initiales, independantes de la palette des graphiques
-    if(key==='coverClass' && COVER_COL[v]) return COVER_COL[v]; // classes de marche
+    if((key==='coverClass'||key==='coverClassPub') && COVER_COL[v]) return COVER_COL[v]; // classes de marche
   }
-  // couverture (ordinale) sur les graphiques : degrade de 4 teintes de la palette (CATS['coverClass'] est vide, on mappe explicitement)
-  if(forChart && key==='coverClass'){ const oi={'5 min':0,'10 min':2,'15 min':4,'Hors 15 min':6}[v]; if(oi!=null) return pal[oi%pal.length]; }
+  // couverture (ordinale) sur les graphiques : degrade de 4 teintes de la palette
+  if(forChart && (key==='coverClass'||key==='coverClassPub')){ const oi={'5 min':0,'10 min':2,'15 min':4,'Hors 15 min':6}[v]; if(oi!=null) return pal[oi%pal.length]; }
   const cats=CATS[key]||catsOf(key);
   if(!forChart && cats.every(c=>['Oui','Non','OUI','NON'].includes(c.trim())) && YESNO[v]) return YESNO[v]; // Oui/Non sur la carte
   const i=cats.indexOf(val); return pal[(i<0?0:i)%pal.length];
@@ -538,6 +546,9 @@ function initMap(){
   });
   // bascule du regroupement (cluster)
   document.getElementById('clusterToggle').addEventListener('change',()=>renderMap(filtered()));
+  // bascule "centres publics uniquement" : filtre la carte + recalcule tous les indicateurs d'accessibilite
+  const pubT=document.getElementById('publicOnlyToggle');
+  if(pubT) pubT.addEventListener('change',()=>{ const f=filtered(); buildSpatialLayers(); renderMap(f); renderStatsPanel(f); renderTab(f); });
   // bascule du halo lumineux des points : etat memorise, applique via l'attribut data-halo sur <html>
   const haloT=document.getElementById('haloToggle');
   if(haloT){
@@ -576,7 +587,9 @@ function buildSpatialLayers(){
   if(!buffer1000Layer) buffer1000Layer=L.layerGroup();
   centresLayer.clearLayers(); buffer500Layer.clearLayers(); buffer1000Layer.clearLayers();
   const om=opacityMult();
+  const onlyPub=publicMode();
   CENTRES.forEach(c=>{
+    if(onlyPub && !c.public) return; // mode "centres publics uniquement"
     const col=mapStyle.colorCentres;
     // symbologie cartographique standard d'un point de sante : rond + croix blanche a l'interieur
     const icon=L.divIcon({className:'centre-ico',iconSize:[20,20],iconAnchor:[10,10],
@@ -1250,9 +1263,9 @@ function renderDeterminants(recs){
 // renderAccessibility() : couverture par temps de marche + indicateurs + tableau par quartier
 function renderAccessibility(recs){
   const wc=recs.filter(d=>d.coverClass);
-  // 1) doughnut des classes de couverture
-  barSimple('acc_cover','coverClass',recs,{doughnut:true});
-  // 2) indicateurs
+  // 1) doughnut des classes de couverture (mode public si activé)
+  barSimple('acc_cover', publicMode()?'coverClassPub':'coverClass', recs,{doughnut:true});
+  // 2) indicateurs (comparaison stable tous centres vs publics)
   const n=wc.length;
   const c=v=>wc.filter(d=>d.coverClass===v).length;
   const c5=c('5 min'),c10=c('10 min'),c15=c('15 min'),hors=c('Hors 15 min');
@@ -1757,8 +1770,8 @@ function renderStatsPanel(recs){
   const centresT=document.getElementById('centresToggle');
   setv('sp-centres', (centresT && centresT.checked) ? CENTRES.length : 0);
 
-  // --- Accessibilite : distances au centre le plus proche (mises a jour par computeNearest) ---
-  const dists=recs.map(d=>d.nearestDist).filter(x=>typeof x==='number');
+  // --- Accessibilite : distances au centre le plus proche (mode public si activé) ---
+  const dists=recs.map(d=>accDist(d)).filter(x=>typeof x==='number');
   const dMoy=dists.length? dists.reduce((a,b)=>a+b,0)/dists.length : null;
   setv('sp-dmoy', dMoy!=null?Math.round(dMoy)+' m':'—');
   setv('sp-dmin', dists.length?Math.round(Math.min(...dists))+' m':'—');
@@ -1766,8 +1779,10 @@ function renderStatsPanel(recs){
   const covRadius=thr=> dists.length? 100*dists.filter(x=>x<thr).length/dists.length : 0;
   setv('sp-cov500', covRadius(500).toFixed(0)+'%');
   setv('sp-cov1000', covRadius(1000).toFixed(0)+'%');
-  const wc=recs.filter(d=>d.coverClass);
-  const cAt=v=>wc.filter(d=>d.coverClass===v).length;
+  const wc=recs.filter(d=>accCover(d));
+  const cAt=v=>wc.filter(d=>accCover(d)===v).length;
+  // indique le mode dans le titre du groupe Accessibilité
+  const accTitle=document.getElementById('sp-acc-title'); if(accTitle) accTitle.textContent = publicMode()?'Accessibilité (centres publics)':'Accessibilité';
   const c5=cAt('5 min'), c10=cAt('10 min'), c15=cAt('15 min'), hors=cAt('Hors 15 min');
   setv('sp-c5', wc.length?(100*c5/wc.length).toFixed(0)+'%':'—');
   setv('sp-c10', wc.length?(100*(c5+c10)/wc.length).toFixed(0)+'%':'—');
