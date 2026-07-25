@@ -162,6 +162,51 @@ section .shead{color:var(--muted);font-size:15px;line-height:1.55;margin-bottom:
 .foot b{color:var(--ink)}
 /* Titres d'affichage en graisse 700 (comme Mapbox) — placé en fin de feuille pour l'emporter sur les poids individuels */
 h2,section h2,.brand b,.logo,.stat b,.mod b,.src b,.cta-band h3{font-weight:700}
+
+/* ============ INTERACTIONS PREMIUM : rien de statique, survols riches, textes de marque « défilants » ============ */
+@keyframes shine{to{background-position:-200% center}}
+/* Textes de marque « défilants » : un dégradé lumineux traverse le texte en continu */
+h1 .hl,.sub,.stat b{
+  background:linear-gradient(100deg,var(--primary) 0%,#fffbcf 30%,var(--primary) 55%,#fffbcf 80%,var(--primary) 100%);
+  background-size:200% auto;-webkit-background-clip:text;background-clip:text;
+  -webkit-text-fill-color:transparent;color:transparent;animation:shine 5.5s linear infinite}
+h1 .hl{filter:drop-shadow(0 0 16px rgba(250,255,105,.28))}
+
+/* Objectifs : carte vivante + pastille numéro qui rebondit au survol */
+.obj{transition:transform .32s cubic-bezier(.22,1,.36,1),border-color .3s,box-shadow .32s,background .3s}
+.obj:hover{transform:translateY(-3px);border-color:color-mix(in srgb,var(--primary) 45%,var(--line));
+  box-shadow:0 16px 38px -12px rgba(0,0,0,.55),0 0 0 1px color-mix(in srgb,var(--primary) 20%,transparent)}
+.obj .n{transition:transform .32s cubic-bezier(.34,1.56,.64,1),box-shadow .3s}
+.obj:hover .n{transform:scale(1.12) rotate(-5deg);box-shadow:0 0 22px rgba(250,255,105,.65)}
+
+/* Cartes sources : soulèvement, contour de marque, titre qui s'allume */
+.src{transition:transform .32s cubic-bezier(.22,1,.36,1),border-color .3s,box-shadow .32s,background .3s}
+.src:hover{transform:translateY(-3px);border-color:color-mix(in srgb,var(--primary) 42%,var(--line));
+  box-shadow:0 16px 38px -12px rgba(0,0,0,.55)}
+.src b{transition:color .25s}
+.src:hover b{color:var(--primary)}
+.src a{transition:text-shadow .25s}
+.src a:hover{text-shadow:0 0 14px rgba(250,255,105,.6)}
+
+/* Cartes statistiques : balayage lumineux au survol */
+.stat{position:relative;overflow:hidden}
+.stat::after{content:"";position:absolute;top:0;left:-130%;width:55%;height:100%;transform:skewX(-20deg);pointer-events:none;
+  background:linear-gradient(90deg,transparent,rgba(250,255,105,.16),transparent);transition:left .7s cubic-bezier(.22,1,.36,1)}
+.stat:hover::after{left:150%}
+
+/* Bouton nav : balayage lumineux qui traverse le bouton */
+.navcta{position:relative;overflow:hidden}
+.navcta::after{content:"";position:absolute;top:0;left:-130%;width:55%;height:100%;transform:skewX(-20deg);pointer-events:none;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.5),transparent);transition:left .6s ease}
+.navcta:hover::after{left:150%}
+
+@media(prefers-reduced-motion:reduce){
+  h1 .hl,.sub,.stat b{animation:none}
+  .obj,.src,.obj .n{transition:none}
+  .obj:hover,.src:hover{transform:none}
+  .obj:hover .n{transform:none}
+  .stat::after,.navcta::after{display:none}
+}
 </style>
 </head>
 <body>
