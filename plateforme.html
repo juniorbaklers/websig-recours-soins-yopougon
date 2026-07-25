@@ -14,10 +14,17 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Bakusm@p — Recours aux soins des personnes du 3e âge · Yopougon</title>
-<!-- Applique le theme/accent memorises AVANT le rendu, pour eviter un flash de couleur -->
+<!-- Applique tous les reglages d'apparence memorises AVANT le rendu, pour eviter un flash -->
 <script>(function(){try{
-  document.documentElement.setAttribute('data-theme',localStorage.getItem('ui_theme')||'light');
-  document.documentElement.setAttribute('data-accent',localStorage.getItem('ui_accent')||'cyan');
+  var d=document.documentElement, g=function(k,v){return localStorage.getItem(k)||v;};
+  var mode=g('ui_theme','light');
+  var theme=(mode==='auto')?(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):mode;
+  d.setAttribute('data-theme',theme);
+  d.setAttribute('data-accent',g('ui_accent','cyan'));
+  d.setAttribute('data-density',g('ui_density','standard'));
+  d.setAttribute('data-font',g('ui_font','inter'));
+  d.setAttribute('data-anim',localStorage.getItem('ui_anim')==='0'?'off':'on');
+  d.style.setProperty('--radius',(g('ui_radius','12'))+'px');
 }catch(e){}})();</script>
 <!-- Bibliotheques externes (chargees depuis internet) : Leaflet = la carte, MarkerCluster = le regroupement des points -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
@@ -26,7 +33,7 @@
 <!-- Polices : Manrope (grands titres/boutons), Inter (interface), Noto Sans (le reste) -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800&family=Inter:wght@400;500;600;700&family=Noto+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800&family=Inter:wght@400;500;600;700&family=Noto+Sans:wght@400;500;600&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
 <!-- STYLES : couleurs, mise en page, cartes, tableaux. Les couleurs de base sont dans :root (variables CSS reutilisables). -->
 <style>
 :root{
@@ -305,6 +312,75 @@ table.ct tr.rowclick:hover td{background:#eaf2f8}
 .acc[data-acc="alert"]{background:#f0a06a}
 .acc.on{border-color:#fff;box-shadow:0 0 0 2px rgba(255,255,255,.35)}
 
+/* ============ PANNEAU THÈMES : 8 accents lumineux + densité + rayon + police + animations ============ */
+:root[data-accent="blue"]{--brand:#2563eb;--brand2:#3b82f6}
+:root[data-accent="cyan"]{--brand:#0e7490;--brand2:#0891b2}
+:root[data-accent="teal"]{--brand:#0f766e;--brand2:#14b8a6}
+:root[data-accent="green"]{--brand:#0f766e;--brand2:#14b8a6}
+:root[data-accent="lime"]{--brand:#4d7c0f;--brand2:#65a30d}
+:root[data-accent="amber"]{--brand:#b45309;--brand2:#d97706}
+:root[data-accent="alert"]{--brand:#b45309;--brand2:#d97706}
+:root[data-accent="red"]{--brand:#be123c;--brand2:#e11d48}
+:root[data-accent="magenta"]{--brand:#a21caf;--brand2:#c026d3}
+:root[data-accent="violet"]{--brand:#6d28d9;--brand2:#7c3aed}
+:root[data-theme="dark"][data-accent="blue"]{--brand:#60a5fa;--brand2:#93c5fd}
+:root[data-theme="dark"][data-accent="cyan"]{--brand:#22d3ee;--brand2:#67e8f9}
+:root[data-theme="dark"][data-accent="teal"]{--brand:#2dd4bf;--brand2:#5eead4}
+:root[data-theme="dark"][data-accent="green"]{--brand:#2dd4bf;--brand2:#5eead4}
+:root[data-theme="dark"][data-accent="lime"]{--brand:#a3e635;--brand2:#bef264}
+:root[data-theme="dark"][data-accent="amber"]{--brand:#fbbf24;--brand2:#fcd34d}
+:root[data-theme="dark"][data-accent="alert"]{--brand:#fbbf24;--brand2:#fcd34d}
+:root[data-theme="dark"][data-accent="red"]{--brand:#fb7185;--brand2:#fda4af}
+:root[data-theme="dark"][data-accent="magenta"]{--brand:#e879f9;--brand2:#f0abfc}
+:root[data-theme="dark"][data-accent="violet"]{--brand:#a78bfa;--brand2:#c4b5fd}
+/* pastilles d'accent lumineuses (dans le panneau) */
+.tdots .acc{width:26px;height:26px;border-radius:50%;border:2px solid transparent;cursor:pointer;padding:0;transition:transform .15s}
+.tdots .acc:hover{transform:scale(1.14)}
+.tdots .acc.on{outline:2.5px solid var(--ink);outline-offset:2px}
+.acc[data-acc="blue"]{background:#3b82f6;box-shadow:0 0 12px rgba(59,130,246,.8)}
+.acc[data-acc="cyan"]{background:#22d3ee;box-shadow:0 0 12px rgba(34,211,238,.8)}
+.acc[data-acc="teal"]{background:#2dd4bf;box-shadow:0 0 12px rgba(45,212,191,.8)}
+.acc[data-acc="lime"]{background:#a3e635;box-shadow:0 0 12px rgba(163,230,53,.8)}
+.acc[data-acc="amber"]{background:#fbbf24;box-shadow:0 0 12px rgba(251,191,36,.8)}
+.acc[data-acc="red"]{background:#fb7185;box-shadow:0 0 12px rgba(251,113,133,.8)}
+.acc[data-acc="magenta"]{background:#e879f9;box-shadow:0 0 12px rgba(232,121,249,.8)}
+.acc[data-acc="violet"]{background:#a78bfa;box-shadow:0 0 12px rgba(167,139,250,.8)}
+/* corps du panneau */
+.tpanel{display:grid;gap:16px;min-width:min(340px,82vw)}
+.tpanel h2{font-size:17px;margin:0}
+.tpanel .tsub{font-size:12.5px;color:var(--muted);margin:2px 0 4px}
+.trow{display:grid;gap:9px}
+.tlabel{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.8px}
+.seg{display:inline-flex;background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:3px;gap:2px}
+.seg button{border:none;background:none;color:var(--muted);font-size:12.5px;font-weight:600;padding:6px 16px;border-radius:7px;cursor:pointer;transition:.15s}
+.seg button.on{background:var(--brand);color:#fff}
+.tdots{display:flex;gap:13px;flex-wrap:wrap;padding:2px 0}
+.trange{display:flex;align-items:center;gap:10px}
+.trange input[type=range]{flex:1;accent-color:var(--brand)}
+.trange .rv{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;min-width:40px;text-align:right}
+.tswitch{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.tswitch .tt{font-size:13px;font-weight:600}
+.tswitch .td{font-size:11.5px;color:var(--muted)}
+.toggle{position:relative;width:42px;height:23px;border-radius:999px;background:var(--line);border:none;cursor:pointer;flex:none;transition:background .2s}
+.toggle::after{content:"";position:absolute;top:2px;left:2px;width:19px;height:19px;border-radius:50%;background:#fff;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.toggle.on{background:var(--brand)}
+.toggle.on::after{transform:translateX(19px)}
+/* densité */
+[data-density="tight"] .card{padding:8px 10px}
+[data-density="tight"] .kpi{padding:8px 11px}
+[data-density="tight"] .kpis{gap:6px}
+[data-density="tight"] .grid{gap:8px}
+[data-density="tight"] .spstat{padding:7px 9px 6px}
+[data-density="relaxed"] .card{padding:16px 20px}
+[data-density="relaxed"] .kpi{padding:14px 16px 14px 18px}
+[data-density="relaxed"] .kpis{gap:12px}
+[data-density="relaxed"] .grid{gap:18px}
+/* police */
+[data-font="poppins"] body{font-family:'Poppins','Inter',sans-serif}
+[data-font="system"] body{font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}
+/* animations désactivées */
+html[data-anim="off"] *,html[data-anim="off"] *::before,html[data-anim="off"] *::after{transition:none!important;animation:none!important}
+
 /* --- Légende flottante moderne sur la carte --- */
 .legendbox{background:color-mix(in srgb,var(--panel) 88%,transparent);backdrop-filter:blur(6px);
   border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);min-width:170px;max-width:230px;overflow:hidden}
@@ -539,12 +615,7 @@ body.presentation-mode .wrap.sp-collapsed{grid-template-columns:1fr}
   </div>
   <div class="hactions">
     <div class="hmeta"><b id="nTotal"></b> enquêtés géolocalisés</div>
-    <!-- Choix des 3 couleurs d'interface -->
-    <div class="accents" title="Couleur d'interface">
-      <button class="acc" data-acc="cyan" title="Cyan / bleu clair"></button>
-      <button class="acc" data-acc="green" title="Vert santé"></button>
-      <button class="acc" data-acc="alert" title="Orange / rouge doux"></button>
-    </div>
+    <button class="hbtn" id="themesBtn" title="Thèmes — personnaliser l'apparence"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h11M18 7h2M4 17h6M15 17h5"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg></button>
     <button class="hbtn" id="modeBtn" title="Basculer Mode Analyse / Mode Présentation"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg></button>
     <button class="hbtn" id="themeBtn" title="Thème clair / sombre"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/></svg></button>
     <button class="hbtn" id="resetAppearance" title="Réinitialiser l'apparence"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></button>
@@ -554,6 +625,47 @@ body.presentation-mode .wrap.sp-collapsed{grid-template-columns:1fr}
     <a class="hbtn" href="index.html" title="Retour à l'accueil"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg></a>
   </div>
 </header>
+
+<!-- Panneau Thèmes : personnalisation de l'espace de travail -->
+<div class="modal hidden" id="themesModal">
+  <div class="box">
+    <div class="tpanel">
+      <div><h2>Thèmes</h2><div class="tsub">Personnalisez l'apparence de votre espace de travail.</div></div>
+      <div class="trow"><div class="tlabel">Mode</div>
+        <div class="seg" id="segTheme">
+          <button data-theme-mode="auto">Auto</button><button data-theme-mode="light">Clair</button><button data-theme-mode="dark">Sombre</button>
+        </div>
+      </div>
+      <div class="trow"><div class="tlabel">Couleur d'accent</div>
+        <div class="tdots">
+          <button class="acc" data-acc="blue" title="Bleu"></button><button class="acc" data-acc="cyan" title="Cyan"></button>
+          <button class="acc" data-acc="teal" title="Turquoise"></button><button class="acc" data-acc="lime" title="Vert"></button>
+          <button class="acc" data-acc="amber" title="Ambre"></button><button class="acc" data-acc="red" title="Rouge"></button>
+          <button class="acc" data-acc="magenta" title="Magenta"></button><button class="acc" data-acc="violet" title="Violet"></button>
+        </div>
+      </div>
+      <div class="trow"><div class="tlabel">Police</div>
+        <select class="sel" id="fontSelect" style="width:100%;max-width:none"><option value="inter">Inter</option><option value="poppins">Poppins</option><option value="system">Système</option></select>
+      </div>
+      <div class="trow"><div class="tlabel">Densité</div>
+        <div class="seg" id="segDensity">
+          <button data-density-mode="relaxed">Aérée</button><button data-density-mode="standard">Standard</button><button data-density-mode="tight">Compacte</button>
+        </div>
+      </div>
+      <div class="trow"><div class="tlabel">Rayon des coins</div>
+        <div class="trange"><input type="range" id="radiusRange" min="4" max="18" step="1"><span class="rv" id="radiusVal">12 px</span></div>
+      </div>
+      <div class="tswitch">
+        <div><div class="tt">Animations fluides</div><div class="td">Transitions douces de l'interface</div></div>
+        <button class="toggle" id="animToggle" aria-label="Activer les animations"></button>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px">
+        <button class="btn" id="themesReset">Réinitialiser</button>
+        <button class="btn solid" id="themesClose">Fermer</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- Fenêtre d'aide -->
 <div class="modal hidden" id="helpModal">

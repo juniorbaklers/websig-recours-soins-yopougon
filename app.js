@@ -3106,31 +3106,60 @@ function initChatDrag(){
 /* ============================================================================
    APPARENCE : theme (clair/sombre) + accent (cyan/vert/alerte), memorises
    ============================================================================ */
-function applyAppearance(theme,accent){
-  const themeChanged = document.documentElement.getAttribute('data-theme')!==theme;
-  document.documentElement.setAttribute('data-theme',theme);
-  document.documentElement.setAttribute('data-accent',accent);
-  localStorage.setItem('ui_theme',theme); localStorage.setItem('ui_accent',accent);
+const THEME_DEFAULTS = { mode:'light', accent:'cyan', font:'inter', density:'standard', radius:12, anim:true };
+const THEME_SETTINGS = Object.assign({}, THEME_DEFAULTS);
+function resolveTheme(mode){ return mode==='auto' ? (matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light') : mode; }
+// applyTheme() : applique tous les reglages (mode/accent/police/densite/rayon/animations), memorise et met a jour l'UI.
+function applyTheme(){
+  const s=THEME_SETTINGS, d=document.documentElement, theme=resolveTheme(s.mode), prev=d.getAttribute('data-theme');
+  d.setAttribute('data-theme',theme); d.setAttribute('data-accent',s.accent);
+  d.setAttribute('data-density',s.density); d.setAttribute('data-font',s.font);
+  d.setAttribute('data-anim',s.anim?'on':'off'); d.style.setProperty('--radius',s.radius+'px');
+  localStorage.setItem('ui_theme',s.mode); localStorage.setItem('ui_accent',s.accent);
+  localStorage.setItem('ui_font',s.font); localStorage.setItem('ui_density',s.density);
+  localStorage.setItem('ui_radius',s.radius); localStorage.setItem('ui_anim',s.anim?'1':'0');
   const tb=document.getElementById('themeBtn');
   if(tb) tb.innerHTML = theme==='dark'
     ? '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>'
     : '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/></svg>';
-  document.querySelectorAll('.acc').forEach(b=>b.classList.toggle('on',b.dataset.acc===accent));
-  const mdt=document.getElementById('mapDarkToggle'); if(mdt) mdt.checked = theme==='dark'; // synchro avec le panneau Style cartographique (etape 5b)
+  document.querySelectorAll('#segTheme button').forEach(b=>b.classList.toggle('on',b.dataset.themeMode===s.mode));
+  document.querySelectorAll('.acc').forEach(b=>b.classList.toggle('on',b.dataset.acc===s.accent));
+  document.querySelectorAll('#segDensity button').forEach(b=>b.classList.toggle('on',b.dataset.densityMode===s.density));
+  const fs=document.getElementById('fontSelect'); if(fs) fs.value=s.font;
+  const rr=document.getElementById('radiusRange'); if(rr) rr.value=s.radius;
+  const rv=document.getElementById('radiusVal'); if(rv) rv.textContent=s.radius+' px';
+  const at=document.getElementById('animToggle'); if(at) at.classList.toggle('on',s.anim);
+  const mdt=document.getElementById('mapDarkToggle'); if(mdt) mdt.checked = theme==='dark';
   applyChartTheme(theme);
-  // Chart.defaults n'affecte que les graphiques crees APRES le changement : on redessine ceux
-  // deja a l'ecran pour que leurs couleurs de texte/grille se corrigent immediatement.
-  if(themeChanged && typeof filtered==='function' && typeof renderTab==='function') renderTab(filtered());
+  if(prev!==theme && typeof filtered==='function' && typeof renderTab==='function') renderTab(filtered());
 }
+// compat : anciens appels applyAppearance(theme, accent) ailleurs dans le code
+function applyAppearance(theme,accent){ if(theme)THEME_SETTINGS.mode=theme; if(accent)THEME_SETTINGS.accent=accent; applyTheme(); }
 function initAppearance(){
-  const theme=localStorage.getItem('ui_theme')||'light';
-  const accent=localStorage.getItem('ui_accent')||'cyan';
-  applyAppearance(theme,accent);
+  THEME_SETTINGS.mode=localStorage.getItem('ui_theme')||'light';
+  THEME_SETTINGS.accent=localStorage.getItem('ui_accent')||'cyan';
+  THEME_SETTINGS.font=localStorage.getItem('ui_font')||'inter';
+  THEME_SETTINGS.density=localStorage.getItem('ui_density')||'standard';
+  THEME_SETTINGS.radius=parseInt(localStorage.getItem('ui_radius')||'12',10)||12;
+  THEME_SETTINGS.anim=localStorage.getItem('ui_anim')!=='0';
+  applyTheme();
   const tb=document.getElementById('themeBtn');
-  if(tb) tb.addEventListener('click',()=>applyAppearance(document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark',document.documentElement.getAttribute('data-accent')));
-  document.querySelectorAll('.acc').forEach(b=>b.addEventListener('click',()=>applyAppearance(document.documentElement.getAttribute('data-theme'),b.dataset.acc)));
-  const ra=document.getElementById('resetAppearance'); if(ra) ra.addEventListener('click',()=>applyAppearance('light','cyan'));
-  const eb=document.getElementById('exportBtn'); if(eb) eb.addEventListener('click',exportCsv); // export rapide des donnees filtrees
+  if(tb) tb.addEventListener('click',()=>{ THEME_SETTINGS.mode=(resolveTheme(THEME_SETTINGS.mode)==='dark')?'light':'dark'; applyTheme(); });
+  // ouverture / fermeture du panneau Thèmes
+  const openBtn=document.getElementById('themesBtn'), tm=document.getElementById('themesModal');
+  if(openBtn&&tm){ openBtn.addEventListener('click',()=>tm.classList.remove('hidden'));
+    const tc=document.getElementById('themesClose'); if(tc)tc.addEventListener('click',()=>tm.classList.add('hidden'));
+    tm.addEventListener('click',e=>{ if(e.target===tm) tm.classList.add('hidden'); }); }
+  // contrôles du panneau
+  document.querySelectorAll('#segTheme button').forEach(b=>b.addEventListener('click',()=>{THEME_SETTINGS.mode=b.dataset.themeMode; applyTheme();}));
+  document.querySelectorAll('.acc').forEach(b=>b.addEventListener('click',()=>{THEME_SETTINGS.accent=b.dataset.acc; applyTheme();}));
+  const fs=document.getElementById('fontSelect'); if(fs) fs.addEventListener('change',e=>{THEME_SETTINGS.font=e.target.value; applyTheme();});
+  document.querySelectorAll('#segDensity button').forEach(b=>b.addEventListener('click',()=>{THEME_SETTINGS.density=b.dataset.densityMode; applyTheme();}));
+  const rr=document.getElementById('radiusRange'); if(rr) rr.addEventListener('input',e=>{THEME_SETTINGS.radius=+e.target.value; applyTheme();});
+  const at=document.getElementById('animToggle'); if(at) at.addEventListener('click',()=>{THEME_SETTINGS.anim=!THEME_SETTINGS.anim; applyTheme();});
+  const tr=document.getElementById('themesReset'); if(tr) tr.addEventListener('click',()=>{ Object.assign(THEME_SETTINGS,THEME_DEFAULTS); applyTheme(); });
+  const ra=document.getElementById('resetAppearance'); if(ra) ra.addEventListener('click',()=>{ Object.assign(THEME_SETTINGS,THEME_DEFAULTS); applyTheme(); });
+  const eb=document.getElementById('exportBtn'); if(eb) eb.addEventListener('click',exportCsv);
   const hb=document.getElementById('helpBtn'), hm=document.getElementById('helpModal'), hc=document.getElementById('helpClose');
   if(hb&&hm){ hb.addEventListener('click',()=>hm.classList.remove('hidden')); hc.addEventListener('click',()=>hm.classList.add('hidden'));
     hm.addEventListener('click',e=>{ if(e.target===hm) hm.classList.add('hidden'); }); }
