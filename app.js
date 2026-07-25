@@ -182,6 +182,10 @@ const MAP_PALETTES = {
   daltonienne:['#0173b2','#de8f05','#029e73','#d55e00','#cc78bc','#ca9161','#56b4e9','#949494','#ece133','#fbafe4']
 };
 
+// chartPal() : la palette de couleurs ACTIVE (sélecteur « Couleurs des graphiques »). Utilisée par tous
+// les graphiques pour que leurs couleurs suivent la palette choisie. chartPalRGBA() : version translucide.
+function chartPal(){ return MAP_PALETTES[mapStyle.palette]||PAL; }
+function chartPalRGBA(i,a){ const c=chartPal()[i%chartPal().length]||PAL[0]; const h=c.replace('#',''); const n=parseInt(h.length===3?h.split('').map(x=>x+x).join(''):h,16); return 'rgba('+((n>>16)&255)+','+((n>>8)&255)+','+(n&255)+','+a+')'; }
 // Cas particulier des reponses Oui/Non : vert = Oui, rouge = Non (plus intuitif).
 const YESNO = { 'Oui':'#4c9a4c','Non':'#d9534f','OUI':'#4c9a4c','NON':'#d9534f' };
 // Couleurs des classes d'accessibilite (marche) : du vert (proche) au rouge (hors zone)
@@ -1116,7 +1120,7 @@ function renderTab(recs){
     barSimple('c_mal','maladieCat',recs,{horizontal:true});
     // top 20 des quartiers (barres horizontales)
     const m=countBy(recs,'quartier'); const top=[...m.entries()].sort((a,b)=>b[1]-a[1]).slice(0,20);
-    draw('c_quart',{type:'bar',data:{labels:top.map(t=>t[0]),datasets:[{data:top.map(t=>t[1]),backgroundColor:'#0f5e8f',borderRadius:4}]},
+    draw('c_quart',{type:'bar',data:{labels:top.map(t=>t[0]),datasets:[{data:top.map(t=>t[1]),backgroundColor:chartPal()[0],borderRadius:4}]},
       options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{ticks:{autoSkip:false}}}}});
     renderTemporalEvolution(recs); // etape 6a : graphique conditionne a un champ de campagne d'enquete
   }
@@ -1147,7 +1151,7 @@ function renderTab(recs){
     // achat des medicaments : % de Oui pour deux questions
     const keys=['acheteTousMedic','acheteSurPlace']; const labels=keys.map(k=>DIMS[k]);
     const oui=keys.map(k=>{let o=0,t=0;recs.forEach(d=>{const v=(d[k]??'').toString().trim();if(v==='Oui'||v==='OUI')o++;if(v==='Oui'||v==='OUI'||v==='Non'||v==='NON')t++;});return t?100*o/t:0;});
-    draw('p_med',{type:'bar',data:{labels,datasets:[{label:'% Oui',data:oui,backgroundColor:'#12a08a',borderRadius:4}]},
+    draw('p_med',{type:'bar',data:{labels,datasets:[{label:'% Oui',data:oui,backgroundColor:chartPal()[0],borderRadius:4}]},
       options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.parsed.y.toFixed(1)+'% de Oui'}}},scales:{y:{max:100,ticks:{callback:v=>v+'%'}}}}});
     barSimple('p_plus','iraitPlusSouvent',recs,{doughnut:true});
   }
@@ -1198,7 +1202,7 @@ function renderDeterminants(recs){
     return {f,spread:Math.max(...rates)-Math.min(...rates)};
   }).filter(x=>x.spread>0).sort((a,b)=>b.spread-a.spread);
   draw('det_rank',{type:'bar',data:{labels:rank.map(r=>DIMS[r.f]),datasets:[{data:rank.map(r=>+r.spread.toFixed(1)),
-    backgroundColor:rank.map((_,i)=>i<3?'#0f5e8f':'#6f7fb3'),borderRadius:4}]},
+    backgroundColor:rank.map((_,i)=>i<3?chartPal()[0]:chartPal()[6]),borderRadius:4}]},
     options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},
       tooltip:{callbacks:{label:c=>`écart de ${c.parsed.x} points de %`}}},
       scales:{x:{title:{display:true,text:'écart de recours entre catégories (points de %)'},ticks:{callback:v=>v+' pts'}},y:{ticks:{autoSkip:false}}}}});
@@ -1278,7 +1282,7 @@ function renderSpatial(recs){
   const vals=recs.map(d=>d.dPrim).filter(x=>typeof x==='number');
   const bins=10,size=250; const counts=new Array(bins).fill(0);
   vals.forEach(v=>{let b=Math.min(bins-1,Math.floor(v/size));counts[b]++;});
-  draw('s_hist',{type:'bar',data:{labels:counts.map((_,i)=>`${i*size}–${(i+1)*size}`),datasets:[{data:counts,backgroundColor:'#0d8a6a',borderRadius:3}]},
+  draw('s_hist',{type:'bar',data:{labels:counts.map((_,i)=>`${i*size}–${(i+1)*size}`),datasets:[{data:counts,backgroundColor:chartPal()[0],borderRadius:3}]},
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{title:{display:true,text:'mètres'}},y:{title:{display:true,text:'Effectif'}}}}});
 
   // 4) Premier recours (categorie) selon la tranche de distance reelle -> graphe cle
@@ -1287,7 +1291,7 @@ function renderSpatial(recs){
   // 5) Part cumulee "hors systeme formel" (traditionnelle + automedication) par distance
   const cats=ORD.bandPrim;
   const hors=cats.map(b=>{const g=recs.filter(d=>d.bandPrim===b);const t=g.filter(d=>d.premierRecoursCat).length;const h=g.filter(d=>['Médecine traditionnelle','Automédication'].includes(d.premierRecoursCat)).length;return t?100*h/t:0;});
-  draw('s_hors',{type:'bar',data:{labels:cats,datasets:[{data:hors,backgroundColor:'#b0568f',borderRadius:4}]},
+  draw('s_hors',{type:'bar',data:{labels:cats,datasets:[{data:hors,backgroundColor:chartPal()[0],borderRadius:4}]},
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.parsed.y.toFixed(1)+'% hors système formel'}}},scales:{y:{max:Math.max(40,Math.ceil(Math.max(...hors)/10)*10),ticks:{callback:v=>v+'%'}}}}});
 
   // 6) Distance declaree (enquete) vs distance reelle (SIG)
@@ -1296,7 +1300,7 @@ function renderSpatial(recs){
   // 7) Distance moyenne au 1er contact par quartier (Top 20 par effectif)
   const byq={};recs.forEach(d=>{if(typeof d.dPrim==='number'){(byq[d.quartier]=byq[d.quartier]||[]).push(d.dPrim);}});
   const q=Object.entries(byq).filter(e=>e[1].length>=3).map(e=>[e[0],e[1].reduce((a,b)=>a+b,0)/e[1].length,e[1].length]).sort((a,b)=>b[2]-a[2]).slice(0,20).sort((a,b)=>b[1]-a[1]);
-  draw('s_quart',{type:'bar',data:{labels:q.map(e=>e[0]),datasets:[{data:q.map(e=>Math.round(e[1])),backgroundColor:q.map(e=>e[1]>687?'#d9534f':'#0d8a6a'),borderRadius:3}]},
+  draw('s_quart',{type:'bar',data:{labels:q.map(e=>e[0]),datasets:[{data:q.map(e=>Math.round(e[1])),backgroundColor:q.map(e=>e[1]>687?'#d9534f':chartPal()[0]),borderRadius:3}]},
     options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.parsed.x+' m en moyenne'}}},scales:{x:{title:{display:true,text:'mètres (rouge = au-dessus de la moyenne générale)'}},y:{ticks:{autoSkip:false}}}}});
 
   // 8) Frequentation du centre public selon la distance reelle
@@ -1319,13 +1323,13 @@ function renderGridPlan(){
   document.getElementById('gridKpis').innerHTML=kp.map(k=>`<div class="kpi"><div class="v">${k.v}</div><div class="l">${k.l}</div>${k.s?`<div class="s">${k.s}</div>`:''}</div>`).join('');
 
   // occupation : nombre de cellules ayant 1, 2, 3 ou 4 enquetes
-  draw('g_occ',{type:'bar',data:{labels:['1 enquêté','2 (cible)','3','4 (max)'],datasets:[{data:[occ[1],occ[2],occ[3],occ[4]],backgroundColor:[GRID_COL[1],GRID_COL[2],GRID_COL[3],GRID_COL[4]],borderRadius:4}]},
+  draw('g_occ',{type:'bar',data:{labels:['1 enquêté','2 (cible)','3','4 (max)'],datasets:[{data:[occ[1],occ[2],occ[3],occ[4]],backgroundColor:[chartPal()[0],chartPal()[2],chartPal()[4],chartPal()[6]],borderRadius:4}]},
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.parsed.y+' cellules'}}},scales:{y:{title:{display:true,text:'nombre de cellules'}}}}});
 
   // distribution des distances de deplacement (reaffectes uniquement)
   const dv=moved.map(d=>d.gMoveDist).filter(x=>typeof x==='number'); const bins=8,size=250; const co=new Array(bins).fill(0);
   dv.forEach(v=>{let b=Math.min(bins-1,Math.floor(v/size));co[b]++;});
-  draw('g_move',{type:'bar',data:{labels:co.map((_,i)=>`${i*size}–${(i+1)*size}`),datasets:[{data:co,backgroundColor:'#0f5e8f',borderRadius:3}]},
+  draw('g_move',{type:'bar',data:{labels:co.map((_,i)=>`${i*size}–${(i+1)*size}`),datasets:[{data:co,backgroundColor:chartPal()[0],borderRadius:3}]},
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{title:{display:true,text:'mètres'}},y:{title:{display:true,text:'enquêtés'}}}}});
 }
 
@@ -1337,7 +1341,7 @@ function structPerception(id,recs){
               ['Équipement suffisant',['equipPublique','equipPrive','equipTradi']],
               ['Performance',['perfPublique','perfPrive','perfTradi']]];
   const struct=['Public','Privé','Médecine traditionnelle'];
-  const colors=['#0f5e8f','#e8813a','#12a08a'];
+  const colors=[chartPal()[0],chartPal()[1],chartPal()[2]];
   const datasets=struct.map((s,i)=>({label:s,backgroundColor:colors[i],borderRadius:3,
     data:dims.map(dd=>{const k=dd[1][i];let o=0,t=0;recs.forEach(d=>{const v=(d[k]??'').toString().trim();if(v==='Oui')o++;if(v==='Oui'||v==='Non')t++;});return t?100*o/t:0;})}));
   draw(id,{type:'bar',data:{labels:dims.map(d=>d[0]),datasets},
@@ -1631,7 +1635,7 @@ function renderExplorer(recs){
     const edges=[];for(let i=0;i<=bins;i++)edges.push(i*size);
     const counts=new Array(bins).fill(0);vals.forEach(v=>{let b=Math.min(bins-1,Math.floor(v/size));counts[b]++;});
     draw('exChart',{type:'bar',data:{labels:edges.slice(0,bins).map((e,i)=>`${e.toLocaleString('fr-FR')}–${(edges[i+1]).toLocaleString('fr-FR')}`),
-      datasets:[{data:counts,backgroundColor:'#0f5e8f',borderRadius:3}]},
+      datasets:[{data:counts,backgroundColor:chartPal()[0],borderRadius:3}]},
       options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{title:{display:true,text:'Effectif'}}}}});
     const s=[...vals].sort((a,b)=>a-b);const sum=vals.reduce((a,b)=>a+b,0);
     const stat=[['Effectif renseigné',vals.length],['Minimum',s[0]?.toLocaleString('fr-FR')+' F'],['Médiane',median(vals)?.toLocaleString('fr-FR')+' F'],['Moyenne',vals.length?Math.round(sum/vals.length).toLocaleString('fr-FR')+' F':'—'],['Maximum',s[s.length-1]?.toLocaleString('fr-FR')+' F']];
@@ -2984,7 +2988,7 @@ function renderTemporalEvolution(recs){
   if(!TEMPORAL_FIELD){ box.innerHTML=`<div class="note">Données issues d'une campagne d'enquête unique. Aucune évolution temporelle disponible pour le moment.</div>`; return; }
   box.innerHTML='<div class="chartbox"><canvas id="c_temporal"></canvas></div>';
   const m=countBy(recs,TEMPORAL_FIELD); const cats=ordered(TEMPORAL_FIELD,m);
-  draw('c_temporal',{type:'line',data:{labels:cats,datasets:[{data:cats.map(c=>m.get(c)||0),borderColor:'#0f5e8f',backgroundColor:'rgba(15,94,143,.15)',fill:true,tension:.3,pointRadius:3}]},
+  draw('c_temporal',{type:'line',data:{labels:cats,datasets:[{data:cats.map(c=>m.get(c)||0),borderColor:chartPal()[0],backgroundColor:chartPalRGBA(0,.15),fill:true,tension:.3,pointRadius:3}]},
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{title:{display:true,text:'Effectif'}}}}});
 }
 
