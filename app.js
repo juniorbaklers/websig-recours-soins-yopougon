@@ -187,7 +187,6 @@ const MAP_PALETTES = {
 function chartPal(){ return MAP_PALETTES[mapStyle.palette]||PAL; }
 function chartPalRGBA(i,a){ const c=chartPal()[i%chartPal().length]||PAL[0]; const h=c.replace('#',''); const n=parseInt(h.length===3?h.split('').map(x=>x+x).join(''):h,16); return 'rgba('+((n>>16)&255)+','+((n>>8)&255)+','+(n&255)+','+a+')'; }
 // Cas particulier des reponses Oui/Non : vert = Oui, rouge = Non (plus intuitif).
-const YESNO = { 'Oui':'#4c9a4c','Non':'#d9534f','OUI':'#4c9a4c','NON':'#d9534f' };
 // Couleurs des classes d'accessibilite (marche) : du vert (proche) au rouge (hors zone)
 const COVER_COL = { '5 min':'#1a9850','10 min':'#91cf60','15 min':'#fee08b','Hors 15 min':'#d73027' };
 
@@ -256,7 +255,6 @@ const CATS={}; Object.keys(DIMS).forEach(k=>CATS[k]=catsOf(k));
 function colorFor(key,val){
   if(key==='coverClass' && COVER_COL[(val||'').trim()]) return COVER_COL[val.trim()]; // classes de marche
   const cats=CATS[key]||catsOf(key);
-  if(cats.every(c=>YESNO[c.trim()]!==undefined || ['Oui','Non','OUI','NON'].includes(c.trim())) && YESNO[val.trim()]) return YESNO[val.trim()];
   const pal=MAP_PALETTES[mapStyle.palette]||PAL;
   const i=cats.indexOf(val); return pal[(i<0?0:i)%pal.length];
 }
@@ -398,7 +396,7 @@ function crossChart(id,keyX,keyY,recs,mode='pct'){
 function yesRateChart(id,keys,recs,positive='Oui'){
   const labels=keys.map(k=>DIMS[k]||k);
   const vals=keys.map(k=>{let o=0,n=0; recs.forEach(d=>{const v=(d[k]??'').toString().trim(); if(v==='Oui'||v==='OUI')o++; else if(v==='Non'||v==='NON')n++;}); const t=o+n; return t?100*o/t:0;});
-  draw(id,{type:'bar',data:{labels,datasets:[{data:vals,backgroundColor:vals.map(v=>v>=50?'#4c9a4c':'#d9534f'),borderRadius:4}]},
+  draw(id,{type:'bar',data:{labels,datasets:[{data:vals,backgroundColor:chartPal()[0],borderRadius:4}]},
     options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
       plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.parsed.x.toFixed(1)}% de « Oui »`}}},
       scales:{x:{max:100,ticks:{callback:v=>v+'%'}},y:{ticks:{autoSkip:false}}}}});
@@ -1132,8 +1130,8 @@ function renderTab(recs){
     crossChart('r_sexe','sexe','premierRecours',recs,'pct');        // selon le sexe
     crossChart('r_rev','revenu','premierRecours',recs,'pct');       // selon le revenu
     crossChart('r_instr','instruction','premierRecours',recs,'pct');// selon l'instruction
-    barSimple('r_oui','raisonHopitalOui',recs,{horizontal:true,color:'#4c9a4c'});
-    barSimple('r_non','raisonHopitalNon',recs,{horizontal:true,color:'#d9534f'});
+    barSimple('r_oui','raisonHopitalOui',recs,{horizontal:true,color:chartPal()[0]});
+    barSimple('r_non','raisonHopitalNon',recs,{horizontal:true,color:chartPal()[5]});
     barSimple('r_acc','seulAccompagne',recs,{doughnut:true});
     barSimple('r_par','accompagnePar',recs,{doughnut:true});
     barSimple('r_assur','assurance',recs,{doughnut:true});
