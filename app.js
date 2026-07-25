@@ -548,7 +548,13 @@ function initMap(){
   document.getElementById('clusterToggle').addEventListener('change',()=>renderMap(filtered()));
   // bascule "centres publics uniquement" : filtre la carte + recalcule tous les indicateurs d'accessibilite
   const pubT=document.getElementById('publicOnlyToggle');
-  if(pubT) pubT.addEventListener('change',()=>{ const f=filtered(); buildSpatialLayers(); renderMap(f); renderStatsPanel(f); renderTab(f); });
+  if(pubT) pubT.addEventListener('change',()=>{
+    const f=filtered(), ct=document.getElementById('centresToggle');
+    if(pubT.checked && ct && !ct.checked){ ct.checked=true; } // cocher "publics" affiche forcement les centres
+    buildSpatialLayers();
+    if(pubT.checked && centresLayer && !map.hasLayer(centresLayer)) centresLayer.addTo(map); // s'assurer que la couche est visible
+    renderMap(f); renderStatsPanel(f); renderTab(f);
+  });
   // bascule du halo lumineux des points : etat memorise, applique via l'attribut data-halo sur <html>
   const haloT=document.getElementById('haloToggle');
   if(haloT){
