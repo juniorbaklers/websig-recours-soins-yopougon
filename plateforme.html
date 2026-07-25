@@ -115,6 +115,21 @@ details.fg[open]>summary .chev{transform:rotate(90deg)}
 .content{min-width:0}
 .tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:var(--sp-3)}
 .tab{padding:7px 14px;border-radius:var(--r-full);border:1px solid var(--line);background:var(--panel);cursor:pointer;font-weight:600;font-size:var(--fs-xs);color:var(--muted);transition:background .15s,color .15s,border-color .15s,box-shadow .15s}
+/* Entrée en cascade des onglets au chargement (façon page d'accueil). Respecte le réglage « animations » et reduced-motion. */
+@keyframes tabIn{from{opacity:0;transform:translateY(-9px) scale(.96)}to{opacity:1;transform:none}}
+[data-anim="on"] #tabs .tab{animation:tabIn .5s cubic-bezier(.22,1,.36,1) both}
+[data-anim="on"] #tabs .tab:nth-child(1){animation-delay:.04s}
+[data-anim="on"] #tabs .tab:nth-child(2){animation-delay:.09s}
+[data-anim="on"] #tabs .tab:nth-child(3){animation-delay:.14s}
+[data-anim="on"] #tabs .tab:nth-child(4){animation-delay:.19s}
+[data-anim="on"] #tabs .tab:nth-child(5){animation-delay:.24s}
+[data-anim="on"] #tabs .tab:nth-child(6){animation-delay:.29s}
+[data-anim="on"] #tabs .tab:nth-child(7){animation-delay:.34s}
+[data-anim="on"] #tabs .tab:nth-child(8){animation-delay:.39s}
+[data-anim="on"] #tabs .tab:nth-child(9){animation-delay:.44s}
+[data-anim="on"] #tabs .tab:nth-child(10){animation-delay:.49s}
+[data-anim="on"] #tabs .tab:nth-child(11){animation-delay:.54s}
+@media(prefers-reduced-motion:reduce){#tabs .tab{animation:none!important}}
 .tab:hover{border-color:var(--brand);color:var(--brand)}
 .tab.active{background:linear-gradient(120deg,var(--brand),var(--brand2));color:var(--brand-ink);border-color:transparent;box-shadow:0 4px 12px rgba(46,158,115,.28)}
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(124px,1fr));gap:var(--sp-2);margin-bottom:var(--sp-3)}
