@@ -176,6 +176,11 @@ section h2{
   background:linear-gradient(100deg,var(--ink) 0%,var(--ink) 30%,var(--primary) 50%,var(--ink) 70%,var(--ink) 100%);
   background-size:200% auto;-webkit-background-clip:text;background-clip:text;
   -webkit-text-fill-color:transparent;color:transparent;animation:shine 5s linear infinite}
+/* Titre du bandeau CTA (sur fond jaune) : reflet foncé qui traverse le texte en continu */
+.cta-band h3{
+  background:linear-gradient(100deg,var(--on-primary) 0%,var(--on-primary) 34%,#5a5a12 50%,var(--on-primary) 66%,var(--on-primary) 100%);
+  background-size:200% auto;-webkit-background-clip:text;background-clip:text;
+  -webkit-text-fill-color:transparent;color:transparent;animation:shine 5s linear infinite}
 
 /* Objectifs : carte vivante + pastille numéro qui rebondit au survol */
 .obj{transition:transform .32s cubic-bezier(.22,1,.36,1),border-color .3s,box-shadow .32s,background .3s}
@@ -206,7 +211,7 @@ section h2{
 .navcta:hover::after{left:150%}
 
 @media(prefers-reduced-motion:reduce){
-  h1 .hl,.sub,.stat b,section h2{animation:none}
+  h1 .hl,.sub,.stat b,section h2,.cta-band h3{animation:none}
   .obj,.src,.obj .n{transition:none}
   .obj:hover,.src:hover{transform:none}
   .obj:hover .n{transform:none}
