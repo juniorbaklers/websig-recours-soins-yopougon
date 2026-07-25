@@ -8,8 +8,8 @@
 <meta name="description" content="Tableau de bord WebSIG d'analyse du recours aux soins, de l'accessibilité spatiale et des déterminants socio-sanitaires des personnes du troisième âge à Yopougon.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<!-- Poppins : sans-serif géométrique élégante, famille unique du site. -->
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<!-- Inter : néo-grotesque nette et pro (style shadcn/Helvetica), famille unique du site. -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <!-- Leaflet : mini-carte animée de Yopougon dans le hero -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -27,8 +27,8 @@
   --brand:#faff69; --brand2:#faff69; --gold:#faff69;
 }
 html,body{height:100%}
-/* Poppins partout : corps en 500 lisible sur fond sombre. */
-body{font-family:'Poppins',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-weight:500;color:var(--body);background:var(--bg);
+/* Inter partout : corps en 500 lisible sur fond sombre. */
+body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-weight:500;color:var(--body);background:var(--bg);
   -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
 /* Anneau de focus clavier accessible (jaune de marque) */
 :focus-visible{outline:2px solid var(--focus);outline-offset:2px;border-radius:4px}
@@ -80,7 +80,7 @@ html{scroll-behavior:smooth}
 
 .wrap{max-width:920px;margin:auto;padding:48px 6vw;text-align:center}
 .sub{font-size:12px;text-transform:uppercase;letter-spacing:1.5px;color:var(--primary);font-weight:600;margin-bottom:18px}
-h1{font-size:clamp(21px,2.9vw,32px);line-height:1.28;font-weight:600;letter-spacing:.2px;margin-bottom:18px;color:var(--ink);max-width:800px;margin-left:auto;margin-right:auto}
+h1{font-size:clamp(21px,2.9vw,32px);line-height:1.2;font-weight:700;letter-spacing:-.2px;margin-bottom:18px;color:var(--ink);max-width:800px;margin-left:auto;margin-right:auto}
 h1 .hl{color:var(--primary);text-shadow:0 0 14px rgba(250,255,105,.25)}
 .subtitle{font-size:16px;font-weight:500;color:var(--body-strong);max-width:680px;margin:0 auto 14px;line-height:1.5}
 .lead{font-size:15px;line-height:1.6;color:var(--muted);max-width:640px;margin:0 auto 32px}
@@ -119,16 +119,30 @@ section .shead{color:var(--muted);font-size:15px;line-height:1.55;margin-bottom:
 .obj p{font-size:15px;line-height:1.55;color:var(--body-strong)}
 .obj b{color:var(--primary);font-weight:600}
 
-.modgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.modgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
 @media(min-width:700px){.modgrid{grid-template-columns:repeat(4,1fr)}}
-.mod{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:22px 20px;overflow:hidden;transition:border-color .2s,transform .2s,box-shadow .2s}
-.mod::after{content:"→";position:absolute;top:16px;right:18px;color:var(--primary);font-size:16px;opacity:0;transform:translateX(-6px);transition:opacity .2s,transform .2s}
-.mod:hover{border-color:var(--primary);transform:translateY(-4px);box-shadow:0 14px 34px rgba(250,255,105,.12)}
+/* Cartes « verre dépoli » : fond translucide flouté, barre d'accent verticale lumineuse, halo latéral */
+.mod{position:relative;overflow:hidden;border-radius:16px;padding:22px 20px 22px 26px;
+  background:linear-gradient(105deg,rgba(250,255,105,.06),rgba(255,255,255,.02) 45%),rgba(24,24,24,.55);
+  -webkit-backdrop-filter:blur(14px) saturate(120%);backdrop-filter:blur(14px) saturate(120%);
+  border:1px solid rgba(255,255,255,.08);
+  transition:transform .28s cubic-bezier(.22,1,.36,1),border-color .28s,box-shadow .28s,background .28s}
+/* barre d'accent verticale (signature, comme les cartes de tes images) */
+.mod::before{content:"";position:absolute;left:0;top:16px;bottom:16px;width:4px;border-radius:0 4px 4px 0;
+  background:linear-gradient(180deg,var(--primary),rgba(250,255,105,.18));
+  box-shadow:0 0 16px 1px rgba(250,255,105,.5);
+  transition:top .28s ease,bottom .28s ease,box-shadow .28s ease}
+/* flèche révélée au survol */
+.mod::after{content:"→";position:absolute;top:16px;right:18px;color:var(--primary);font-size:16px;opacity:0;transform:translateX(-6px);transition:opacity .25s,transform .25s}
+.mod:hover{transform:translateY(-5px);border-color:rgba(250,255,105,.4);
+  background:linear-gradient(105deg,rgba(250,255,105,.11),rgba(255,255,255,.03) 45%),rgba(30,30,30,.6);
+  box-shadow:0 20px 46px rgba(0,0,0,.45)}
+.mod:hover::before{top:10px;bottom:10px;box-shadow:0 0 26px 2px rgba(250,255,105,.85)}
 .mod:hover::after{opacity:1;transform:translateX(0)}
-.mod b{display:block;font-size:16px;font-weight:600;margin-bottom:6px;color:var(--ink);transition:color .2s}
+.mod b{display:block;font-size:16px;font-weight:600;margin-bottom:6px;color:var(--ink);transition:color .25s}
 .mod:hover b{color:var(--primary)}
 .mod span{font-size:13px;color:var(--muted);line-height:1.5}
-@media(prefers-reduced-motion:reduce){.mod:hover{transform:none}.mod::after{transition:none}}
+@media(prefers-reduced-motion:reduce){.mod,.mod::before,.mod::after{transition:none}.mod:hover{transform:none}}
 
 .sources{display:grid;gap:12px}
 @media(min-width:700px){.sources{grid-template-columns:repeat(2,1fr)}}
