@@ -1762,11 +1762,12 @@ function spBadgeColor(pct,invert){
 }
 
 // renderRankList() : affiche un classement (top 5) dans un conteneur #id
-function renderRankList(id, items, valueFn, badgeFn){
+function renderRankList(id, items, valueFn, badgeFn, opts={}){
   const el=document.getElementById(id); if(!el) return;
   if(!items.length){ el.innerHTML='<div class="sp-empty">Pas assez de données (min. 3 enquêtés/quartier)</div>'; return; }
-  el.innerHTML=items.map((o,i)=>`<div class="sprow clickable" data-q="${esc(o.q)}" title="Cliquer pour isoler ${esc(o.q)} sur la carte"><span class="rk">${i+1}</span><span class="nm">${esc(o.q)}</span><span class="bd" style="background:${badgeFn(o)}">${valueFn(o)}</span></div>`).join('');
-  el.querySelectorAll('.sprow.clickable').forEach(row=>row.addEventListener('click',()=>toggleQuartierFilter(row.dataset.q)));
+  const hint = opts.underserved ? 'et voir les personnes hors couverture' : 'sur la carte';
+  el.innerHTML=items.map((o,i)=>`<div class="sprow clickable" data-q="${esc(o.q)}" title="Cliquer pour isoler ${esc(o.q)} ${hint}"><span class="rk">${i+1}</span><span class="nm">${esc(o.q)}</span><span class="bd" style="background:${badgeFn(o)}">${valueFn(o)}</span></div>`).join('');
+  el.querySelectorAll('.sprow.clickable').forEach(row=>row.addEventListener('click',()=>focusQuartierOnMap(row.dataset.q, opts.underserved)));
 }
 
 // renderStatsPanel() : (re)calcule tous les indicateurs du panneau de droite.
@@ -1832,7 +1833,7 @@ function renderStatsPanel(recs){
   // priorite = quartiers ou le plus de personnes sont hors couverture (population affectee),
   // departagees par le taux de couverture le plus faible
   renderRankList('sp-rank-priority', [...qa].filter(o=>o.hors>0).sort((a,b)=>b.hors-a.hors || (a.taux??0)-(b.taux??0)).slice(0,5),
-    o=>o.hors+' pers.', o=>'var(--danger, #d9534f)');
+    o=>o.hors+' pers.', o=>'var(--danger, #d9534f)', {underserved:true});
 }
 
 // toggleQuartierFilter() : clic sur une carte de classement (onglet Carte) -> isole ce
@@ -1845,6 +1846,17 @@ function toggleQuartierFilter(q){
     const want = !isolated && b.value===q;
     if(b.checked!==want){ b.checked=want; b.dispatchEvent(new Event('change')); }
   });
+}
+
+// focusQuartierOnMap() : depuis un classement du panneau, isole le quartier, bascule sur la
+// carte, y zoome, et (option) affiche les personnes hors couverture 15 min de ce quartier.
+function focusQuartierOnMap(q, underserved){
+  toggleQuartierFilter(q);
+  const nowIsolated = filters.quartier && filters.quartier.size===1 && filters.quartier.has(q);
+  if(!nowIsolated) return; // 2e clic : on a retire l'isolement, on reste ou on est
+  if(underserved){ const u=document.getElementById('underToggle'); if(u && !u.checked){ u.checked=true; u.dispatchEvent(new Event('change')); } }
+  switchTab('carte');
+  setTimeout(()=>{ try{ zoomToQuartier(q); }catch(e){} }, 80);
 }
 
 // renderMapRanking() : cartes de classement des quartiers (onglet Carte), avec un score
@@ -1868,7 +1880,7 @@ function renderMapRanking(recs){
       <div class="mr-top">
         <span class="mr-rank">${i+1}</span>
         <span class="mr-name" title="${esc(o.q)}">${o.q}</span>
-        <span class="mr-score">${o.score}</span>
+        <span class="mr-score" style="color:${spBadgeColor(o.score,false)}" title="Score d'accès aux soins sur 100 (plus haut = meilleur accès : 50% couverture + 30% proximité + 20% population)">${o.score}<span class="mr-score-max">/100</span></span>
       </div>
       <div class="mr-bars">
         <div class="mr-bar-row"><span class="mr-bar-label">Couverture</span><span class="mr-bar-track"><span class="mr-bar-fill" style="width:${o.cov}%"></span></span><span class="mr-bar-val">${o.cov.toFixed(0)}%</span></div>
@@ -2924,6 +2936,65 @@ function exportGraphiquesXlsx(){
   exportStatus(`✓ ${canvases.length} graphique(s) exporté(s) en données Excel (modifiable). Dans Excel : sélectionnez une feuille → Insertion → Graphique.`);
 }
 
+// chartToSVG() : dessine un graphique Chart.js en SVG vectoriel (barres v/h + camembert/anneau).
+// Le SVG est modifiable dans Word (clic droit > Modifier / Convertir en forme) et les tableurs.
+function chartToSVG(ch, W=560, H=340){
+  const t=ch.config.type, labels=(ch.data.labels||[]).map(String), ds=ch.data.datasets||[];
+  const num=v=>(v&&typeof v==='object')?(v.y??v.x??0):(Number(v)||0);
+  const pal=(bg,i)=>{ const c=Array.isArray(bg)?bg[i%bg.length]:bg; return (typeof c==='string')?c:'#8aa1c0'; };
+  const e=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  let g='';
+  if(t==='doughnut'||t==='pie'){
+    const data=ds[0].data.map(num), tot=data.reduce((a,b)=>a+b,0)||1;
+    const cx=W*0.62,cy=H/2,r=Math.min(W*0.5,H)/2-24,r0=t==='doughnut'?r*0.55:0; let ang=-Math.PI/2;
+    data.forEach((v,i)=>{ const a2=ang+2*Math.PI*(v/tot),x1=cx+r*Math.cos(ang),y1=cy+r*Math.sin(ang),x2=cx+r*Math.cos(a2),y2=cy+r*Math.sin(a2),lg=(a2-ang)>Math.PI?1:0,col=pal(ds[0].backgroundColor,i);
+      if(r0>0){const xi1=cx+r0*Math.cos(a2),yi1=cy+r0*Math.sin(a2),xi2=cx+r0*Math.cos(ang),yi2=cy+r0*Math.sin(ang);
+        g+=`<path d="M${x1.toFixed(1)} ${y1.toFixed(1)} A${r} ${r} 0 ${lg} 1 ${x2.toFixed(1)} ${y2.toFixed(1)} L${xi1.toFixed(1)} ${yi1.toFixed(1)} A${r0} ${r0} 0 ${lg} 0 ${xi2.toFixed(1)} ${yi2.toFixed(1)} Z" fill="${col}" stroke="#fff" stroke-width="1"/>`;}
+      else g+=`<path d="M${cx} ${cy} L${x1.toFixed(1)} ${y1.toFixed(1)} A${r} ${r} 0 ${lg} 1 ${x2.toFixed(1)} ${y2.toFixed(1)} Z" fill="${col}" stroke="#fff" stroke-width="1"/>`;
+      ang=a2; });
+    labels.forEach((lb,i)=>{ g+=`<rect x="10" y="${12+i*17}" width="11" height="11" fill="${pal(ds[0].backgroundColor,i)}"/><text x="26" y="${21+i*17}" font-size="11" font-family="Calibri,Arial" fill="#333">${e(lb)} (${data[i]})</text>`; });
+  } else {
+    const horiz=ch.config.options&&ch.config.options.indexAxis==='y';
+    const vals=ds.flatMap(d=>d.data.map(num)), max=Math.max(1,...vals);
+    const nG=labels.length||1,nD=ds.length||1;
+    const mL=horiz?120:44,mR=14,mT=14,mB=horiz?14:64,pW=W-mL-mR,pH=H-mT-mB;
+    if(horiz){ const gh=pH/nG;
+      labels.forEach((lb,gi)=>{ ds.forEach((d,k)=>{ const v=num(d.data[gi]),w=v/max*pW,bh=gh/nD*0.8,y=mT+gi*gh+k*(gh/nD)+gh/nD*0.1;
+        g+=`<rect x="${mL}" y="${y.toFixed(1)}" width="${Math.max(0,w).toFixed(1)}" height="${bh.toFixed(1)}" fill="${pal(d.backgroundColor,gi)}"/>`; });
+        g+=`<text x="${mL-6}" y="${(mT+gi*gh+gh/2+3).toFixed(1)}" font-size="10" font-family="Calibri,Arial" text-anchor="end" fill="#333">${e(lb.slice(0,20))}</text>`; });
+    } else { const gw=pW/nG;
+      labels.forEach((lb,gi)=>{ ds.forEach((d,k)=>{ const v=num(d.data[gi]),bh=v/max*pH,bw=gw/nD*0.8,x=mL+gi*gw+k*(gw/nD)+gw/nD*0.1;
+        g+=`<rect x="${x.toFixed(1)}" y="${(mT+pH-bh).toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(0,bh).toFixed(1)}" fill="${pal(d.backgroundColor,gi)}"/>`; });
+        g+=`<text x="${(mL+gi*gw+gw/2).toFixed(1)}" y="${H-mB+14}" font-size="9" font-family="Calibri,Arial" text-anchor="middle" fill="#333" transform="rotate(30 ${(mL+gi*gw+gw/2).toFixed(1)} ${H-mB+14})">${e(lb.slice(0,14))}</text>`; });
+    }
+    g+=`<line x1="${mL}" y1="${mT+pH}" x2="${W-mR}" y2="${mT+pH}" stroke="#ccc"/>`;
+  }
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${g}</svg>`;
+}
+
+// exportGraphiquesWord() : document Word (.doc) avec, pour chaque graphique, un SVG vectoriel
+// (modifiable dans Word) + son tableau de donnees (modifiable pour recreer un graphique natif).
+function exportGraphiquesWord(){
+  const sec=document.getElementById('tab-'+lastContentTab);
+  const canvases=sec? [...sec.querySelectorAll('canvas')].filter(c=>charts[c.id]) : [];
+  if(!canvases.length){ exportStatus(`L'onglet « ${tabLabel(lastContentTab)} » ne contient pas de graphique. Ouvrez un onglet d'analyse puis revenez sur Exports.`,true); return; }
+  let body=`<h1 style="font-family:Calibri">Graphiques — ${esc(tabLabel(lastContentTab))}</h1>`;
+  canvases.forEach(c=>{ const ch=charts[c.id]; if(!ch) return;
+    const card=c.closest('.card'), h3=card&&card.querySelector('h3');
+    const title=((h3&&(h3.childNodes[0]&&h3.childNodes[0].textContent||h3.textContent))||c.id).trim();
+    const labels=ch.data.labels||[], ds=ch.data.datasets||[];
+    body+=`<h2 style="font-family:Calibri;color:#1a1d21">${esc(title)}</h2>`;
+    body+=`<p>${chartToSVG(ch)}</p>`;
+    body+=`<table border="1" cellspacing="0" cellpadding="4" style="border-collapse:collapse;font-family:Calibri;font-size:11pt"><tr style="background:#efe8d9"><th>Catégorie</th>${ds.map((d,j)=>`<th>${esc(d.label||('Série '+(j+1)))}</th>`).join('')}</tr>`;
+    labels.forEach((lb,r)=>{ body+=`<tr><td>${esc(lb)}</td>${ds.map(d=>{const v=d.data[r]; return `<td>${(v&&typeof v==='object')?(v.y??v.x??''):(v??'')}</td>`;}).join('')}</tr>`; });
+    body+=`</table><p style="font-family:Calibri;font-size:9pt;color:#777">SVG modifiable (clic droit &gt; Modifier). Pour un graphique natif : sélectionnez le tableau &gt; Insertion &gt; Graphique.</p><br/>`;
+  });
+  const html=`<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8"></head><body>${body}</body></html>`;
+  const blob=new Blob(['﻿'+html],{type:'application/msword'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`graphiques_${lastContentTab}.doc`; a.click();
+  exportStatus(`✓ ${canvases.length} graphique(s) exporté(s) en Word (.doc) : SVG vectoriel modifiable + tableau de données.`);
+}
+
 // extractTablesFromSection() : lit generiquement les tableaux HTML (table.ct) d'une section -> {headers,rows}
 function extractTablesFromSection(sec){
   return [...sec.querySelectorAll('table.ct')].map(table=>({
@@ -3043,6 +3114,7 @@ function initExportsUI(){
   document.getElementById('exportDonneesGeojson').addEventListener('click',exportDonneesGeojson);
   document.getElementById('exportGraphiquesPng').addEventListener('click',exportGraphiquesPng);
   { const b=document.getElementById('exportGraphiquesXlsx'); if(b) b.addEventListener('click',exportGraphiquesXlsx); }
+  { const b=document.getElementById('exportGraphiquesWord'); if(b) b.addEventListener('click',exportGraphiquesWord); }
   document.getElementById('exportTableauxCsv').addEventListener('click',exportTableauxCsv);
   document.getElementById('exportTableauxXlsx').addEventListener('click',exportTableauxXlsx);
   document.getElementById('exportTableauxPdf').addEventListener('click',exportTableauxPdf);

@@ -266,6 +266,7 @@ table.ct tr.rowclick:hover td{background:#f7f3df}
 .mr-rank{width:20px;height:20px;border-radius:6px;background:var(--brand);color:var(--brand-ink);font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;flex:none}
 .mr-name{flex:1;font-size:12.5px;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mr-score{font-size:15px;font-weight:800;color:var(--brand);font-variant-numeric:tabular-nums}
+.mr-score-max{font-size:9px;font-weight:600;color:var(--muted);margin-left:1px}
 .mr-bars{margin-top:8px;display:flex;flex-direction:column;gap:4px}
 .mr-bar-row{display:flex;align-items:center;gap:6px;font-size:10px;color:var(--muted)}
 .mr-bar-label{width:64px;flex:none}
@@ -1165,7 +1166,8 @@ body.presentation-mode .wrap.sp-collapsed{grid-template-columns:1fr}
         <div id="exportPanelGraphiques" class="hidden">
           <div class="toolbar">
             <button class="btn solid" id="exportGraphiquesPng">⬇ Graphiques (PNG)</button>
-            <button class="btn" id="exportGraphiquesXlsx" title="Exporte les données de chaque graphique dans Excel : vous pouvez y recréer/modifier un graphique natif (et le coller dans Word)">⬇ Graphiques (données Excel, modifiable)</button>
+            <button class="btn" id="exportGraphiquesWord" title="Document Word avec chaque graphique en SVG vectoriel modifiable + son tableau de données">⬇ Graphiques (Word, modifiable)</button>
+            <button class="btn" id="exportGraphiquesXlsx" title="Exporte les données de chaque graphique dans Excel : vous pouvez y recréer/modifier un graphique natif (et le coller dans Word)">⬇ Graphiques (Excel, modifiable)</button>
           </div>
           <div class="note" id="exportGraphInfo">Le PNG donne une image. « Données Excel » exporte les valeurs de chaque graphique dans un classeur : de là, un graphique natif éditable dans Excel ou Word.</div>
         </div>
