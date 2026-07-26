@@ -2900,6 +2900,30 @@ function exportGraphiquesPng(){
   exportStatus(`✓ ${canvases.length} graphique(s) exporté(s) depuis « ${tabLabel(lastContentTab)} ».`);
 }
 
+// exportGraphiquesXlsx() : DONNEES de chaque graphique du dernier onglet d'analyse -> Excel
+// (labels + series par feuille). Permet de recreer un graphique NATIF, modifiable, dans Excel/Word.
+function exportGraphiquesXlsx(){
+  const sec=document.getElementById('tab-'+lastContentTab);
+  const canvases=sec? [...sec.querySelectorAll('canvas')].filter(c=>charts[c.id]) : [];
+  if(!canvases.length){ exportStatus(`L'onglet « ${tabLabel(lastContentTab)} » ne contient pas de graphique. Ouvrez un onglet d'analyse (Vue d'ensemble, Recours, Analyse croisée…) puis revenez sur Exports.`,true); return; }
+  const wb=XLSX.utils.book_new(); const used={};
+  canvases.forEach((c,i)=>{
+    const ch=charts[c.id]; if(!ch) return;
+    const labels=ch.data.labels||[];
+    const dss=ch.data.datasets||[];
+    const header=['Catégorie', ...dss.map((d,j)=>d.label||('Série '+(j+1)))];
+    const rows=labels.map((lb,r)=>[lb, ...dss.map(d=>{ const v=d.data[r]; return (v&&typeof v==='object')?(v.y??v.x??''):v; })]);
+    const ws=XLSX.utils.aoa_to_sheet([header,...rows]);
+    // nom de feuille = titre de la carte (unique, <=31 car., sans caracteres interdits)
+    const card=c.closest('.card'), h3=card&&card.querySelector('h3');
+    let base=((h3&&(h3.childNodes[0]&&h3.childNodes[0].textContent||h3.textContent))||c.id).trim().replace(/[\\\/\?\*\[\]:]/g,' ').slice(0,28) || ('Graphique '+(i+1));
+    let nm=base, k=1; while(used[nm.toLowerCase()]){ nm=(base.slice(0,26)+' '+(++k)); } used[nm.toLowerCase()]=1;
+    XLSX.utils.book_append_sheet(wb,ws,nm);
+  });
+  XLSX.writeFile(wb,`graphiques_${lastContentTab}_donnees.xlsx`);
+  exportStatus(`✓ ${canvases.length} graphique(s) exporté(s) en données Excel (modifiable). Dans Excel : sélectionnez une feuille → Insertion → Graphique.`);
+}
+
 // extractTablesFromSection() : lit generiquement les tableaux HTML (table.ct) d'une section -> {headers,rows}
 function extractTablesFromSection(sec){
   return [...sec.querySelectorAll('table.ct')].map(table=>({
@@ -3018,6 +3042,7 @@ function initExportsUI(){
   document.getElementById('exportDonneesXlsx').addEventListener('click',exportDonneesXlsx);
   document.getElementById('exportDonneesGeojson').addEventListener('click',exportDonneesGeojson);
   document.getElementById('exportGraphiquesPng').addEventListener('click',exportGraphiquesPng);
+  { const b=document.getElementById('exportGraphiquesXlsx'); if(b) b.addEventListener('click',exportGraphiquesXlsx); }
   document.getElementById('exportTableauxCsv').addEventListener('click',exportTableauxCsv);
   document.getElementById('exportTableauxXlsx').addEventListener('click',exportTableauxXlsx);
   document.getElementById('exportTableauxPdf').addEventListener('click',exportTableauxPdf);
