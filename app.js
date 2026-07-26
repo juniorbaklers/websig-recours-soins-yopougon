@@ -1731,17 +1731,25 @@ function quartierAgg(recs){
     const q=(d.quartier??'').toString().trim(); if(!q) return;
     const o=byq[q]=byq[q]||{q,n:0,c5:0,c10:0,c15:0,hors:0,distSum:0,distN:0};
     o.n++;
-    if(d.coverClass==='5 min')o.c5++;
-    else if(d.coverClass==='10 min')o.c10++;
-    else if(d.coverClass==='15 min')o.c15++;
-    else if(d.coverClass==='Hors 15 min')o.hors++;
-    if(typeof d.nearestDist==='number'){ o.distSum+=d.nearestDist; o.distN++; }
+    const cov=accCover(d); // suit le mode "centres publics uniquement"
+    if(cov==='5 min')o.c5++;
+    else if(cov==='10 min')o.c10++;
+    else if(cov==='15 min')o.c15++;
+    else if(cov==='Hors 15 min')o.hors++;
+    const dist=accDist(d);
+    if(typeof dist==='number'){ o.distSum+=dist; o.distN++; }
   });
-  return Object.values(byq).map(o=>({
-    q:o.q, n:o.n, hors:o.hors,
-    taux: (o.c5+o.c10+o.c15+o.hors)? 100*(o.c5+o.c10+o.c15)/(o.c5+o.c10+o.c15+o.hors) : null,
-    distMoy: o.distN? o.distSum/o.distN : null
-  }));
+  return Object.values(byq).map(o=>{
+    const tot=o.c5+o.c10+o.c15+o.hors;
+    return {
+      q:o.q, n:o.n, hors:o.hors,
+      taux: tot? 100*(o.c5+o.c10+o.c15)/tot : null,
+      // score de couverture PONDERE par la proximite (5min=1, 10min=.66, 15min=.33, hors=0) :
+      // ne sature pas a 100%, donc differencie vraiment "mieux" et "moins" couverts.
+      score: tot? 100*(o.c5 + o.c10*0.66 + o.c15*0.33)/tot : null,
+      distMoy: o.distN? o.distSum/o.distN : null
+    };
+  });
 }
 
 // spBadgeColor() : couleur d'une pastille de classement selon la valeur et le sens
@@ -1757,7 +1765,8 @@ function spBadgeColor(pct,invert){
 function renderRankList(id, items, valueFn, badgeFn){
   const el=document.getElementById(id); if(!el) return;
   if(!items.length){ el.innerHTML='<div class="sp-empty">Pas assez de données (min. 3 enquêtés/quartier)</div>'; return; }
-  el.innerHTML=items.map((o,i)=>`<div class="sprow"><span class="rk">${i+1}</span><span class="nm" title="${esc(o.q)}">${o.q}</span><span class="bd" style="background:${badgeFn(o)}">${valueFn(o)}</span></div>`).join('');
+  el.innerHTML=items.map((o,i)=>`<div class="sprow clickable" data-q="${esc(o.q)}" title="Cliquer pour isoler ${esc(o.q)} sur la carte"><span class="rk">${i+1}</span><span class="nm">${esc(o.q)}</span><span class="bd" style="background:${badgeFn(o)}">${valueFn(o)}</span></div>`).join('');
+  el.querySelectorAll('.sprow.clickable').forEach(row=>row.addEventListener('click',()=>toggleQuartierFilter(row.dataset.q)));
 }
 
 // renderStatsPanel() : (re)calcule tous les indicateurs du panneau de droite.
@@ -1814,11 +1823,11 @@ function renderStatsPanel(recs){
   renderRankList('sp-rank-far', qa.filter(o=>o.distMoy!=null).sort((a,b)=>b.distMoy-a.distMoy).slice(0,5),
     o=>Math.round(o.distMoy)+' m', o=>spBadgeColor(Math.min(100,o.distMoy/15),true));
 
-  renderRankList('sp-rank-best', qa.filter(o=>o.taux!=null).sort((a,b)=>b.taux-a.taux).slice(0,5),
-    o=>o.taux.toFixed(0)+'%', o=>spBadgeColor(o.taux,false));
+  renderRankList('sp-rank-best', qa.filter(o=>o.score!=null).sort((a,b)=>b.score-a.score).slice(0,5),
+    o=>Math.round(o.score)+'%', o=>spBadgeColor(o.score,false));
 
-  renderRankList('sp-rank-worst', qa.filter(o=>o.taux!=null).sort((a,b)=>a.taux-b.taux).slice(0,5),
-    o=>o.taux.toFixed(0)+'%', o=>spBadgeColor(o.taux,false));
+  renderRankList('sp-rank-worst', qa.filter(o=>o.score!=null).sort((a,b)=>a.score-b.score).slice(0,5),
+    o=>Math.round(o.score)+'%', o=>spBadgeColor(o.score,false));
 
   // priorite = quartiers ou le plus de personnes sont hors couverture (population affectee),
   // departagees par le taux de couverture le plus faible

@@ -1,0 +1,318 @@
+{
+ "type": "FeatureCollection",
+ "name": "centres_sante_publics_yopougon",
+ "crs": {
+  "type": "name",
+  "properties": {
+   "name": "urn:ogc:def:crs:OGC:1.3:CRS84"
+  }
+ },
+ "features": [
+  {
+   "type": "Feature",
+   "properties": {
+    "nom": "CENTRE HOSPITALIER UNIVERSITAIRE DE YOPOUGON",
+    "categorie": "CHU",
+    "type": "Hopital",
+    "niveau": "Tertiaire - 3e reference",
+    "secteur": "Public",
+    "public": true
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -4.089375,
+     5.356932
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "nom": "SERVICE DELOCALISE DE NEONATALOGIE DU CHU",
+    "categorie": "CHU",
+    "type": "Hopital",
+    "niveau": "Tertiaire - 3e reference",
+    "secteur": "Public",
+    "public": true
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -4.070992,
+     5.30948
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "nom": "HG de Yop Attié(FSU Yopougon Attié)",
+    "categorie": "Hopital General",
+    "type": "Hopital",
+    "niveau": "Secondaire - 1ere reference",
+    "secteur": "Public",
+    "public": true
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -4.080668,
+     5.341438
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "nom": "Centre de Santé Adiopodoumé",
+    "categorie": "CSU / FSU",
+    "type": "Centre de sante (1er contact)",
+    "niveau": "Primaire - premier contact",
+    "secteur": "Public/Communautaire",
+    "public": true
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -4.132719,
+     5.337793
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "nom": "FORMATION SANITAIRE URBAINE A BASE COMMUNAUTAIRE DE YOPOUGON KOUTE",
+    "categorie": "CSU / FSU",
+    "type": "Centre de sante (1er contact)",
+    "niveau": "Primaire - premier contact",
+    "secteur": "Public/Communautaire",
+    "public": true
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -4.075341,
+     5.321714
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "nom": "FSU MICAO",
+    "categorie": "CSU / FSU",
+    "type": "Centre de sante (1er contact)",
+    "niveau": "Primaire - premier contact",
+    "secteur": "Public/Communautaire",
+    "public": true
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -4.093456,
+     5.384209
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "nom": "FSU communautaire Andokoua",
+    "categorie": "CSU / FSU",
+    "type": "Centre de sante (1er contact)",
+    "niveau": "Primaire - premier contact",
+    "secteur": "Public/Communautaire",
+    "public": true
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -4.068902,
+     5.362658
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "nom": "FSU communautaire Azito",
+    "categorie": "CSU / FSU",
+    "type": "Centre de sante (1er contact)",
+    "niveau": "Primaire - premier contact",
+    "secteur": "Public/Communautaire",
+    "public": true
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -4.083251,
+     5.304004
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "nom": "FSU communautaire Gesco",
+    "categorie": "CSU / FSU",
+    "type": "Centre de sante (1er contact)",
+    "niveau": "Primaire - premier contact",
+    "secteur": "Public/Communautaire",
+    "public": true
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -4.101401,
+     5.370083
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "nom": "FSU communautaire Niangon Sud",
+    "categorie": "CSU / FSU",
+    "type": "Centre de sante (1er contact)",
+    "niveau": "Primaire - premier contact",
+    "secteur": "Public/Communautaire",
+    "public": true
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -4.090251,
+     5.324578
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "nom": "FSU communautaire Port-Bouet 2",
+    "categorie": "CSU / FSU",
+    "type": "Centre de sante (1er contact)",
+    "niveau": "Primaire - premier contact",
+    "secteur": "Public/Communautaire",
+    "public": true
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -4.093111,
+     5.347208
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "nom": "FSU communautaire Toit rouge",
+    "categorie": "CSU / FSU",
+    "type": "Centre de sante (1er contact)",
+    "niveau": "Primaire - premier contact",
+    "secteur": "Public/Communautaire",
+    "public": true
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -4.05633,
+     5.331465
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "nom": "FSU communautaire Wassakara",
+    "categorie": "CSU / FSU",
+    "type": "Centre de sante (1er contact)",
+    "niveau": "Primaire - premier contact",
+    "secteur": "Public/Communautaire",
+    "public": true
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -4.068399,
+     5.353096
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "nom": "FSUCOM D ANDOKOI",
+    "categorie": "CSU / FSU",
+    "type": "Centre de sante (1er contact)",
+    "niveau": "Primaire - premier contact",
+    "secteur": "Public/Communautaire",
+    "public": true
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -4.068845,
+     5.362799
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "nom": "CENTRE DE SANTE RURAL D ADIOPODOUME",
+    "categorie": "CSR",
+    "type": "Centre de sante (1er contact)",
+    "niveau": "Primaire - premier contact",
+    "secteur": "Public",
+    "public": true
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -4.129553,
+     5.333011
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "nom": "Dispensaire diocesain s�ur Catherine",
+    "categorie": "Dispensaire",
+    "type": "Centre de sante (1er contact)",
+    "niveau": "Primaire - premier contact",
+    "secteur": "Public/Confessionnel",
+    "public": true
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -4.09819,
+     5.339105
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "nom": "MATERNITE EBENEZER",
+    "categorie": "Maternite / PMI",
+    "type": "Centre de sante (1er contact)",
+    "niveau": "Primaire - premier contact",
+    "secteur": "Public",
+    "public": true
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -4.102679,
+     5.374333
+    ]
+   }
+  }
+ ]
+}
