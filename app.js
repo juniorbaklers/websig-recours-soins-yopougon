@@ -241,6 +241,15 @@ function publicMode(){ const t=document.getElementById('publicOnlyToggle'); retu
 function accDist(d){ return publicMode()? d.nearestPubDist : d.nearestDist; }
 function accCover(d){ return publicMode()? d.coverClassPub : d.coverClass; }
 function accWalk(d){ return publicMode()? d.walkMinPub : d.walkMin; }
+// updateCentresVisibility() : la couche des centres s'affiche si "Centres de sante (108)" OU
+// "Centres publics uniquement" est coche (les deux commandes sont independantes).
+function updateCentresVisibility(){
+  const ct=document.getElementById('centresToggle'), pt=document.getElementById('publicOnlyToggle');
+  const show = (ct && ct.checked) || (pt && pt.checked);
+  if(typeof centresLayer==='undefined' || !centresLayer) return;
+  if(show){ if(!map.hasLayer(centresLayer)) centresLayer.addTo(map); }
+  else if(map.hasLayer(centresLayer)) map.removeLayer(centresLayer);
+}
 
 // catsOf(cle) : renvoie la liste ORDONNEE des modalites d'une variable,
 // calculee une seule fois sur TOUT le jeu de donnees (pour que les couleurs
@@ -549,10 +558,9 @@ function initMap(){
   // bascule "centres publics uniquement" : filtre la carte + recalcule tous les indicateurs d'accessibilite
   const pubT=document.getElementById('publicOnlyToggle');
   if(pubT) pubT.addEventListener('change',()=>{
-    const f=filtered(), ct=document.getElementById('centresToggle');
-    if(pubT.checked && ct && !ct.checked){ ct.checked=true; } // cocher "publics" affiche forcement les centres
+    const f=filtered();
     buildSpatialLayers();
-    if(pubT.checked && centresLayer && !map.hasLayer(centresLayer)) centresLayer.addTo(map); // s'assurer que la couche est visible
+    updateCentresVisibility(); // la couche des centres est visible si "108" OU "publics" est coche (independant)
     renderMap(f); renderStatsPanel(f); renderTab(f);
   });
   // bascule du halo lumineux des points : etat memorise, applique via l'attribut data-halo sur <html>
@@ -568,7 +576,9 @@ function initMap(){
   }
   // bascules des couches spatiales : on affiche/masque la couche correspondante
   const tog=(id,layer)=>document.getElementById(id).addEventListener('change',e=>{e.target.checked?layer.addTo(map):map.removeLayer(layer);});
-  tog('centresToggle',centresLayer); tog('buffer500Toggle',buffer500Layer); tog('buffer1000Toggle',buffer1000Layer); tog('boundaryToggle',boundaryLayer);
+  tog('buffer500Toggle',buffer500Layer); tog('buffer1000Toggle',buffer1000Layer); tog('boundaryToggle',boundaryLayer);
+  // centres : visible si "Centres de sante (108)" OU "publics uniquement" est coche (couche partagee, affichages independants)
+  document.getElementById('centresToggle').addEventListener('change',updateCentresVisibility);
   // affichage de la grille (par-dessus les fonds mais sous les points)
   document.getElementById('gridToggle').addEventListener('change',e=>{ if(e.target.checked){gridLayer.addTo(map);gridLayer.bringToBack();boundaryLayer.bringToBack&&boundaryLayer.bringToBack();} else map.removeLayer(gridLayer); });
   // bascule vue echantillonnage : change la source des coordonnees et redessine
@@ -1778,6 +1788,9 @@ function renderStatsPanel(recs){
   const panel=document.getElementById('statsPanel'); if(!panel) return;
   const setv=(id,val)=>{ const el=document.getElementById(id); if(el) el.textContent=val; };
   const n=recs.length;
+  // barre "revenir a la vue complete" : visible des qu'un filtre est actif (evite de remonter la page)
+  const spReset=document.getElementById('spReset');
+  if(spReset){ const active=Object.keys(filters).some(k=>filters[k]&&filters[k].size>0); spReset.classList.toggle('hidden',!active); }
 
   // --- Population ---
   setv('sp-n', n);
@@ -1901,6 +1914,7 @@ function initStatsPanel(){
     btn.textContent=c?'«':'»'; localStorage.setItem('sp_collapsed',c?'1':'0'); };
   setCollapsed(localStorage.getItem('sp_collapsed')==='1');
   btn.addEventListener('click',()=>setCollapsed(!panel.classList.contains('collapsed')));
+  const rb=document.getElementById('spResetBtn'); if(rb) rb.addEventListener('click',resetFilters); // revenir a la vue complete
   // le changement de visibilite des centres impacte "Centres de sante visibles"
   const ct=document.getElementById('centresToggle'); if(ct) ct.addEventListener('change',()=>renderStatsPanel(filtered()));
 }
