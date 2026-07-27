@@ -3029,15 +3029,16 @@ function exportGraphiquesWord(){
     const title=((h3&&(h3.childNodes[0]&&h3.childNodes[0].textContent||h3.textContent))||c.id).trim();
     const labels=ch.data.labels||[], ds=ch.data.datasets||[];
     body+=`<h2 style="font-family:Calibri;color:#1a1d21">${esc(title)}</h2>`;
-    body+=`<p>${chartToSVG(ch)}</p>`;
+    // image PNG du graphique (Word ne rend pas le SVG inline de facon fiable) : le graphique s'affiche vraiment
+    body+=`<p><img src="${canvasPngWithBg(c)}" width="520" style="max-width:100%"/></p>`;
     body+=`<table border="1" cellspacing="0" cellpadding="4" style="border-collapse:collapse;font-family:Calibri;font-size:11pt"><tr style="background:#efe8d9"><th>Catégorie</th>${ds.map((d,j)=>`<th>${esc(d.label||('Série '+(j+1)))}</th>`).join('')}</tr>`;
     labels.forEach((lb,r)=>{ body+=`<tr><td>${esc(lb)}</td>${ds.map(d=>{const v=d.data[r]; return `<td>${(v&&typeof v==='object')?(v.y??v.x??''):(v??'')}</td>`;}).join('')}</tr>`; });
-    body+=`</table><p style="font-family:Calibri;font-size:9pt;color:#777">SVG modifiable (clic droit &gt; Modifier). Pour un graphique natif : sélectionnez le tableau &gt; Insertion &gt; Graphique.</p><br/>`;
+    body+=`</table><p style="font-family:Calibri;font-size:9pt;color:#777">Le graphique ci-dessus est une image. Le tableau est <b>modifiable</b> : pour un graphique éditable, sélectionnez le tableau &gt; Insertion &gt; Graphique.</p><br/>`;
   });
   const html=`<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8"></head><body>${body}</body></html>`;
   const blob=new Blob(['﻿'+html],{type:'application/msword'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`graphiques_${lastContentTab}.doc`; a.click();
-  exportStatus(`✓ ${canvases.length} graphique(s) exporté(s) en Word (.doc) : SVG vectoriel modifiable + tableau de données.`);
+  exportStatus(`✓ ${canvases.length} graphique(s) exporté(s) en Word (.doc) : image du graphique + tableau de données modifiable.`);
 }
 
 // extractTablesFromSection() : lit generiquement les tableaux HTML (table.ct) d'une section -> {headers,rows}
