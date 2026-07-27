@@ -596,10 +596,12 @@ function buildSpatialLayers(){
   const onlyPub=publicMode();
   CENTRES.forEach(c=>{
     if(onlyPub && !c.public) return; // mode "centres publics uniquement"
-    const col=mapStyle.colorCentres;
+    // en mode "publics uniquement" : couleur distincte (bleu) + contour renforcé pour bien differencier des 108 centres
+    const col = onlyPub ? '#1565c0' : mapStyle.colorCentres;
+    const r = onlyPub ? 8.5 : 8, sw = onlyPub ? 2.2 : 1.6;
     // symbologie cartographique standard d'un point de sante : rond + croix blanche a l'interieur
-    const icon=L.divIcon({className:'centre-ico',iconSize:[20,20],iconAnchor:[10,10],
-      html:`<svg width="20" height="20" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" fill="${col}" stroke="#fff" stroke-width="1.6"/><path d="M10 5.2V14.8M5.2 10H14.8" stroke="#fff" stroke-width="2.1" stroke-linecap="round"/></svg>`});
+    const icon=L.divIcon({className:'centre-ico'+(onlyPub?' centre-pub':''),iconSize:[20,20],iconAnchor:[10,10],
+      html:`<svg width="20" height="20" viewBox="0 0 20 20"><circle cx="10" cy="10" r="${r}" fill="${col}" stroke="#fff" stroke-width="${sw}"/><path d="M10 5.2V14.8M5.2 10H14.8" stroke="#fff" stroke-width="2.1" stroke-linecap="round"/></svg>`});
     const mk=L.marker([c.lat,c.lon],{icon});
     mk.bindPopup(()=>centrePopupHtml(c),{maxWidth:270}); // fiche calculee a l'ouverture (compte les personnes les + proches a jour)
     mk.on('click',()=>{ if(isoMode) computeIsochrone(c); }); // isochrones a la demande
