@@ -220,16 +220,16 @@ function haversine(la1,lo1,la2,lo2){ const R=6371000,r=Math.PI/180;
 function computeNearest(){
   if(!CENTRES||!CENTRES.length) return;
   DATA.forEach(d=>{
-    if(typeof d.lat!=='number'||typeof d.lng!=='number'||!d.lat){ d.nearestDist=null; d.nearestName=''; d.walkMin=null; d.coverClass=''; d.nearestPubDist=null; d.nearestPubName=''; d.walkMinPub=null; d.coverClassPub=''; return; }
-    let best=1e18,bn='',bt='',bestPub=1e18,bpn='';
-    for(const c of CENTRES){ const dist=haversine(d.lat,d.lng,c.lat,c.lon);
-      if(dist<best){best=dist;bn=c.nom;bt=c.type;}
-      if(c.public && dist<bestPub){ bestPub=dist; bpn=c.nom; } }
-    d.nearestDist=Math.round(best); d.nearestName=bn; d.nearestType=bt;
+    if(typeof d.lat!=='number'||typeof d.lng!=='number'||!d.lat){ d.nearestDist=null; d.nearestName=''; d.nearestIdx=null; d.walkMin=null; d.coverClass=''; d.nearestPubDist=null; d.nearestPubName=''; d.nearestPubIdx=null; d.walkMinPub=null; d.coverClassPub=''; return; }
+    let best=1e18,bn='',bt='',bi=-1,bestPub=1e18,bpn='',bpi=-1;
+    CENTRES.forEach((c,ci)=>{ const dist=haversine(d.lat,d.lng,c.lat,c.lon);
+      if(dist<best){best=dist;bn=c.nom;bt=c.type;bi=ci;}
+      if(c.public && dist<bestPub){ bestPub=dist; bpn=c.nom; bpi=ci; } });
+    d.nearestDist=Math.round(best); d.nearestName=bn; d.nearestType=bt; d.nearestIdx=bi;
     d.walkMin=Math.max(1,Math.round(best/WALK_M_MIN));
     d.coverClass = best<=400?'5 min':best<=800?'10 min':best<=1200?'15 min':'Hors 15 min';
-    // couverture par les centres de sante PUBLICS uniquement
-    d.nearestPubName = bpn;
+    // couverture par les centres de sante PUBLICS uniquement (index unique du centre, pas le nom : plusieurs centres peuvent partager un nom)
+    d.nearestPubName = bpn; d.nearestPubIdx = bpi>=0?bpi:null;
     d.nearestPubDist = bestPub<1e18?Math.round(bestPub):null;
     d.walkMinPub = d.nearestPubDist!=null?Math.max(1,Math.round(bestPub/WALK_M_MIN)):null;
     d.coverClassPub = d.nearestPubDist==null ? '' : (bestPub<=400?'5 min':bestPub<=800?'10 min':bestPub<=1200?'15 min':'Hors 15 min');
@@ -243,6 +243,7 @@ function accDist(d){ return publicMode()? d.nearestPubDist : d.nearestDist; }
 function accCover(d){ return publicMode()? d.coverClassPub : d.coverClass; }
 function accWalk(d){ return publicMode()? d.walkMinPub : d.walkMin; }
 function accNearestName(d){ return publicMode()? d.nearestPubName : d.nearestName; } // centre (public si mode public) le plus proche
+function accNearestIdx(d){ const i=publicMode()? d.nearestPubIdx : d.nearestIdx; return (i==null||i<0)?null:i; } // index unique du centre le plus proche
 // updateCentresVisibility() : la couche des centres s'affiche si "Centres de sante (108)" OU
 // "Centres publics uniquement" est coche (les deux commandes sont independantes).
 function updateCentresVisibility(){
@@ -609,10 +610,10 @@ function buildSpatialLayers(){
   const onlyPub=publicMode();
   // si UN SEUL quartier est isole : ne montrer que les centres concernes (le centre le plus proche de ses habitants)
   concernedCentres = (filters.quartier && filters.quartier.size===1)
-    ? new Set(filtered().map(d=>accNearestName(d)).filter(Boolean)) : null;
-  CENTRES.forEach(c=>{
+    ? new Set(filtered().map(d=>accNearestIdx(d)).filter(i=>i!=null)) : null;
+  CENTRES.forEach((c,ci)=>{
     if(onlyPub && !c.public) return; // mode "centres publics uniquement"
-    if(concernedCentres && !concernedCentres.has(c.nom)) return; // n'afficher que les centres concernes par le quartier isole
+    if(concernedCentres && !concernedCentres.has(ci)) return; // n'afficher que les centres concernes par le quartier isole
     // en mode "publics uniquement" : couleur distincte (bleu) + contour renforcé pour bien differencier des 108 centres
     const col = onlyPub ? '#1565c0' : mapStyle.colorCentres;
     const r = onlyPub ? 8.5 : 8, sw = onlyPub ? 2.2 : 1.6;
@@ -1808,11 +1809,11 @@ function renderStatsPanel(recs){
   const centresT=document.getElementById('centresToggle'), pubT=document.getElementById('publicOnlyToggle');
   // nombre de centres REELLEMENT affiches : suit le quartier isole (concernés), le mode public, la case "108"
   const singleQ = filters.quartier && filters.quartier.size===1;
-  const concernedSet = singleQ ? new Set(recs.map(d=>accNearestName(d)).filter(Boolean)) : null;
+  const concernedSet = singleQ ? new Set(recs.map(d=>accNearestIdx(d)).filter(i=>i!=null)) : null;
   const centresVisible = (centresT && centresT.checked) || (pubT && pubT.checked);
-  const nCentres = centresVisible ? CENTRES.filter(c=>{
+  const nCentres = centresVisible ? CENTRES.filter((c,i)=>{
     if(publicMode() && !c.public) return false;
-    if(concernedSet && !concernedSet.has(c.nom)) return false;
+    if(concernedSet && !concernedSet.has(i)) return false;
     return true;
   }).length : 0;
   setv('sp-centres', nCentres);
