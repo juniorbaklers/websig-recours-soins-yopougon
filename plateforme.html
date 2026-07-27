@@ -478,8 +478,8 @@ html[data-anim="off"] *,html[data-anim="off"] *::before,html[data-anim="off"] *:
   border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
 .statspanel.collapsed .sp-body{display:none}
 .statspanel.collapsed{overflow:visible}
-.sp-reset{position:sticky;top:0;z-index:5;padding:8px;margin:-2px -2px 6px;background:var(--panel);border-bottom:1px solid var(--line)}
-.sp-reset button{width:100%;padding:9px 10px;border-radius:9px;border:1px solid var(--brand);background:color-mix(in srgb,var(--brand) 14%,transparent);color:var(--ink);font-weight:700;font-size:12px;cursor:pointer;transition:.15s}
+.sp-reset{position:sticky;top:0;z-index:5;padding:6px 2px 4px;margin:-2px -2px 4px;background:var(--panel);display:flex;justify-content:flex-end}
+.sp-reset button{padding:5px 12px;border-radius:999px;border:1px solid var(--brand);background:color-mix(in srgb,var(--brand) 14%,transparent);color:var(--ink);font-weight:600;font-size:11px;cursor:pointer;transition:.15s;white-space:nowrap}
 .sp-reset button:hover{background:var(--brand);color:var(--brand-ink)}
 .sp-head{padding:12px 14px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;
   position:sticky;top:0;background:var(--panel);z-index:2;gap:6px}
@@ -496,6 +496,9 @@ html[data-anim="off"] *,html[data-anim="off"] *::before,html[data-anim="off"] *:
   margin-bottom:8px;display:flex;align-items:center;gap:6px}
 .spgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .spstat{position:relative;background:var(--panel-2);border:1px solid var(--line);border-radius:var(--r-md);padding:10px 11px 9px;overflow:hidden}
+.spstat.sp-act{cursor:pointer;transition:box-shadow .15s,transform .15s}
+.spstat.sp-act:hover{box-shadow:inset 0 0 0 1.4px var(--brand);transform:translateY(-1px)}
+.spstat.sp-act::after{content:"↗";position:absolute;top:5px;right:7px;font-size:9px;color:var(--muted);opacity:.6}
 .spstat::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:linear-gradient(180deg,var(--brand),var(--brand2))}
 .spstat .ic{font-size:12px;opacity:.8;margin-bottom:2px}
 .spstat .v{font-size:17px;font-weight:800;color:var(--brand);line-height:1.15;font-variant-numeric:tabular-nums}
@@ -1135,10 +1138,13 @@ body.presentation-mode .wrap.sp-collapsed{grid-template-columns:1fr}
     <!-- TAB: EXPORTS (etape 5f) : carte PNG/PDF, donnees CSV/Excel/GeoJSON, graphiques, tableaux, rapport complet -->
     <section id="tab-exports" class="hidden">
       <div class="card">
-        <h3>Exports professionnels</h3>
-        <div class="sub">Choisissez ce que vous voulez exporter. « Graphiques » et « Tableaux » portent sur le dernier onglet d'analyse consulté avant celui-ci.</div>
+        <h3>Exports</h3>
+        <div class="sub"><b>Comment ça marche (2 étapes) :</b><br>
+          <b>1.</b> Choisissez ci-dessous <b>ce que</b> vous voulez exporter → un panneau de boutons apparaît.<br>
+          <b>2.</b> Cliquez le <b>format</b> voulu (PNG, Excel, Word, PDF…) : le fichier se télécharge aussitôt.<br>
+          <span style="color:var(--accent)">⚠️ « Graphiques » et « Tableaux » exportent ceux du <b>dernier onglet d'analyse que vous avez visité</b> (Vue d'ensemble, Recours, Déterminants, Analyse croisée…). Ouvrez d'abord cet onglet, puis revenez ici.</span></div>
         <div class="toolbar">
-          <label class="lbl">Que voulez-vous exporter ?</label>
+          <label class="lbl">1. Que voulez-vous exporter ?</label>
           <select class="sel" id="exportScope" style="width:100%;max-width:280px">
             <option value="carte">Carte seule</option>
             <option value="donnees">Données seules</option>
@@ -1204,7 +1210,7 @@ body.presentation-mode .wrap.sp-collapsed{grid-template-columns:1fr}
       <button class="sp-toggle" id="spToggle" title="Réduire / agrandir le panneau">»</button>
     </div>
     <div class="sp-body">
-      <div class="sp-reset hidden" id="spReset"><button type="button" id="spResetBtn">↩ Revenir à la vue complète</button></div>
+      <div class="sp-reset hidden" id="spReset"><button type="button" id="spResetBtn" title="Retirer les filtres et revenir à la vue complète">↩ Retour</button></div>
 
       <div class="sp-group mapranking" id="mapRanking">
         <div class="mr-head">
@@ -1219,8 +1225,8 @@ body.presentation-mode .wrap.sp-collapsed{grid-template-columns:1fr}
         <div class="sp-gtitle">Population</div>
         <div class="spgrid">
           <div class="spstat wide"><div class="v" id="sp-n">—</div><div class="l">Enquêtés (sélection)</div></div>
-          <div class="spstat"><div class="v" id="sp-h">—</div><div class="l">Hommes</div></div>
-          <div class="spstat"><div class="v" id="sp-f">—</div><div class="l">Femmes</div></div>
+          <div class="spstat sp-act" data-act="sexe:Masculin" title="Cliquer : isoler les hommes sur la carte"><div class="v" id="sp-h">—</div><div class="l">Hommes</div></div>
+          <div class="spstat sp-act" data-act="sexe:Feminin" title="Cliquer : isoler les femmes sur la carte"><div class="v" id="sp-f">—</div><div class="l">Femmes</div></div>
           <div class="spstat"><div class="v" id="sp-quart">—</div><div class="l">Quartiers concernés</div></div>
           <div class="spstat"><div class="v" id="sp-centres">—</div><div class="l">Centres de santé visibles</div></div>
         </div>
@@ -1232,7 +1238,7 @@ body.presentation-mode .wrap.sp-collapsed{grid-template-columns:1fr}
           <div class="spstat"><div class="v" id="sp-dmoy">—</div><div class="l">Distance moyenne au + proche</div></div>
           <div class="spstat"><div class="v" id="sp-dmin">—</div><div class="l">Distance minimale</div></div>
           <div class="spstat"><div class="v" id="sp-dmax">—</div><div class="l">Distance maximale</div></div>
-          <div class="spstat"><div class="v" id="sp-hors">—</div><div class="l">Personnes hors couverture</div></div>
+          <div class="spstat sp-act" data-act="hors" title="Cliquer : afficher les personnes hors couverture sur la carte"><div class="v" id="sp-hors">—</div><div class="l">Personnes hors couverture</div></div>
           <div class="spstat"><div class="v" id="sp-cov500">—</div><div class="l">Couverts à 500 m</div></div>
           <div class="spstat"><div class="v" id="sp-cov1000">—</div><div class="l">Couverts à 1 km</div></div>
           <div class="spstat"><div class="v" id="sp-c5">—</div><div class="l">Couverts à 5 min</div></div>

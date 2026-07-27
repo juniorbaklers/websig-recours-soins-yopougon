@@ -491,6 +491,7 @@ function renderKPIs(recs){
 
 let map,baseLayers,currentBase,markerLayer,clusterLayer,enqRenderer;
 let centresLayer,buffer500Layer,buffer1000Layer,boundaryLayer,gridLayer; // couches de l'analyse spatiale
+let concernedCentres=null; // si defini (Set de noms) : n'afficher que les centres concernes par le quartier isole
 let homeBounds=null, measureOn=false, measurePts=[], measureLayer=null; // outils SIG
 let isoMode=false, isoLayer=null, lastIsoCentre=null; // isochrones d'accessibilite (lastIsoCentre = dernier centre affiche, pour re-dessiner au changement de couleur)
 let underLayer=null; // zones faiblement desservies (hors 15 min)
@@ -604,8 +605,12 @@ function buildSpatialLayers(){
   centresLayer.clearLayers(); buffer500Layer.clearLayers(); buffer1000Layer.clearLayers();
   const om=opacityMult();
   const onlyPub=publicMode();
+  // si UN SEUL quartier est isole : ne montrer que les centres concernes (le centre le plus proche de ses habitants)
+  concernedCentres = (filters.quartier && filters.quartier.size===1)
+    ? new Set(filtered().filter(d=>d.nearestName).map(d=>d.nearestName)) : null;
   CENTRES.forEach(c=>{
     if(onlyPub && !c.public) return; // mode "centres publics uniquement"
+    if(concernedCentres && !concernedCentres.has(c.nom)) return; // n'afficher que les centres concernes par le quartier isole
     // en mode "publics uniquement" : couleur distincte (bleu) + contour renforcé pour bien differencier des 108 centres
     const col = onlyPub ? '#1565c0' : mapStyle.colorCentres;
     const r = onlyPub ? 8.5 : 8, sw = onlyPub ? 2.2 : 1.6;
@@ -1131,7 +1136,7 @@ function renderChips(){
 // syncChecks() : remet les cases a cocher en accord avec l'etat filters
 function syncChecks(){document.querySelectorAll('#filterBody input[type=checkbox]').forEach(cb=>{cb.checked=!!(filters[cb.dataset.k]&&filters[cb.dataset.k].has(cb.value));});}
 // resetFilters() : efface tous les filtres
-function resetFilters(){for(const k in filters)delete filters[k];syncChecks();refresh();}
+function resetFilters(){for(const k in filters)delete filters[k];concernedCentres=null;buildSpatialLayers();updateCentresVisibility();syncChecks();refresh();}
 
 
 /* ============================================================================
@@ -1863,12 +1868,20 @@ function toggleQuartierFilter(q){
   });
 }
 
+// isolateFilter() : isole une valeur d'une variable dans les filtres (ou l'enleve si deja seule).
+function isolateFilter(key,val){
+  const boxes=[...document.querySelectorAll('#filterBody input[type=checkbox][data-k="'+key+'"]')];
+  const isolated = filters[key] && filters[key].size===1 && filters[key].has(val);
+  boxes.forEach(b=>{ const want=!isolated && b.value===val; if(b.checked!==want){ b.checked=want; b.dispatchEvent(new Event('change')); } });
+}
+
 // focusQuartierOnMap() : depuis un classement du panneau, isole le quartier, bascule sur la
 // carte, y zoome, et (option) affiche les personnes hors couverture 15 min de ce quartier.
 function focusQuartierOnMap(q, underserved){
   toggleQuartierFilter(q);
   const nowIsolated = filters.quartier && filters.quartier.size===1 && filters.quartier.has(q);
-  if(!nowIsolated) return; // 2e clic : on a retire l'isolement, on reste ou on est
+  buildSpatialLayers(); updateCentresVisibility(); // ne montrer que les centres concernes (ou tous si on de-isole)
+  if(!nowIsolated) return; // 2e clic : on a retire l'isolement
   if(underserved){ const u=document.getElementById('underToggle'); if(u && !u.checked){ u.checked=true; u.dispatchEvent(new Event('change')); } }
   switchTab('carte');
   setTimeout(()=>{ try{ zoomToQuartier(q); }catch(e){} }, 80);
@@ -1915,6 +1928,13 @@ function initStatsPanel(){
   setCollapsed(localStorage.getItem('sp_collapsed')==='1');
   btn.addEventListener('click',()=>setCollapsed(!panel.classList.contains('collapsed')));
   const rb=document.getElementById('spResetBtn'); if(rb) rb.addEventListener('click',resetFilters); // revenir a la vue complete
+  // indicateurs cliquables : interactivite du panneau avec la carte
+  panel.addEventListener('click',e=>{
+    const card=e.target.closest('.sp-act'); if(!card) return;
+    const act=card.dataset.act||'';
+    if(act.indexOf('sexe:')===0){ isolateFilter('sexe', act.slice(5)); switchTab('carte'); }
+    else if(act==='hors'){ const u=document.getElementById('underToggle'); if(u && !u.checked){ u.checked=true; u.dispatchEvent(new Event('change')); } switchTab('carte'); }
+  });
   // le changement de visibilite des centres impacte "Centres de sante visibles"
   const ct=document.getElementById('centresToggle'); if(ct) ct.addEventListener('change',()=>renderStatsPanel(filtered()));
 }
@@ -2919,12 +2939,21 @@ function exportDonneesGeojson(){
   exportStatus(`✓ ${features.length} point(s) exporté(s) (GeoJSON).`);
 }
 
+// canvasPngWithBg() : compose un canvas Chart.js (transparent) sur un fond opaque, sinon le
+// graphique est INVISIBLE a l'export (surtout en sombre : texte clair sur fond transparent).
+function canvasPngWithBg(canvas){
+  const cs=getComputedStyle(document.documentElement);
+  const bg=(cs.getPropertyValue('--panel')||'').trim()||'#ffffff';
+  const t=document.createElement('canvas'); t.width=canvas.width; t.height=canvas.height;
+  const ctx=t.getContext('2d'); ctx.fillStyle=bg; ctx.fillRect(0,0,t.width,t.height); ctx.drawImage(canvas,0,0);
+  return t.toDataURL('image/png');
+}
 // exportGraphiquesPng() : chaque graphique Chart.js visible dans le dernier onglet d'analyse, en PNG
 function exportGraphiquesPng(){
   const sec=document.getElementById('tab-'+lastContentTab);
   const canvases=sec? [...sec.querySelectorAll('canvas')].filter(c=>charts[c.id]) : [];
   if(!canvases.length){ exportStatus(`L'onglet « ${tabLabel(lastContentTab)} » ne contient pas de graphique à exporter. Consultez un onglet avec des graphiques (Vue d'ensemble, Recours, Analyse croisée…) puis revenez sur Exports.`,true); return; }
-  canvases.forEach((c,i)=>{ const a=document.createElement('a'); a.href=c.toDataURL('image/png'); a.download=`graphique_${lastContentTab}_${i+1}.png`; a.click(); });
+  canvases.forEach((c,i)=>{ const a=document.createElement('a'); a.href=canvasPngWithBg(c); a.download=`graphique_${lastContentTab}_${i+1}.png`; a.click(); });
   exportStatus(`✓ ${canvases.length} graphique(s) exporté(s) depuis « ${tabLabel(lastContentTab)} ».`);
 }
 
@@ -3230,7 +3259,7 @@ function createFloatingWindow({id,title,x,y,width,onClose}){
 // exportElementCanvasPng() : exporte le <canvas> Chart.js contenu dans un conteneur, en PNG
 function exportElementCanvasPng(container,filename){
   const c=container.querySelector('canvas'); if(!c) return;
-  const a=document.createElement('a'); a.href=c.toDataURL('image/png'); a.download=(filename||'graphique')+'.png'; a.click();
+  const a=document.createElement('a'); a.href=canvasPngWithBg(c); a.download=(filename||'graphique')+'.png'; a.click();
 }
 
 // popOutElement() : deplace un element existant (graphique ou tableau) dans une fenetre flottante ;
