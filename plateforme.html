@@ -1175,7 +1175,8 @@ body.presentation-mode .wrap.sp-collapsed{grid-template-columns:1fr}
         <div id="exportPanelGraphiques" class="hidden">
           <div class="toolbar">
             <button class="btn solid" id="exportGraphiquesPng">⬇ Graphiques (PNG)</button>
-            <button class="btn" id="exportGraphiquesWord" title="Document Word : chaque graphique en image + son tableau de données modifiable (pour recréer un graphique natif)">⬇ Graphiques (Word)</button>
+            <button class="btn" id="exportGraphiquesWord" title="Document Word : chaque graphique en image + son tableau de données modifiable (pour recréer un graphique natif)">⬇ Graphiques (Word image)</button>
+            <button class="btn" id="exportGraphiquesDocx" title="Vrai .docx avec graphiques NATIFS Word (clic droit → Modifier les données)">⬇ Graphiques (Word natif éditable)</button>
             <button class="btn" id="exportGraphiquesXlsx" title="Exporte les données de chaque graphique dans Excel : vous pouvez y recréer/modifier un graphique natif (et le coller dans Word)">⬇ Graphiques (Excel, modifiable)</button>
           </div>
           <div class="note" id="exportGraphInfo">Le PNG donne une image. « Données Excel » exporte les valeurs de chaque graphique dans un classeur : de là, un graphique natif éditable dans Excel ou Word.</div>
@@ -1355,6 +1356,7 @@ body.presentation-mode .wrap.sp-collapsed{grid-template-columns:1fr}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <!-- Tableau matrice (etape 4) : export Excel (SheetJS) et PDF (jsPDF + autotable) -->
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/fflate@0.8.2/umd/index.js"></script>  <!-- ZIP pour generer un .docx natif (graphiques editables) -->
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
 <!-- Exports professionnels (etape 5f) : capture de la carte en image -->

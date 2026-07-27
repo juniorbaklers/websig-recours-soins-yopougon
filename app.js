@@ -3041,6 +3041,82 @@ function exportGraphiquesWord(){
   exportStatus(`✓ ${canvases.length} graphique(s) exporté(s) en Word (.doc) : image du graphique + tableau de données modifiable.`);
 }
 
+// exportGraphiquesDocx() : vrai .docx avec des graphiques NATIFS Word (editables), un classeur
+// Excel integre par graphique (pour "Modifier les donnees"). Construit le format OOXML (ZIP via fflate).
+function exportGraphiquesDocx(){
+  if(typeof fflate==='undefined' || typeof XLSX==='undefined'){ exportStatus('Librairies non chargées (fflate/XLSX). Réessayez dans un instant.',true); return; }
+  const sec=document.getElementById('tab-'+lastContentTab);
+  const canvases=sec? [...sec.querySelectorAll('canvas')].filter(c=>charts[c.id]) : [];
+  if(!canvases.length){ exportStatus(`L'onglet « ${tabLabel(lastContentTab)} » ne contient pas de graphique. Ouvrez un onglet d'analyse puis revenez sur Exports.`,true); return; }
+  const xe=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  const colLetter=i=>String.fromCharCode(66+i); // B, C, D... (colonnes des series)
+  const num=v=>(v&&typeof v==='object')?(Number(v.y??v.x)||0):(Number(v)||0);
+  const files={}, list=[];
+  canvases.forEach((c,i)=>{
+    const ch=charts[c.id]; if(!ch) return;
+    const type=(ch.config.type==='doughnut'||ch.config.type==='pie')?'pie':'bar';
+    const labels=(ch.data.labels||[]).map(String); if(!labels.length) return;
+    let ds=ch.data.datasets||[]; if(type==='pie') ds=ds.slice(0,1);
+    const series=ds.map((d,j)=>({name:d.label||('Série '+(j+1)), data:labels.map((_,r)=>num(d.data[r]))}));
+    const card=c.closest('.card'), h3=card&&card.querySelector('h3');
+    const title=((h3&&(h3.childNodes[0]&&h3.childNodes[0].textContent||h3.textContent))||c.id).trim();
+    list.push({idx:i+1,type,title,labels,series});
+  });
+  list.forEach(g=>{
+    const n=g.idx, N=g.labels.length, sheet='Feuil1';
+    const catPts=g.labels.map((lb,k)=>`<c:pt idx="${k}"><c:v>${xe(lb)}</c:v></c:pt>`).join('');
+    const catRef=`<c:cat><c:strRef><c:f>${sheet}!$A$2:$A$${N+1}</c:f><c:strCache><c:ptCount val="${N}"/>${catPts}</c:strCache></c:strRef></c:cat>`;
+    const serXml=g.series.map((s,si)=>{
+      const col=colLetter(si);
+      const valPts=s.data.map((v,k)=>`<c:pt idx="${k}"><c:v>${v}</c:v></c:pt>`).join('');
+      const tx=`<c:tx><c:strRef><c:f>${sheet}!$${col}$1</c:f><c:strCache><c:ptCount val="1"/><c:pt idx="0"><c:v>${xe(s.name)}</c:v></c:pt></c:strCache></c:strRef></c:tx>`;
+      const val=`<c:val><c:numRef><c:f>${sheet}!$${col}$2:$${col}$${N+1}</c:f><c:numCache><c:formatCode>General</c:formatCode><c:ptCount val="${N}"/>${valPts}</c:numCache></c:numRef></c:val>`;
+      return `<c:ser><c:idx val="${si}"/><c:order val="${si}"/>${tx}${catRef}${val}</c:ser>`;
+    }).join('');
+    let inner;
+    if(g.type==='pie'){ inner=`<c:pieChart><c:varyColors val="1"/>${serXml}<c:firstSliceAng val="0"/></c:pieChart>`; }
+    else { inner=`<c:barChart><c:barDir val="col"/><c:grouping val="clustered"/><c:overlap val="-27"/>${serXml}<c:axId val="111111111"/><c:axId val="222222222"/></c:barChart>`
+      +`<c:catAx><c:axId val="111111111"/><c:scaling><c:orientation val="minMax"/></c:scaling><c:delete val="0"/><c:axPos val="b"/><c:crossAx val="222222222"/></c:catAx>`
+      +`<c:valAx><c:axId val="222222222"/><c:scaling><c:orientation val="minMax"/></c:scaling><c:delete val="0"/><c:axPos val="l"/><c:crossAx val="111111111"/></c:valAx>`; }
+    const chartXml=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>`
+      +`<c:chartSpace xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">`
+      +`<c:chart><c:title><c:tx><c:rich><a:bodyPr/><a:p><a:r><a:t>${xe(g.title)}</a:t></a:r></a:p></c:rich></c:tx><c:overlay val="0"/></c:title><c:autoTitleDeleted val="0"/>`
+      +`<c:plotArea><c:layout/>${inner}</c:plotArea><c:legend><c:legendPos val="${g.type==='pie'?'r':'b'}"/><c:overlay val="0"/></c:legend><c:plotVisOnly val="1"/><c:dispBlanksAs val="gap"/></c:chart>`
+      +`<c:externalData r:id="rId1"><c:autoUpdate val="0"/></c:externalData></c:chartSpace>`;
+    files[`word/charts/chart${n}.xml`]=fflate.strToU8(chartXml);
+    files[`word/charts/_rels/chart${n}.xml.rels`]=fflate.strToU8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/package" Target="../embeddings/Workbook${n}.xlsx"/></Relationships>`);
+    const header=['Catégorie',...g.series.map(s=>s.name)];
+    const rows=g.labels.map((lb,k)=>[lb,...g.series.map(s=>s.data[k])]);
+    const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([header,...rows]),'Feuil1');
+    files[`word/embeddings/Workbook${n}.xlsx`]=new Uint8Array(XLSX.write(wb,{type:'array',bookType:'xlsx'}));
+  });
+  // document.xml
+  const EMU_W=5486400, EMU_H=3200400;
+  let body=`<w:p><w:pPr><w:pStyle w:val="Title"/></w:pPr><w:r><w:t xml:space="preserve">Graphiques — ${xe(tabLabel(lastContentTab))}</w:t></w:r></w:p>`;
+  list.forEach(g=>{
+    body+=`<w:p><w:pPr><w:pStyle w:val="Heading2"/></w:pPr><w:r><w:t xml:space="preserve">${xe(g.title)}</w:t></w:r></w:p>`;
+    body+=`<w:p><w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing">`
+      +`<wp:extent cx="${EMU_W}" cy="${EMU_H}"/><wp:effectExtent l="0" t="0" r="0" b="0"/><wp:docPr id="${g.idx}" name="Graphique ${g.idx}"/><wp:cNvGraphicFramePr/>`
+      +`<a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/chart">`
+      +`<c:chart xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" r:id="rIdChart${g.idx}"/>`
+      +`</a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>`;
+  });
+  body+=`<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1134" w:header="708" w:footer="708" w:gutter="0"/></w:sectPr>`;
+  files['word/document.xml']=fflate.strToU8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><w:body>${body}</w:body></w:document>`);
+  let rels=`<Relationship Id="rIdStyles" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>`;
+  list.forEach(g=>{ rels+=`<Relationship Id="rIdChart${g.idx}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/chart" Target="charts/chart${g.idx}.xml"/>`; });
+  files['word/_rels/document.xml.rels']=fflate.strToU8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${rels}</Relationships>`);
+  files['word/styles.xml']=fflate.strToU8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:style w:type="paragraph" w:styleId="Title"><w:name w:val="Title"/><w:pPr><w:spacing w:after="240"/></w:pPr><w:rPr><w:b/><w:sz w:val="40"/></w:rPr></w:style><w:style w:type="paragraph" w:styleId="Heading2"><w:name w:val="heading 2"/><w:pPr><w:spacing w:before="240" w:after="120"/></w:pPr><w:rPr><w:b/><w:sz w:val="28"/></w:rPr></w:style></w:styles>`);
+  files['_rels/.rels']=fflate.strToU8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>`);
+  let ov=`<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>`;
+  list.forEach(g=>{ ov+=`<Override PartName="/word/charts/chart${g.idx}.xml" ContentType="application/vnd.openxmlformats-officedocument.drawingml.chart+xml"/>`; });
+  files['[Content_Types].xml']=fflate.strToU8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="xlsx" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"/>${ov}</Types>`);
+  const zipped=fflate.zipSync(files,{level:6});
+  const blob=new Blob([zipped],{type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`graphiques_${lastContentTab}.docx`; a.click();
+  exportStatus(`✓ ${list.length} graphique(s) NATIF(s) éditable(s) exporté(s) en Word (.docx). Dans Word : clic droit sur un graphique → « Modifier les données ».`);
+}
+
 // extractTablesFromSection() : lit generiquement les tableaux HTML (table.ct) d'une section -> {headers,rows}
 function extractTablesFromSection(sec){
   return [...sec.querySelectorAll('table.ct')].map(table=>({
@@ -3161,6 +3237,7 @@ function initExportsUI(){
   document.getElementById('exportGraphiquesPng').addEventListener('click',exportGraphiquesPng);
   { const b=document.getElementById('exportGraphiquesXlsx'); if(b) b.addEventListener('click',exportGraphiquesXlsx); }
   { const b=document.getElementById('exportGraphiquesWord'); if(b) b.addEventListener('click',exportGraphiquesWord); }
+  { const b=document.getElementById('exportGraphiquesDocx'); if(b) b.addEventListener('click',exportGraphiquesDocx); }
   document.getElementById('exportTableauxCsv').addEventListener('click',exportTableauxCsv);
   document.getElementById('exportTableauxXlsx').addEventListener('click',exportTableauxXlsx);
   document.getElementById('exportTableauxPdf').addEventListener('click',exportTableauxPdf);
