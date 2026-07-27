@@ -1229,7 +1229,7 @@ body.presentation-mode .wrap.sp-collapsed{grid-template-columns:1fr}
           <div class="spstat sp-act" data-act="sexe:Masculin" title="Cliquer : isoler les hommes sur la carte"><div class="v" id="sp-h">—</div><div class="l">Hommes</div></div>
           <div class="spstat sp-act" data-act="sexe:Feminin" title="Cliquer : isoler les femmes sur la carte"><div class="v" id="sp-f">—</div><div class="l">Femmes</div></div>
           <div class="spstat"><div class="v" id="sp-quart">—</div><div class="l">Quartiers concernés</div></div>
-          <div class="spstat"><div class="v" id="sp-centres">—</div><div class="l">Centres de santé visibles</div></div>
+          <div class="spstat"><div class="v" id="sp-centres">—</div><div class="l" id="sp-centres-lbl">Centres de santé visibles</div></div>
         </div>
       </div>
 
@@ -1242,9 +1242,9 @@ body.presentation-mode .wrap.sp-collapsed{grid-template-columns:1fr}
           <div class="spstat sp-act" data-act="hors" title="Cliquer : afficher les personnes hors couverture sur la carte"><div class="v" id="sp-hors">—</div><div class="l">Personnes hors couverture</div></div>
           <div class="spstat"><div class="v" id="sp-cov500">—</div><div class="l">Couverts à 500 m</div></div>
           <div class="spstat"><div class="v" id="sp-cov1000">—</div><div class="l">Couverts à 1 km</div></div>
-          <div class="spstat"><div class="v" id="sp-c5">—</div><div class="l">Couverts à 5 min</div></div>
-          <div class="spstat"><div class="v" id="sp-c10">—</div><div class="l">Couverts à 10 min</div></div>
-          <div class="spstat wide"><div class="v" id="sp-c15">—</div><div class="l">Couverts à 15 min de marche</div></div>
+          <div class="spstat sp-act" data-act="cover:5 min" title="Cliquer : isoler les personnes à 5 min sur la carte"><div class="v" id="sp-c5">—</div><div class="l">Couverts à 5 min</div></div>
+          <div class="spstat sp-act" data-act="cover:10 min" title="Cliquer : isoler les personnes à 10 min sur la carte"><div class="v" id="sp-c10">—</div><div class="l">Couverts à 10 min</div></div>
+          <div class="spstat wide sp-act" data-act="cover:15 min" title="Cliquer : isoler les personnes à 15 min sur la carte"><div class="v" id="sp-c15">—</div><div class="l">Couverts à 15 min de marche</div></div>
         </div>
       </div>
 
@@ -1252,9 +1252,9 @@ body.presentation-mode .wrap.sp-collapsed{grid-template-columns:1fr}
         <div class="sp-gtitle">Recours aux soins</div>
         <div class="spgrid">
           <div class="spstat wide"><div class="v" id="sp-rectop" style="font-size:13px">—</div><div class="l">Premier recours dominant</div></div>
-          <div class="spstat"><div class="v" id="sp-pmod">—</div><div class="l">Médecine moderne</div></div>
-          <div class="spstat"><div class="v" id="sp-ptrad">—</div><div class="l">Médecine traditionnelle</div></div>
-          <div class="spstat"><div class="v" id="sp-pauto">—</div><div class="l">Automédication</div></div>
+          <div class="spstat sp-act" data-act="recours:Médecine moderne" title="Cliquer : isoler la médecine moderne sur la carte"><div class="v" id="sp-pmod">—</div><div class="l">Médecine moderne</div></div>
+          <div class="spstat sp-act" data-act="recours:Médecine traditionnelle" title="Cliquer : isoler la médecine traditionnelle sur la carte"><div class="v" id="sp-ptrad">—</div><div class="l">Médecine traditionnelle</div></div>
+          <div class="spstat sp-act" data-act="recours:Automédication" title="Cliquer : isoler l'automédication sur la carte"><div class="v" id="sp-pauto">—</div><div class="l">Automédication</div></div>
           <div class="spstat wide"><div class="v" id="sp-qmax" style="font-size:12.5px">—</div><div class="l">Quartier le plus représenté</div></div>
           <div class="spstat wide"><div class="v" id="sp-qmin" style="font-size:12.5px">—</div><div class="l">Quartier le moins représenté</div></div>
         </div>

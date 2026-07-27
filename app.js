@@ -220,15 +220,16 @@ function haversine(la1,lo1,la2,lo2){ const R=6371000,r=Math.PI/180;
 function computeNearest(){
   if(!CENTRES||!CENTRES.length) return;
   DATA.forEach(d=>{
-    if(typeof d.lat!=='number'||typeof d.lng!=='number'||!d.lat){ d.nearestDist=null; d.nearestName=''; d.walkMin=null; d.coverClass=''; d.nearestPubDist=null; d.walkMinPub=null; d.coverClassPub=''; return; }
-    let best=1e18,bn='',bt='',bestPub=1e18;
+    if(typeof d.lat!=='number'||typeof d.lng!=='number'||!d.lat){ d.nearestDist=null; d.nearestName=''; d.walkMin=null; d.coverClass=''; d.nearestPubDist=null; d.nearestPubName=''; d.walkMinPub=null; d.coverClassPub=''; return; }
+    let best=1e18,bn='',bt='',bestPub=1e18,bpn='';
     for(const c of CENTRES){ const dist=haversine(d.lat,d.lng,c.lat,c.lon);
       if(dist<best){best=dist;bn=c.nom;bt=c.type;}
-      if(c.public && dist<bestPub){ bestPub=dist; } }
+      if(c.public && dist<bestPub){ bestPub=dist; bpn=c.nom; } }
     d.nearestDist=Math.round(best); d.nearestName=bn; d.nearestType=bt;
     d.walkMin=Math.max(1,Math.round(best/WALK_M_MIN));
     d.coverClass = best<=400?'5 min':best<=800?'10 min':best<=1200?'15 min':'Hors 15 min';
     // couverture par les centres de sante PUBLICS uniquement
+    d.nearestPubName = bpn;
     d.nearestPubDist = bestPub<1e18?Math.round(bestPub):null;
     d.walkMinPub = d.nearestPubDist!=null?Math.max(1,Math.round(bestPub/WALK_M_MIN)):null;
     d.coverClassPub = d.nearestPubDist==null ? '' : (bestPub<=400?'5 min':bestPub<=800?'10 min':bestPub<=1200?'15 min':'Hors 15 min');
@@ -241,6 +242,7 @@ function publicMode(){ const t=document.getElementById('publicOnlyToggle'); retu
 function accDist(d){ return publicMode()? d.nearestPubDist : d.nearestDist; }
 function accCover(d){ return publicMode()? d.coverClassPub : d.coverClass; }
 function accWalk(d){ return publicMode()? d.walkMinPub : d.walkMin; }
+function accNearestName(d){ return publicMode()? d.nearestPubName : d.nearestName; } // centre (public si mode public) le plus proche
 // updateCentresVisibility() : la couche des centres s'affiche si "Centres de sante (108)" OU
 // "Centres publics uniquement" est coche (les deux commandes sont independantes).
 function updateCentresVisibility(){
@@ -607,7 +609,7 @@ function buildSpatialLayers(){
   const onlyPub=publicMode();
   // si UN SEUL quartier est isole : ne montrer que les centres concernes (le centre le plus proche de ses habitants)
   concernedCentres = (filters.quartier && filters.quartier.size===1)
-    ? new Set(filtered().filter(d=>d.nearestName).map(d=>d.nearestName)) : null;
+    ? new Set(filtered().map(d=>accNearestName(d)).filter(Boolean)) : null;
   CENTRES.forEach(c=>{
     if(onlyPub && !c.public) return; // mode "centres publics uniquement"
     if(concernedCentres && !concernedCentres.has(c.nom)) return; // n'afficher que les centres concernes par le quartier isole
@@ -1803,8 +1805,18 @@ function renderStatsPanel(recs){
   setv('sp-f', recs.filter(d=>d.sexe==='Feminin').length);
   const quartiers=new Set(recs.map(d=>(d.quartier??'').toString().trim()).filter(Boolean));
   setv('sp-quart', quartiers.size);
-  const centresT=document.getElementById('centresToggle');
-  setv('sp-centres', (centresT && centresT.checked) ? CENTRES.length : 0);
+  const centresT=document.getElementById('centresToggle'), pubT=document.getElementById('publicOnlyToggle');
+  // nombre de centres REELLEMENT affiches : suit le quartier isole (concernés), le mode public, la case "108"
+  const singleQ = filters.quartier && filters.quartier.size===1;
+  const concernedSet = singleQ ? new Set(recs.map(d=>accNearestName(d)).filter(Boolean)) : null;
+  const centresVisible = (centresT && centresT.checked) || (pubT && pubT.checked);
+  const nCentres = centresVisible ? CENTRES.filter(c=>{
+    if(publicMode() && !c.public) return false;
+    if(concernedSet && !concernedSet.has(c.nom)) return false;
+    return true;
+  }).length : 0;
+  setv('sp-centres', nCentres);
+  const lblC=document.getElementById('sp-centres-lbl'); if(lblC) lblC.textContent = concernedSet ? (publicMode()?'Centres publics du quartier':'Centres concernés (quartier)') : (publicMode()?'Centres publics visibles':'Centres de santé visibles');
 
   // --- Accessibilite : distances au centre le plus proche (mode public si activé) ---
   const dists=recs.map(d=>accDist(d)).filter(x=>typeof x==='number');
@@ -1929,11 +1941,13 @@ function initStatsPanel(){
   btn.addEventListener('click',()=>setCollapsed(!panel.classList.contains('collapsed')));
   const rb=document.getElementById('spResetBtn'); if(rb) rb.addEventListener('click',resetFilters); // revenir a la vue complete
   // indicateurs cliquables : interactivite du panneau avec la carte
+  const ACT_KEYS={ sexe:'sexe', recours:'premierRecoursCat', cover:'coverClass', instr:'instruction', assur:'assurance' };
   panel.addEventListener('click',e=>{
     const card=e.target.closest('.sp-act'); if(!card) return;
     const act=card.dataset.act||'';
-    if(act.indexOf('sexe:')===0){ isolateFilter('sexe', act.slice(5)); switchTab('carte'); }
-    else if(act==='hors'){ const u=document.getElementById('underToggle'); if(u && !u.checked){ u.checked=true; u.dispatchEvent(new Event('change')); } switchTab('carte'); }
+    if(act==='hors'){ const u=document.getElementById('underToggle'); if(u && !u.checked){ u.checked=true; u.dispatchEvent(new Event('change')); } switchTab('carte'); return; }
+    const ci=act.indexOf(':');
+    if(ci>0){ const fk=ACT_KEYS[act.slice(0,ci)]; if(fk){ isolateFilter(fk, act.slice(ci+1)); switchTab('carte'); } }
   });
   // le changement de visibilite des centres impacte "Centres de sante visibles"
   const ct=document.getElementById('centresToggle'); if(ct) ct.addEventListener('change',()=>renderStatsPanel(filtered()));
