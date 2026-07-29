@@ -263,9 +263,17 @@ const VULN_PIECE={ '1 pièce':1,'2 pièces':2,'3 pièces':3,'4 pièces et plus':
 // I2 peuplement : (1 + personnes a charge) / nb de pieces -> personnes par piece
 function vulnPeuplement(d){ const cm=VULN_CHARGE[(d.personnesCharge??'').toString().trim()], pm=VULN_PIECE[(d.nbPieces??'').toString().trim()]; if(cm==null||pm==null||!pm) return null; const p=(1+cm)/pm; return p<=2?0:p<=4?0.75:1; }
 function vulnLookup(map,v){ const k=(v??'').toString().trim(); return (k in map)?map[k]:null; }
-// seuils FIXES (premiere version calculee, cf. classeur Excel)
-const VULN_B1=0.25, VULN_B2=0.5, VULN_B3=0.75;
-function vulnClassOf(s){ return s==null?'':s<VULN_B1?'Faible':s<VULN_B2?'Modérée':s<VULN_B3?'Élevée':'Très élevée'; }
+// Deux VERSIONS de classification du meme score composite, pour comparaison sur la plateforme :
+// V1 = seuils theoriques fixes (quarts de l'echelle 0-1) ; V2 = seuils recales sur la distribution
+// reelle (classes plus equilibrees). Le score ne change pas, seul le decoupage en classes change.
+const VULN_VERSIONS = {
+  v1:{ label:'V1', seuils:'0,25 / 0,50 / 0,75', desc:'seuils théoriques fixes', b:[0.25,0.50,0.75] },
+  v2:{ label:'V2', seuils:'0,30 / 0,40 / 0,50', desc:'seuils recalés sur la distribution (classes équilibrées)', b:[0.30,0.40,0.50] }
+};
+let vulnVersion = localStorage.getItem('vuln_version_v1') || 'v1';
+function vulnBounds(){ return (VULN_VERSIONS[vulnVersion]||VULN_VERSIONS.v1).b; }
+function classForScore(s,b){ if(s==null) return ''; return s<b[0]?'Faible':s<b[1]?'Modérée':s<b[2]?'Élevée':'Très élevée'; }
+function vulnClassOf(s){ return classForScore(s, vulnBounds()); }
 const VULN_ORD=['Faible','Modérée','Élevée','Très élevée'];
 const VULN_COL={ 'Faible':'#1a9850','Modérée':'#a6d96a','Élevée':'#fdae61','Très élevée':'#d73027' }; // vert -> rouge
 // vulnColorMode : 'semantic' (feu tricolore vert -> rouge, convention cartographique) ou
@@ -278,14 +286,16 @@ function computeVulnerability(){
       vulnLookup(VULN_I6,d.eauxUsees), vulnLookup(VULN_I7,d.statutLogement), vulnLookup(VULN_I8,d.professionCat),
       vulnLookup(VULN_I9,d.instruction) ].filter(x=>x!=null);
     d.vulnN=parts.length;
-    d.vulnScore = parts.length? +(parts.reduce((a,b)=>a+b,0)/parts.length).toFixed(3) : null;
+    // score en pleine precision (la classification se fait sur le score exact, pas arrondi, pour
+    // coller au classeur Excel ; l'arrondi n'apparait qu'a l'affichage via toFixed()).
+    d.vulnScore = parts.length? parts.reduce((a,b)=>a+b,0)/parts.length : null;
     d.vulnClass = vulnClassOf(d.vulnScore);
   });
   // moyenne par quartier -> attachee a chaque enquete (permet une lecture choroplethe "par quartier")
   const acc={};
   DATA.forEach(d=>{ if(d.vulnScore==null) return; const q=(d.quartier??'').toString().trim(); if(!q) return; (acc[q]=acc[q]||{s:0,n:0}); acc[q].s+=d.vulnScore; acc[q].n++; });
   VULN_BYQ={}; Object.entries(acc).forEach(([q,o])=>VULN_BYQ[q]=o.n?o.s/o.n:null);
-  DATA.forEach(d=>{ const m=VULN_BYQ[(d.quartier??'').toString().trim()]; d.vulnQScore=(m==null)?null:+m.toFixed(3); d.vulnQClass=vulnClassOf(d.vulnQScore); });
+  DATA.forEach(d=>{ const m=VULN_BYQ[(d.quartier??'').toString().trim()]; d.vulnQScore=(m==null)?null:m; d.vulnQClass=vulnClassOf(d.vulnQScore); });
   // rafraichir le cache des modalites (les valeurs n'existaient pas au chargement du module)
   CATS.vulnClass=catsOf('vulnClass'); CATS.vulnQClass=catsOf('vulnQClass');
 }
@@ -307,6 +317,22 @@ function setVulnColorMode(mode){
 // updateVulnColorModeUI() : reflete le mode actif sur les deux boutons de la bascule.
 function updateVulnColorModeUI(){
   document.querySelectorAll('.vu-cm-btn').forEach(b=>b.classList.toggle('active', b.dataset.mode===vulnColorMode));
+}
+// setVulnVersion() : change la version de classification (V1/V2), reclasse tous les enquetes a partir
+// du meme score, memorise le choix et rafraichit carte + onglet. Le score composite reste identique.
+function setVulnVersion(v){
+  vulnVersion = (v==='v2')?'v2':'v1';
+  localStorage.setItem('vuln_version_v1', vulnVersion);
+  DATA.forEach(d=>{ d.vulnClass=vulnClassOf(d.vulnScore); d.vulnQClass=vulnClassOf(d.vulnQScore); });
+  CATS.vulnClass=catsOf('vulnClass'); CATS.vulnQClass=catsOf('vulnQClass');
+  // un filtre de classe actif peut ne plus correspondre au nouveau decoupage : on le retire
+  if(filters.vulnClass){ delete filters.vulnClass; syncChecks(); }
+  updateVulnVersionUI();
+  refresh();
+}
+// updateVulnVersionUI() : reflete la version active sur les boutons de la bascule.
+function updateVulnVersionUI(){
+  document.querySelectorAll('.vu-ver-btn').forEach(b=>b.classList.toggle('active', b.dataset.ver===vulnVersion));
 }
 // resolveCssColor() / contrastInk() : choisir un texte lisible (fonce ou clair) sur une pastille,
 // quelle que soit sa couleur de fond (hex ou variable CSS comme var(--brand)). Corrige les chiffres
@@ -1352,6 +1378,20 @@ function renderVulnerability(recs){
   setv('vu-elev', n? (100*(cnt['Élevée']+cnt['Très élevée'])/n).toFixed(0)+'%' : '—');
   setv('vu-tres', n? (100*cnt['Très élevée']/n).toFixed(0)+'%' : '—');
   setv('vu-worst', worst || '—');
+  // libelle de la version active (seuils)
+  const ver=VULN_VERSIONS[vulnVersion]||VULN_VERSIONS.v1;
+  setv('vu-ver-active', `Version ${ver.label} · seuils ${ver.seuils} (${ver.desc}).`);
+  // tableau de comparaison des deux versions (memes scores, deux decoupages)
+  const cmp=document.getElementById('vu-compare');
+  if(cmp){
+    const rows=VULN_ORD.map(cls=>{
+      const c1=scored.filter(d=>classForScore(d.vulnScore,VULN_VERSIONS.v1.b)===cls).length;
+      const c2=scored.filter(d=>classForScore(d.vulnScore,VULN_VERSIONS.v2.b)===cls).length;
+      const pc=x=>n?(100*x/n).toFixed(0)+'%':'—';
+      return `<tr><td><span class="vu-dot" style="background:${vulnLevelColor(cls)}"></span>${cls}</td><td class="num">${c1}</td><td class="num muted">${pc(c1)}</td><td class="num">${c2}</td><td class="num muted">${pc(c2)}</td></tr>`;
+    }).join('');
+    cmp.innerHTML=`<table class="vu-cmp-table"><thead><tr><th>Niveau</th><th class="num" colspan="2">V1 · ${VULN_VERSIONS.v1.seuils}</th><th class="num" colspan="2">V2 · ${VULN_VERSIONS.v2.seuils}</th></tr></thead><tbody>${rows}</tbody></table>`;
+  }
   // --- bandeau interactif : chaque KPI concerne pilote la carte ---
   const active=filters.vulnClass;
   const kpiElev=document.getElementById('kpi-vu-elev'), kpiTres=document.getElementById('kpi-vu-tres'), kpiWorst=document.getElementById('kpi-vu-worst');
@@ -2243,6 +2283,9 @@ document.addEventListener('DOMContentLoaded',async ()=>{
   // bascule des couleurs de vulnerabilite (semantique vert->rouge / palette)
   document.querySelectorAll('.vu-cm-btn').forEach(b=>b.addEventListener('click',()=>setVulnColorMode(b.dataset.mode)));
   updateVulnColorModeUI();
+  // bascule de version de l'indice (V1 seuils fixes / V2 seuils recales)
+  document.querySelectorAll('.vu-ver-btn').forEach(b=>b.addEventListener('click',()=>setVulnVersion(b.dataset.ver)));
+  updateVulnVersionUI();
 
   // 4. menus de l'analyse croisee (valeurs de depart : age x premier recours)
   document.getElementById('cx').innerHTML=optgroupedDims();

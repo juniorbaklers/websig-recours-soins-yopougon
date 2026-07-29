@@ -532,6 +532,12 @@ html[data-anim="off"] *,html[data-anim="off"] *::before,html[data-anim="off"] *:
 .vu-cm-btn+.vu-cm-btn{border-left:1px solid var(--line)}
 .vu-cm-btn:hover{color:var(--ink)}
 .vu-cm-btn.active{background:var(--brand);color:var(--brand-ink, #0e0f12);font-weight:700}
+.vu-cmp-table{width:100%;border-collapse:collapse;margin-top:8px;font-size:var(--fs-xs)}
+.vu-cmp-table th,.vu-cmp-table td{padding:7px 10px;text-align:left;border-bottom:1px solid var(--line)}
+.vu-cmp-table thead th{color:var(--muted);font-weight:700;font-size:var(--fs-2xs);text-transform:uppercase;letter-spacing:.03em}
+.vu-cmp-table td.num,.vu-cmp-table th.num{text-align:right;font-variant-numeric:tabular-nums}
+.vu-cmp-table td.muted{color:var(--muted)}
+.vu-dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:7px;vertical-align:middle}
 
 /* Assistant conversationnel flottant (etape 5d) */
 .chat-widget{position:fixed;right:18px;bottom:18px;z-index:2000}
@@ -1002,7 +1008,15 @@ body.presentation-mode .wrap.sp-collapsed{grid-template-columns:1fr}
     <section id="tab-vulnerabilite" class="hidden">
       <div class="card wide" style="margin-bottom:16px">
         <h3>Indice de vulnérabilité socio-économique</h3>
-        <div class="sub">Score composite (0 = faible → 1 = élevée) construit à partir de 7 indicateurs disponibles : type de logement, peuplement, dépenses, assainissement, statut d'occupation, activité, niveau d'instruction. Classes à seuils fixes : Faible &lt; 0,25 · Modérée 0,25–0,50 · Élevée 0,50–0,75 · Très élevée ≥ 0,75.</div>
+        <div class="sub">Score composite (0 = faible → 1 = élevée) construit à partir de 7 indicateurs disponibles : type de logement, peuplement, dépenses, assainissement, statut d'occupation, activité, niveau d'instruction. Le score est le même dans les deux versions ; seul le découpage en classes change.</div>
+        <div class="vu-colormode">
+          <span class="vu-cm-lbl">Version de l'indice</span>
+          <div class="vu-cm-seg">
+            <button type="button" class="vu-ver-btn" data-ver="v1" title="Seuils théoriques fixes (quarts de l'échelle 0-1)">V1 · 0,25 / 0,50 / 0,75</button>
+            <button type="button" class="vu-ver-btn" data-ver="v2" title="Seuils recalés sur la distribution réelle (classes équilibrées)">V2 · 0,30 / 0,40 / 0,50</button>
+          </div>
+        </div>
+        <div class="sub" id="vu-ver-active" style="margin-top:6px;font-weight:600;color:var(--ink)"></div>
         <div class="vu-colormode">
           <span class="vu-cm-lbl">Couleurs</span>
           <div class="vu-cm-seg">
@@ -1027,6 +1041,11 @@ body.presentation-mode .wrap.sp-collapsed{grid-template-columns:1fr}
       <div class="grid g2">
         <div class="card"><h3>Répartition par niveau de vulnérabilité</h3><div class="chartbox tall"><canvas id="vu_dist"></canvas></div></div>
         <div class="card"><h3>Quartiers les plus vulnérables</h3><div class="sub">Score moyen par quartier (min. 3 enquêtés). Cliquez une barre pour isoler le quartier sur la carte.</div><div class="chartbox tall"><canvas id="vu_quart"></canvas></div></div>
+      </div>
+      <div class="card wide" style="margin-top:16px">
+        <h3>Comparaison des deux versions</h3>
+        <div class="sub">Mêmes scores, deux découpages en classes. V1 concentre l'effectif sur « Modérée » ; V2 rééquilibre les quatre niveaux. La version active (bascule ci-dessus) pilote la carte, les KPI et les graphiques.</div>
+        <div id="vu-compare" style="overflow-x:auto"></div>
       </div>
       <div class="card wide" style="margin-top:16px">
         <h3>Classement des quartiers</h3>
@@ -1421,6 +1440,6 @@ body.presentation-mode .wrap.sp-collapsed{grid-template-columns:1fr}
 <script src="data/centres.js"></script>   <!-- window.CENTRES : 108 etablissements de sante -->
 <script src="data/yopougon.js"></script>  <!-- window.YOP_BOUNDARY : limite communale -->
 <script src="data/grille.js"></script>    <!-- window.GRID : grille d'echantillonnage 500 m -->
-<script src="app.js?v=20260729c"></script>
+<script src="app.js?v=20260729d"></script>
 </body>
 </html>
