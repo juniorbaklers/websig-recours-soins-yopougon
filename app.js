@@ -62,7 +62,9 @@ const ORD = {
   coverClassPub:['5 min','10 min','15 min','Hors 15 min'],
   // Niveaux de l'indice de vulnerabilite socio-economique (voir section 1ter)
   vulnClass:['Faible','Modérée','Élevée','Très élevée'],
-  vulnQClass:['Faible','Modérée','Élevée','Très élevée']
+  vulnQClass:['Faible','Modérée','Élevée','Très élevée'],
+  // Niveaux de l'indice de vulnerabilite multidimensionnel (voir section 1quater)
+  mdClass:['Non vulnérable','Vulnérable','Très vulnérable']
 };
 
 // DIMS = pour chaque variable (cle technique), son libelle lisible affiche
@@ -102,7 +104,9 @@ const DIMS = {
   // Centre de sante le plus proche (calcule par computeNearest(), voir section 1bis)
   nearestName:'Centre de santé le plus proche',
   // Indice de vulnerabilite socio-economique (voir section 1ter)
-  vulnClass:'Vulnérabilité socio-éco (individu)', vulnQClass:'Vulnérabilité moyenne du quartier'
+  vulnClass:'Vulnérabilité socio-éco (individu)', vulnQClass:'Vulnérabilité moyenne du quartier',
+  // Indice de vulnerabilite multidimensionnel (voir section 1quater)
+  mdClass:'Vulnérabilité multidimensionnelle (individu)'
 };
 
 // NUM = les variables numeriques (montants + distances calculees en SIG). Traitees a part car on calcule
@@ -110,7 +114,8 @@ const DIMS = {
 const NUM = { coutConsultation:'Coût de la consultation (FCFA)', coutMax:'Coût max. accepté (FCFA)', loyer:'Loyer mensuel (FCFA)',
   dAny:'Distance au centre le plus proche (m)', dPub:'Distance au centre public le plus proche (m)', dPrim:'Distance au 1er contact le plus proche (m)',
   nearestDist:'Distance au centre le plus proche — calculée (m)',
-  vulnScore:'Vulnérabilité socio-éco — score (0-1)', vulnQScore:'Vulnérabilité moyenne du quartier (0-1)' };
+  vulnScore:'Vulnérabilité socio-éco — score (0-1)', vulnQScore:'Vulnérabilité moyenne du quartier (0-1)',
+  mdQK:'Vulnérabilité multidimensionnelle — score quartier (0-4)' };
 
 // Couches spatiales injectees par centres.js, yopougon.js et grille.js
 const CENTRES = window.CENTRES || [];
@@ -334,6 +339,59 @@ function setVulnVersion(v){
 function updateVulnVersionUI(){
   document.querySelectorAll('.vu-ver-btn').forEach(b=>b.classList.toggle('active', b.dataset.ver===vulnVersion));
 }
+/* ============================================================================
+   1quater. INDICE DE VULNERABILITE MULTIDIMENSIONNEL (methode alternative)
+   Contrairement a V1/V2 (moyenne continue de 7 indicateurs socio-economiques),
+   cette methode (type Alkire-Foster) COMPTE le nombre de privations reelles
+   cumulees sur 4 dimensions independantes : socio-economique, sante/autonomie,
+   acces aux soins, protection/recours. Objectif : ne pas diluer un probleme
+   grave (ex. isolement + non-recours) dans une moyenne avec des indicateurs
+   sans rapport (ex. type de logement). Seuils choisis apres verification de
+   leur distribution reelle sur les 726 enquetes (voir conversation).
+   ============================================================================ */
+const MD_DIMS=[
+  { key:'md1', label:'Socio-économique', crit:'Score socio-éco (V1/V2) ≥ 0,40', test:d=>d.vulnScore!=null && d.vulnScore>=0.40 },
+  { key:'md2', label:'Santé & autonomie', crit:'Pas de guérison OU se rend accompagné', test:d=>{ const c=v=>(v??'').toString().trim(); return c(d.resultatTraitement)==='Pas de Guérison' || c(d.seulAccompagne)==='Accompagné'; } },
+  { key:'md3', label:'Accès aux soins', crit:'Distance > 1,5 km OU trajet > 1h OU ressenti "trop long" OU transport ≥ 3000 F', test:d=>{ const c=v=>(v??'').toString().trim();
+      return c(d.distancePublique)==='Plus de 1,5 km à 2Km et plus' || c(d.tempsMis)==='Plus d’une 1h' || c(d.opinionDistance)==='Trop longue' || ['3000 à 5000 f','5000 à 10000 f','10000 à 15000 f'].includes(c(d.coutTransport)); } },
+  { key:'md4', label:'Protection & recours', crit:"Pas d'assurance ET 1er recours non moderne (tradi/automédication)", test:d=>{ const c=v=>(v??'').toString().trim(); return c(d.assurance)==='Non' && ['Médecine traditionnelle','Automédication'].includes(c(d.premierRecoursCat)); } }
+];
+const MD_ORD=['Non vulnérable','Vulnérable','Très vulnérable'];
+const MD_COL={ 'Non vulnérable':'#1a9850','Vulnérable':'#fdae61','Très vulnérable':'#d73027' };
+function mdClassOf(k){ return k==null?'':k<=1?'Non vulnérable':k===2?'Vulnérable':'Très vulnérable'; } // k = nb de dimensions privees (0-4)
+let MD_BYQ={}; // moyenne de k par quartier
+function computeVulnMD(){
+  DATA.forEach(d=>{
+    MD_DIMS.forEach(dim=>{ d[dim.key]=!!dim.test(d); });
+    d.mdK = MD_DIMS.reduce((a,dim)=>a+(d[dim.key]?1:0),0);
+    d.mdClass = mdClassOf(d.mdK);
+  });
+  const acc={};
+  DATA.forEach(d=>{ const q=(d.quartier??'').toString().trim(); if(!q) return; (acc[q]=acc[q]||{s:0,n:0}); acc[q].s+=d.mdK; acc[q].n++; });
+  MD_BYQ={}; Object.entries(acc).forEach(([q,o])=>MD_BYQ[q]=o.n?o.s/o.n:null);
+  DATA.forEach(d=>{ d.mdQK=MD_BYQ[(d.quartier??'').toString().trim()] ?? null; });
+  CATS.mdClass=catsOf('mdClass');
+}
+// mdLevelColor() : suit le meme mode de couleur (semantique/palette) que vulnLevelColor, sur 3 niveaux.
+function mdLevelColor(level){
+  if(vulnColorMode==='semantic') return MD_COL[level] || '#9aa5b1';
+  const i=MD_ORD.indexOf(level); return i<0?'#9aa5b1':numericClassColor(i,MD_ORD.length);
+}
+// vulnMethod : 'continu' (V1/V2, moyenne) ou 'multi' (comptage de privations). Choisi par l'utilisateur.
+let vulnMethod = localStorage.getItem('vuln_method_v1') || 'continu';
+function setVulnMethod(m){
+  vulnMethod=(m==='multi')?'multi':'continu';
+  localStorage.setItem('vuln_method_v1', vulnMethod);
+  updateVulnMethodUI();
+  if(currentTab==='vulnerabilite') renderVulnerability(filtered());
+}
+function updateVulnMethodUI(){
+  document.querySelectorAll('.vu-meth-btn').forEach(b=>b.classList.toggle('active', b.dataset.meth===vulnMethod));
+  const cBlock=document.getElementById('vu-continu-block'), mBlock=document.getElementById('vu-md-block');
+  if(cBlock) cBlock.classList.toggle('hidden', vulnMethod!=='continu');
+  if(mBlock) mBlock.classList.toggle('hidden', vulnMethod!=='multi');
+}
+
 // resolveCssColor() / contrastInk() : choisir un texte lisible (fonce ou clair) sur une pastille,
 // quelle que soit sa couleur de fond (hex ou variable CSS comme var(--brand)). Corrige les chiffres
 // invisibles sur les pastilles claires (jaune accent, vert clair...).
@@ -396,6 +454,7 @@ function colorFor(key,val,forChart){
   // vulnerabilite (ordinale) : degrade derive de la palette active (suit le choix "Couleurs des graphiques"),
   // du plus clair (Faible) au plus soutenu (Tres elevee). Carte et graphiques partagent la meme echelle.
   if((key==='vulnClass'||key==='vulnQClass') && VULN_ORD.includes(v)) return vulnLevelColor(v);
+  if(key==='mdClass' && MD_ORD.includes(v)) return mdLevelColor(v);
   if(!forChart){ // la carte conserve ses couleurs initiales, independantes de la palette des graphiques
     if((key==='coverClass'||key==='coverClassPub') && COVER_COL[v]) return COVER_COL[v]; // classes de marche
   }
@@ -784,7 +843,7 @@ function centrePopupHtml(c){
 // renderMap() : (re)dessine les points selon la selection et la variable choisie
 // NUMERIC_COLOR_KEYS (etape 6b) : variables quantitatives selectionnables dans "Colorer les points par",
 // classees automatiquement (au lieu d'une couleur par modalite comme les variables categorielles).
-const NUMERIC_COLOR_KEYS=['nearestDist','coutConsultation','vulnScore','vulnQScore'];
+const NUMERIC_COLOR_KEYS=['nearestDist','coutConsultation','vulnScore','vulnQScore','mdQK'];
 function isNumericColorKey(key){ return NUMERIC_COLOR_KEYS.includes(key); }
 // computeNiceBreaks() : bornes de classes "rondes" et lisibles (ex. 0-500 m, 500-1000 m...)
 function computeNiceBreaks(vals,nClasses){
@@ -817,6 +876,7 @@ function fmtBreakVal(key,v){
   if(key==='nearestDist') return Math.round(v)+' m';
   if(key==='coutConsultation') return Math.round(v).toLocaleString('fr-FR')+' F';
   if(key==='vulnScore'||key==='vulnQScore') return v.toFixed(2);
+  if(key==='mdQK') return v.toFixed(1)+'/4';
   return Math.round(v);
 }
 function numericBreaksFor(key,recs){ return computeNiceBreaks(recs.map(d=>d[key]).filter(v=>typeof v==='number'),5); }
@@ -1419,6 +1479,83 @@ function renderVulnerability(recs){
     else { list.innerHTML=top.map((o,i)=>{ const bg=vulnLevelColor(vulnClassOf(o.moy)); return `<div class="sprow clickable" data-q="${esc(o.q)}" title="${esc(o.q)} — ${o.n} enquêté(s), score moyen ${o.moy.toFixed(2)}. Cliquer pour isoler sur la carte"><span class="rk">${i+1}</span><span class="nm">${esc(o.q)} <span class="vu-n-inline">· ${o.n}</span></span><span class="bd" style="background:${bg};color:${contrastInk(bg)}">${o.moy.toFixed(2)}</span></div>`; }).join('');
       list.querySelectorAll('.sprow.clickable').forEach(r=>r.addEventListener('click',()=>focusQuartierOnMap(r.dataset.q,false)));
     }
+  }
+  renderVulnMD(recs, scored);
+}
+
+// mdQuartierAgg() : moyenne de k (0-4 privations) par quartier (min. 3 enquetes notes), trie decroissant
+function mdQuartierAgg(recs){
+  const by={};
+  recs.forEach(d=>{ if(d.mdK==null) return; const q=(d.quartier??'').toString().trim(); if(!q) return; (by[q]=by[q]||{q,s:0,n:0}); by[q].s+=d.mdK; by[q].n++; });
+  return Object.values(by).filter(o=>o.n>=3).map(o=>({q:o.q,n:o.n,moy:o.s/o.n})).sort((a,b)=>b.moy-a.moy);
+}
+// filterMdClasses() : filtre la carte sur un ou plusieurs niveaux multidimensionnels (ou l'enleve si deja actif).
+function filterMdClasses(classes){
+  const want=new Set(classes);
+  const cur=filters.mdClass;
+  const same = cur && cur.size===want.size && [...want].every(c=>cur.has(c));
+  if(same) delete filters.mdClass; else filters.mdClass=want;
+  const cb=document.getElementById('colorBy'); if(cb && filters.mdClass){ cb.value='mdClass'; }
+  syncChecks(); refresh();
+  switchTab('carte');
+}
+// renderVulnMD() : bloc de l'onglet Vulnerabilite pour la methode multidimensionnelle (comptage de
+// privations sur 4 dimensions). Toujours calcule (pour que le tableau de comparaison soit a jour),
+// meme quand le bloc est masque par la bascule de methode.
+function renderVulnMD(recs, scoredContinu){
+  const setv=(id,v)=>{ const el=document.getElementById(id); if(el) el.textContent=v; };
+  const md=recs.filter(d=>d.mdK!=null);
+  const n=md.length;
+  const cnt={}; MD_ORD.forEach(c=>cnt[c]=0); md.forEach(d=>{ if(cnt[d.mdClass]!=null) cnt[d.mdClass]++; });
+  const qa=mdQuartierAgg(md);
+  const worst=qa.length? qa[0].q : null;
+  setv('md-n', n);
+  setv('md-vuln', n? (100*(cnt['Vulnérable']+cnt['Très vulnérable'])/n).toFixed(0)+'%' : '—');
+  setv('md-tres', n? (100*cnt['Très vulnérable']/n).toFixed(0)+'%' : '—');
+  setv('md-worst', worst || '—');
+  // incidence par dimension (part de privation sur chaque dimension, independamment des autres)
+  const inc=document.getElementById('md-dims'); if(inc){
+    inc.innerHTML=MD_DIMS.map(dim=>{ const c=n? md.filter(d=>d[dim.key]).length : 0; const pct=n?(100*c/n):0;
+      return `<div class="md-dim-row"><span class="md-dim-lbl" title="${esc(dim.crit)}">${dim.label}</span><span class="md-dim-track"><span class="md-dim-fill" style="width:${pct}%;background:${mdLevelColor('Très vulnérable')}"></span></span><span class="md-dim-val">${pct.toFixed(0)}%</span></div>`;
+    }).join('');
+  }
+  // bandeau interactif
+  const active=filters.mdClass;
+  const kpiVuln=document.getElementById('kpi-md-vuln'), kpiTres=document.getElementById('kpi-md-tres'), kpiWorst=document.getElementById('kpi-md-worst');
+  const markActive=(el,on)=>{ if(el) el.classList.toggle('vu-on', !!on); };
+  markActive(kpiVuln, active && active.size===2 && active.has('Vulnérable') && active.has('Très vulnérable'));
+  markActive(kpiTres, active && active.size===1 && active.has('Très vulnérable'));
+  if(kpiVuln){ kpiVuln.onclick=()=>filterMdClasses(['Vulnérable','Très vulnérable']); }
+  if(kpiTres){ kpiTres.onclick=()=>filterMdClasses(['Très vulnérable']); }
+  if(kpiWorst){ kpiWorst.onclick=()=> worst && focusQuartierOnMap(worst,false); kpiWorst.classList.toggle('vu-disabled', !worst); }
+  // repartition par classe (anneau)
+  draw('md_dist',{type:'doughnut',data:{labels:MD_ORD,datasets:[{data:MD_ORD.map(c=>cnt[c]),backgroundColor:MD_ORD.map(c=>mdLevelColor(c)),borderWidth:1,borderColor:resolveCssColor('var(--panel)')||'#0e0f12'}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{boxWidth:12}},
+      tooltip:{callbacks:{label:c=>`${c.label}: ${c.parsed} (${n?(100*c.parsed/n).toFixed(1):0}%)`}}},
+      onClick:(e,els)=>{ if(els.length) filterMdClasses([MD_ORD[els[0].index]]); }}});
+  // quartiers par nombre moyen de privations (top 20)
+  const top=qa.slice(0,20);
+  draw('md_quart',{type:'bar',data:{labels:top.map(o=>o.q),datasets:[{data:top.map(o=>+o.moy.toFixed(2)),backgroundColor:top.map(o=>mdLevelColor(mdClassOf(Math.round(o.moy)))),borderRadius:4,maxBarThickness:26}]},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.parsed.x.toFixed(2)} privation(s) en moyenne · ${top[c.dataIndex].n} enquêté(s)`}}},
+      scales:{x:{min:0,max:4,title:{display:true,text:'Nombre moyen de dimensions privées (0 à 4)'}},y:{ticks:{autoSkip:false}}},
+      onClick:(e,els)=>{ if(els.length){ focusQuartierOnMap(top[els[0].index].q,false); } }}});
+  // classement cliquable
+  const list=document.getElementById('md-rank'); if(list){
+    if(!top.length){ list.innerHTML='<div class="sp-empty">Pas assez de données (min. 3 enquêtés notés par quartier)</div>'; }
+    else { list.innerHTML=top.map((o,i)=>{ const bg=mdLevelColor(mdClassOf(Math.round(o.moy))); return `<div class="sprow clickable" data-q="${esc(o.q)}" title="${esc(o.q)} — ${o.n} enquêté(s), ${o.moy.toFixed(2)} privation(s) en moyenne. Cliquer pour isoler sur la carte"><span class="rk">${i+1}</span><span class="nm">${esc(o.q)} <span class="vu-n-inline">· ${o.n}</span></span><span class="bd" style="background:${bg};color:${contrastInk(bg)}">${o.moy.toFixed(1)}</span></div>`; }).join('');
+      list.querySelectorAll('.sprow.clickable').forEach(r=>r.addEventListener('click',()=>focusQuartierOnMap(r.dataset.q,false)));
+    }
+  }
+  // comparaison : la methode continue (V1/V2 actif) voit-elle les memes personnes vulnerables ?
+  const cmp=document.getElementById('md-compare');
+  if(cmp && n){
+    const rows=MD_ORD.map(mcls=>{
+      const sub=md.filter(d=>d.mdClass===mcls);
+      const cells=VULN_ORD.map(vcls=>sub.filter(d=>d.vulnClass===vcls).length);
+      return `<tr><td><span class="vu-dot" style="background:${mdLevelColor(mcls)}"></span>${mcls}<span class="vu-n-inline"> (${sub.length})</span></td>${cells.map(c=>`<td class="num">${c}</td>`).join('')}</tr>`;
+    }).join('');
+    cmp.innerHTML=`<table class="vu-cmp-table"><thead><tr><th>Multidimensionnel ↓ / Continu (${(VULN_VERSIONS[vulnVersion]||VULN_VERSIONS.v1).label}) →</th>${VULN_ORD.map(c=>`<th class="num">${c}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table>`;
   }
 }
 
@@ -2265,6 +2402,7 @@ document.addEventListener('DOMContentLoaded',async ()=>{
   DATA.forEach(d=>{ d._gLat0=d.gLat; d._gLon0=d.gLon; d._cellId0=d.cellId; d._lat0=d.lat; d._lng0=d.lng; });
   computeNearest(); // centre le plus proche + temps de marche + classe de couverture
   computeVulnerability(); // indice de vulnerabilite socio-economique (par personne + moyenne par quartier)
+  computeVulnMD(); // indice de vulnerabilite multidimensionnel (comptage de privations, methode alternative)
   initMap();       // 1. la carte
   buildFilters();  // 2. la barre de filtres
   if(cloudFull){
@@ -2278,7 +2416,7 @@ document.addEventListener('DOMContentLoaded',async ()=>{
   cloudLoad().then(n=>{ if(n){ computeNearest(); recomputeGridCounts(); if(gridLayer) gridLayer.setStyle(styleCell); renderMap(filtered()); if(currentTab==='spatial')renderGridPlan(); setEditInfo(n+' point(s) synchronisé(s) depuis le cloud.'); }});
 
   // 3. menu "colorer la carte par"
-  fillSelect(document.getElementById('colorBy'),['coverClass','vulnClass','vulnQScore','premierRecours','premierRecoursCat','bandPrim','sexe','age','assurance','frequentation','maladieCat','revenu','instruction','professionCat','resultatTraitement','satisfaitMedecin','quartier','nearestDist','coutConsultation'],'coverClass');
+  fillSelect(document.getElementById('colorBy'),['coverClass','vulnClass','vulnQScore','mdClass','mdQK','premierRecours','premierRecoursCat','bandPrim','sexe','age','assurance','frequentation','maladieCat','revenu','instruction','professionCat','resultatTraitement','satisfaitMedecin','quartier','nearestDist','coutConsultation'],'coverClass');
   document.getElementById('colorBy').addEventListener('change',()=>renderMap(filtered()));
   // bascule des couleurs de vulnerabilite (semantique vert->rouge / palette)
   document.querySelectorAll('.vu-cm-btn').forEach(b=>b.addEventListener('click',()=>setVulnColorMode(b.dataset.mode)));
@@ -2286,6 +2424,9 @@ document.addEventListener('DOMContentLoaded',async ()=>{
   // bascule de version de l'indice (V1 seuils fixes / V2 seuils recales)
   document.querySelectorAll('.vu-ver-btn').forEach(b=>b.addEventListener('click',()=>setVulnVersion(b.dataset.ver)));
   updateVulnVersionUI();
+  // bascule de methode (score continu V1/V2 / comptage multidimensionnel)
+  document.querySelectorAll('.vu-meth-btn').forEach(b=>b.addEventListener('click',()=>setVulnMethod(b.dataset.meth)));
+  updateVulnMethodUI();
 
   // 4. menus de l'analyse croisee (valeurs de depart : age x premier recours)
   document.getElementById('cx').innerHTML=optgroupedDims();

@@ -539,6 +539,18 @@ html[data-anim="off"] *,html[data-anim="off"] *::before,html[data-anim="off"] *:
 .vu-cmp-table td.muted{color:var(--muted)}
 .vu-dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:7px;vertical-align:middle}
 .vu-n-inline{color:var(--muted);font-weight:600;font-size:var(--fs-2xs)}
+.vu-meth-btn{border:0;background:transparent;color:var(--muted);font:inherit;font-size:var(--fs-xs);padding:6px 14px;cursor:pointer;transition:.15s;white-space:nowrap}
+.vu-meth-btn+.vu-meth-btn{border-left:1px solid var(--line)}
+.vu-meth-btn:hover{color:var(--ink)}
+.vu-meth-btn.active{background:var(--brand);color:var(--brand-ink, #0e0f12);font-weight:700}
+.md-dims-ref{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:8px;margin:12px 0}
+.md-dim-ref-row{background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:var(--fs-xs);color:var(--muted);line-height:1.4}
+.md-dim-ref-row b{color:var(--ink);display:block;margin-bottom:2px}
+.md-dim-row{display:flex;align-items:center;gap:10px;padding:6px 0}
+.md-dim-lbl{flex:0 0 170px;font-size:var(--fs-xs);color:var(--ink)}
+.md-dim-track{flex:1;height:8px;border-radius:var(--r-full);background:var(--panel-2);overflow:hidden}
+.md-dim-fill{display:block;height:100%;border-radius:var(--r-full)}
+.md-dim-val{flex:0 0 40px;text-align:right;font-size:var(--fs-xs);font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums}
 
 /* Assistant conversationnel flottant (etape 5d) */
 .chat-widget{position:fixed;right:18px;bottom:18px;z-index:2000}
@@ -1005,19 +1017,18 @@ body.presentation-mode .wrap.sp-collapsed{grid-template-columns:1fr}
       </div>
     </section>
 
-    <!-- TAB: VULNERABILITE (indice socio-economique) -->
+    <!-- TAB: VULNERABILITE (deux methodes comparables : score continu V1/V2, ou comptage multidimensionnel) -->
     <section id="tab-vulnerabilite" class="hidden">
       <div class="card wide" style="margin-bottom:16px">
-        <h3>Indice de vulnérabilité socio-économique</h3>
-        <div class="sub">Score composite (0 = faible → 1 = élevée) construit à partir de 7 indicateurs disponibles : type de logement, peuplement, dépenses, assainissement, statut d'occupation, activité, niveau d'instruction. Le score est le même dans les deux versions ; seul le découpage en classes change.</div>
+        <h3>Indice de vulnérabilité</h3>
+        <div class="sub">Deux méthodes disponibles pour mesurer la vulnérabilité des personnes âgées enquêtées, à comparer. Le <b>score continu</b> (V1/V2) moyenne 7 indicateurs socio-économiques. Le <b>multidimensionnel</b> compte, sur 4 dimensions (socio-éco, santé/autonomie, accès aux soins, protection), combien sont réellement en situation de privation — il ne dilue pas un problème grave dans une moyenne.</div>
         <div class="vu-colormode">
-          <span class="vu-cm-lbl">Version de l'indice</span>
+          <span class="vu-cm-lbl">Méthode</span>
           <div class="vu-cm-seg">
-            <button type="button" class="vu-ver-btn" data-ver="v1" title="Seuils théoriques fixes (quarts de l'échelle 0-1)">V1 · 0,25 / 0,50 / 0,75</button>
-            <button type="button" class="vu-ver-btn" data-ver="v2" title="Seuils recalés sur la distribution réelle (classes équilibrées)">V2 · 0,30 / 0,40 / 0,50</button>
+            <button type="button" class="vu-meth-btn" data-meth="continu" title="Moyenne de 7 indicateurs socio-économiques, classée en 4 niveaux">Score continu (V1/V2)</button>
+            <button type="button" class="vu-meth-btn" data-meth="multi" title="Comptage de privations réelles sur 4 dimensions (socio-éco, santé, accès, protection)">Multidimensionnel (4 dimensions)</button>
           </div>
         </div>
-        <div class="sub" id="vu-ver-active" style="margin-top:6px;font-weight:600;color:var(--ink)"></div>
         <div class="vu-colormode">
           <span class="vu-cm-lbl">Couleurs</span>
           <div class="vu-cm-seg">
@@ -1025,34 +1036,99 @@ body.presentation-mode .wrap.sp-collapsed{grid-template-columns:1fr}
             <button type="button" class="vu-cm-btn" data-mode="palette" title="Dégradé dérivé de la palette des graphiques active">Palette des graphiques</button>
           </div>
         </div>
-        <div class="vu-kpis">
-          <div class="vu-kpi"><span class="vu-k-val" id="vu-n">—</span><span class="vu-k-lbl">Enquêtés notés</span></div>
-          <div class="vu-kpi"><span class="vu-k-val" id="vu-moy">—</span><span class="vu-k-lbl">Score moyen</span></div>
-          <div class="vu-kpi vu-clickable" id="kpi-vu-elev" title="Cliquer pour n'afficher que ces personnes sur la carte"><span class="vu-k-val" id="vu-elev">—</span><span class="vu-k-lbl">Élevée + Très élevée <span class="vu-tap">↗ carte</span></span></div>
-          <div class="vu-kpi vu-clickable" id="kpi-vu-tres" title="Cliquer pour n'afficher que ces personnes sur la carte"><span class="vu-k-val" id="vu-tres">—</span><span class="vu-k-lbl">Très élevée <span class="vu-tap">↗ carte</span></span></div>
-          <div class="vu-kpi vu-clickable" id="kpi-vu-worst" title="Cliquer pour isoler ce quartier sur la carte"><span class="vu-k-val" id="vu-worst" style="font-size:15px">—</span><span class="vu-k-lbl">Quartier le + vulnérable <span class="vu-tap">↗ carte</span></span></div>
+      </div>
+
+      <!-- BLOC : METHODE CONTINUE (V1/V2) -->
+      <div id="vu-continu-block">
+        <div class="card wide" style="margin-bottom:16px">
+          <h3>Score continu — indice socio-économique</h3>
+          <div class="sub">Score composite (0 = faible → 1 = élevée) construit à partir de 7 indicateurs disponibles : type de logement, peuplement, dépenses, assainissement, statut d'occupation, activité, niveau d'instruction. Le score est le même dans les deux versions ; seul le découpage en classes change.</div>
+          <div class="vu-colormode">
+            <span class="vu-cm-lbl">Version de l'indice</span>
+            <div class="vu-cm-seg">
+              <button type="button" class="vu-ver-btn" data-ver="v1" title="Seuils théoriques fixes (quarts de l'échelle 0-1)">V1 · 0,25 / 0,50 / 0,75</button>
+              <button type="button" class="vu-ver-btn" data-ver="v2" title="Seuils recalés sur la distribution réelle (classes équilibrées)">V2 · 0,30 / 0,40 / 0,50</button>
+            </div>
+          </div>
+          <div class="sub" id="vu-ver-active" style="margin-top:6px;font-weight:600;color:var(--ink)"></div>
+          <div class="vu-kpis">
+            <div class="vu-kpi"><span class="vu-k-val" id="vu-n">—</span><span class="vu-k-lbl">Enquêtés notés</span></div>
+            <div class="vu-kpi"><span class="vu-k-val" id="vu-moy">—</span><span class="vu-k-lbl">Score moyen</span></div>
+            <div class="vu-kpi vu-clickable" id="kpi-vu-elev" title="Cliquer pour n'afficher que ces personnes sur la carte"><span class="vu-k-val" id="vu-elev">—</span><span class="vu-k-lbl">Élevée + Très élevée <span class="vu-tap">↗ carte</span></span></div>
+            <div class="vu-kpi vu-clickable" id="kpi-vu-tres" title="Cliquer pour n'afficher que ces personnes sur la carte"><span class="vu-k-val" id="vu-tres">—</span><span class="vu-k-lbl">Très élevée <span class="vu-tap">↗ carte</span></span></div>
+            <div class="vu-kpi vu-clickable" id="kpi-vu-worst" title="Cliquer pour isoler ce quartier sur la carte"><span class="vu-k-val" id="vu-worst" style="font-size:15px">—</span><span class="vu-k-lbl">Quartier le + vulnérable <span class="vu-tap">↗ carte</span></span></div>
+          </div>
+        </div>
+        <div class="card wide" style="margin-bottom:16px">
+          <h3>Comment lire cet indice</h3>
+          <div class="note" style="margin-top:6px">
+            La <b>vulnérabilité socio-économique</b> mesure le cumul de désavantages qui fragilisent une personne âgée face à la maladie et au recours aux soins : logement précaire, ménage surpeuplé, faibles ressources, mauvais assainissement, absence de propriété, inactivité, faible instruction. Chaque personne reçoit un <b>score de 0 à 1</b> : proche de <b>0</b>, sa situation cumule peu de désavantages ; proche de <b>1</b>, elle en cumule beaucoup. Le score est la <b>moyenne</b> de 7 indicateurs. Limite à connaître : une moyenne peut masquer un problème grave sur un seul indicateur si les autres sont favorables — voir la méthode « Multidimensionnel » pour un regard complémentaire, qui inclut aussi la santé et l'accès aux soins.
+          </div>
+        </div>
+        <div class="grid g2">
+          <div class="card"><h3>Répartition par niveau de vulnérabilité</h3><div class="chartbox tall"><canvas id="vu_dist"></canvas></div></div>
+          <div class="card"><h3>Quartiers les plus vulnérables</h3><div class="sub">Score moyen par quartier (min. 3 enquêtés). Cliquez une barre pour isoler le quartier sur la carte.</div><div class="chartbox tall"><canvas id="vu_quart"></canvas></div></div>
+        </div>
+        <div class="card wide" style="margin-top:16px">
+          <h3>Comparaison des deux versions</h3>
+          <div class="sub">Mêmes scores, deux découpages en classes. V1 concentre l'effectif sur « Modérée » ; V2 rééquilibre les quatre niveaux. La version active (bascule ci-dessus) pilote la carte, les KPI et les graphiques.</div>
+          <div id="vu-compare" style="overflow-x:auto"></div>
+        </div>
+        <div class="card wide" style="margin-top:16px">
+          <h3>Classement des quartiers</h3>
+          <div class="sub">La pastille est le <b>score moyen de vulnérabilité (0 à 1)</b> du quartier, pas un effectif. Le nombre d'enquêtés est indiqué à côté du nom. Les 726 enquêtés se répartissent sur 24 quartiers (20 premiers affichés). Cliquez un quartier pour l'isoler sur la carte.</div>
+          <div class="vu-ranklist" id="vu-rank"></div>
+          <div class="note">Méthode adaptée du document « Indicateurs de mesure de la vulnérabilité et la pauvreté socioéconomique ». Sur les 9 indicateurs d'origine, 2 ne sont pas collectés dans l'enquête (moyens de télécommunication ; confort eau/électricité/WC) : le score porte sur les 7 restants.</div>
         </div>
       </div>
-      <div class="card wide" style="margin-bottom:16px">
-        <h3>Comment lire cet indice</h3>
-        <div class="note" style="margin-top:6px">
-          La <b>vulnérabilité socio-économique</b> mesure le cumul de désavantages qui fragilisent une personne âgée face à la maladie et au recours aux soins : logement précaire, ménage surpeuplé, faibles ressources, mauvais assainissement, absence de propriété, inactivité, faible instruction. Chaque personne reçoit un <b>score de 0 à 1</b> : proche de <b>0</b>, sa situation cumule peu de désavantages ; proche de <b>1</b>, elle en cumule beaucoup et est donc plus exposée. Le score est la <b>moyenne</b> de 7 indicateurs (chacun noté de 0 = favorable à 1 = défavorable). Il ne mesure pas la santé elle-même, mais le <b>terrain socio-économique</b> qui pèse sur l'accès aux soins : un quartier au score élevé concentre des personnes cumulant les fragilités, à cibler en priorité. Les couleurs vont du plus clair (Faible) au plus soutenu (Très élevée) et suivent la palette choisie dans « Couleurs des graphiques ».
+
+      <!-- BLOC : METHODE MULTIDIMENSIONNELLE -->
+      <div id="vu-md-block" class="hidden">
+        <div class="card wide" style="margin-bottom:16px">
+          <h3>Multidimensionnel — comptage de privations</h3>
+          <div class="sub">Chaque personne est dite « privée » (oui/non) sur 4 dimensions indépendantes. Le nombre de dimensions privées (0 à 4) donne la classe : 0-1 = Non vulnérable, 2 = Vulnérable, 3-4 = Très vulnérable.</div>
+          <div class="md-dims-ref">
+            <div class="md-dim-ref-row"><b>Socio-économique</b> — Score socio-éco (V1/V2) ≥ 0,40</div>
+            <div class="md-dim-ref-row"><b>Santé &amp; autonomie</b> — Pas de guérison OU se rend accompagné</div>
+            <div class="md-dim-ref-row"><b>Accès aux soins</b> — Distance &gt; 1,5 km OU trajet &gt; 1h OU ressenti « trop long » OU transport ≥ 3000 F</div>
+            <div class="md-dim-ref-row"><b>Protection &amp; recours</b> — Pas d'assurance ET 1er recours non moderne (tradi/automédication)</div>
+          </div>
+          <div class="vu-kpis">
+            <div class="vu-kpi"><span class="vu-k-val" id="md-n">—</span><span class="vu-k-lbl">Enquêtés notés</span></div>
+            <div class="vu-kpi vu-clickable" id="kpi-md-vuln" title="Cliquer pour n'afficher que ces personnes sur la carte"><span class="vu-k-val" id="md-vuln">—</span><span class="vu-k-lbl">Vulnérable + Très vulnérable <span class="vu-tap">↗ carte</span></span></div>
+            <div class="vu-kpi vu-clickable" id="kpi-md-tres" title="Cliquer pour n'afficher que ces personnes sur la carte"><span class="vu-k-val" id="md-tres">—</span><span class="vu-k-lbl">Très vulnérable <span class="vu-tap">↗ carte</span></span></div>
+            <div class="vu-kpi vu-clickable" id="kpi-md-worst" title="Cliquer pour isoler ce quartier sur la carte"><span class="vu-k-val" id="md-worst" style="font-size:15px">—</span><span class="vu-k-lbl">Quartier le + touché <span class="vu-tap">↗ carte</span></span></div>
+          </div>
+        </div>
+        <div class="card wide" style="margin-bottom:16px">
+          <h3>Comment lire cet indice</h3>
+          <div class="note" style="margin-top:6px">
+            Contrairement au score continu, cette méthode ne moyenne pas : elle <b>compte les privations réelles</b> sur 4 dimensions, dont deux absentes du score continu (santé/autonomie, accès aux soins). Une personne peut être « Modérée » en score continu (patrimoine correct) mais « Très vulnérable » en multidimensionnel (isolée, loin des soins, sans protection) : c'est exactement le type de cas que ce regard permet de repérer, et que la moyenne seule laisse invisible. Voir le tableau de comparaison plus bas.
+          </div>
+        </div>
+        <div class="grid g2">
+          <div class="card"><h3>Répartition par niveau de vulnérabilité</h3><div class="chartbox tall"><canvas id="md_dist"></canvas></div></div>
+          <div class="card"><h3>Quartiers les plus touchés</h3><div class="sub">Nombre moyen de privations par quartier (min. 3 enquêtés). Cliquez une barre pour isoler le quartier sur la carte.</div><div class="chartbox tall"><canvas id="md_quart"></canvas></div></div>
+        </div>
+        <div class="card wide" style="margin-top:16px">
+          <h3>Incidence par dimension</h3>
+          <div class="sub">Part des enquêtés privés sur chaque dimension, prise isolément (indépendamment des 3 autres).</div>
+          <div id="md-dims"></div>
+        </div>
+        <div class="card wide" style="margin-top:16px">
+          <h3>Comparaison avec le score continu</h3>
+          <div class="sub">Combien de personnes de chaque classe multidimensionnelle se retrouvent dans chaque classe du score continu actif. Les cases hors diagonale (ex. « Très vulnérable » × « Faible »/« Modérée ») sont les cas que la moyenne seule aurait manqués.</div>
+          <div id="md-compare" style="overflow-x:auto"></div>
+        </div>
+        <div class="card wide" style="margin-top:16px">
+          <h3>Classement des quartiers</h3>
+          <div class="sub">La pastille est le <b>nombre moyen de privations (0 à 4)</b> du quartier, pas un effectif. Le nombre d'enquêtés est indiqué à côté du nom.</div>
+          <div class="vu-ranklist" id="md-rank"></div>
         </div>
       </div>
-      <div class="grid g2">
-        <div class="card"><h3>Répartition par niveau de vulnérabilité</h3><div class="chartbox tall"><canvas id="vu_dist"></canvas></div></div>
-        <div class="card"><h3>Quartiers les plus vulnérables</h3><div class="sub">Score moyen par quartier (min. 3 enquêtés). Cliquez une barre pour isoler le quartier sur la carte.</div><div class="chartbox tall"><canvas id="vu_quart"></canvas></div></div>
-      </div>
+
       <div class="card wide" style="margin-top:16px">
-        <h3>Comparaison des deux versions</h3>
-        <div class="sub">Mêmes scores, deux découpages en classes. V1 concentre l'effectif sur « Modérée » ; V2 rééquilibre les quatre niveaux. La version active (bascule ci-dessus) pilote la carte, les KPI et les graphiques.</div>
-        <div id="vu-compare" style="overflow-x:auto"></div>
-      </div>
-      <div class="card wide" style="margin-top:16px">
-        <h3>Classement des quartiers</h3>
-        <div class="sub">La pastille est le <b>score moyen de vulnérabilité (0 à 1)</b> du quartier, pas un effectif. Le nombre d'enquêtés est indiqué à côté du nom. Les 726 enquêtés se répartissent sur 24 quartiers (20 premiers affichés). Cliquez un quartier pour l'isoler sur la carte.</div>
-        <div class="vu-ranklist" id="vu-rank"></div>
-        <div class="note">Méthode adaptée du document « Indicateurs de mesure de la vulnérabilité et la pauvreté socioéconomique ». Sur les 9 indicateurs d'origine, 2 ne sont pas collectés dans l'enquête (moyens de télécommunication ; confort eau/électricité/WC) : le score porte sur les 7 restants. Sur la carte, l'option « Vulnérabilité socio-éco (individu) » colore chaque personne par sa classe ; « Vulnérabilité moyenne du quartier » colore en dégradé continu.</div>
+        <div class="note">Sur la carte (menu « Colorer les points par »), les deux méthodes sont disponibles indépendamment de la bascule ci-dessus : « Vulnérabilité socio-éco (individu) » / « Vulnérabilité moyenne du quartier » pour le score continu, « Vulnérabilité multidimensionnelle (individu) » / « Vulnérabilité multidimensionnelle — score quartier » pour le comptage de privations.</div>
       </div>
     </section>
 
@@ -1442,6 +1518,6 @@ body.presentation-mode .wrap.sp-collapsed{grid-template-columns:1fr}
 <script src="data/centres.js"></script>   <!-- window.CENTRES : 108 etablissements de sante -->
 <script src="data/yopougon.js"></script>  <!-- window.YOP_BOUNDARY : limite communale -->
 <script src="data/grille.js"></script>    <!-- window.GRID : grille d'echantillonnage 500 m -->
-<script src="app.js?v=20260729e"></script>
+<script src="app.js?v=20260729f"></script>
 </body>
 </html>
