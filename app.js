@@ -1416,7 +1416,7 @@ function renderVulnerability(recs){
   // classement cliquable (miroir accessible du graphique), pastilles a contraste auto
   const list=document.getElementById('vu-rank'); if(list){
     if(!top.length){ list.innerHTML='<div class="sp-empty">Pas assez de données (min. 3 enquêtés notés par quartier)</div>'; }
-    else { list.innerHTML=top.map((o,i)=>{ const bg=vulnLevelColor(vulnClassOf(o.moy)); return `<div class="sprow clickable" data-q="${esc(o.q)}" title="Isoler ${esc(o.q)} sur la carte"><span class="rk">${i+1}</span><span class="nm">${esc(o.q)}</span><span class="bd" style="background:${bg};color:${contrastInk(bg)}">${o.moy.toFixed(2)}</span></div>`; }).join('');
+    else { list.innerHTML=top.map((o,i)=>{ const bg=vulnLevelColor(vulnClassOf(o.moy)); return `<div class="sprow clickable" data-q="${esc(o.q)}" title="${esc(o.q)} — ${o.n} enquêté(s), score moyen ${o.moy.toFixed(2)}. Cliquer pour isoler sur la carte"><span class="rk">${i+1}</span><span class="nm">${esc(o.q)} <span class="vu-n-inline">· ${o.n}</span></span><span class="bd" style="background:${bg};color:${contrastInk(bg)}">${o.moy.toFixed(2)}</span></div>`; }).join('');
       list.querySelectorAll('.sprow.clickable').forEach(r=>r.addEventListener('click',()=>focusQuartierOnMap(r.dataset.q,false)));
     }
   }

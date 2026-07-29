@@ -538,6 +538,7 @@ html[data-anim="off"] *,html[data-anim="off"] *::before,html[data-anim="off"] *:
 .vu-cmp-table td.num,.vu-cmp-table th.num{text-align:right;font-variant-numeric:tabular-nums}
 .vu-cmp-table td.muted{color:var(--muted)}
 .vu-dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:7px;vertical-align:middle}
+.vu-n-inline{color:var(--muted);font-weight:600;font-size:var(--fs-2xs)}
 
 /* Assistant conversationnel flottant (etape 5d) */
 .chat-widget{position:fixed;right:18px;bottom:18px;z-index:2000}
@@ -1049,6 +1050,7 @@ body.presentation-mode .wrap.sp-collapsed{grid-template-columns:1fr}
       </div>
       <div class="card wide" style="margin-top:16px">
         <h3>Classement des quartiers</h3>
+        <div class="sub">La pastille est le <b>score moyen de vulnérabilité (0 à 1)</b> du quartier, pas un effectif. Le nombre d'enquêtés est indiqué à côté du nom. Les 726 enquêtés se répartissent sur 24 quartiers (20 premiers affichés). Cliquez un quartier pour l'isoler sur la carte.</div>
         <div class="vu-ranklist" id="vu-rank"></div>
         <div class="note">Méthode adaptée du document « Indicateurs de mesure de la vulnérabilité et la pauvreté socioéconomique ». Sur les 9 indicateurs d'origine, 2 ne sont pas collectés dans l'enquête (moyens de télécommunication ; confort eau/électricité/WC) : le score porte sur les 7 restants. Sur la carte, l'option « Vulnérabilité socio-éco (individu) » colore chaque personne par sa classe ; « Vulnérabilité moyenne du quartier » colore en dégradé continu.</div>
       </div>
@@ -1440,6 +1442,6 @@ body.presentation-mode .wrap.sp-collapsed{grid-template-columns:1fr}
 <script src="data/centres.js"></script>   <!-- window.CENTRES : 108 etablissements de sante -->
 <script src="data/yopougon.js"></script>  <!-- window.YOP_BOUNDARY : limite communale -->
 <script src="data/grille.js"></script>    <!-- window.GRID : grille d'echantillonnage 500 m -->
-<script src="app.js?v=20260729d"></script>
+<script src="app.js?v=20260729e"></script>
 </body>
 </html>
