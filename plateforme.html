@@ -514,6 +514,24 @@ html[data-anim="off"] *,html[data-anim="off"] *::before,html[data-anim="off"] *:
 .sprow .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink)}
 .sprow .bd{flex:none;font-size:var(--fs-2xs);font-weight:700;padding:2px 8px;border-radius:var(--r-full);color:#fff;white-space:nowrap}
 .sp-empty{font-size:11px;color:var(--muted);padding:4px 2px;font-style:italic}
+/* Onglet Vulnerabilite : bandeau d'indicateurs + liste de classement */
+.vu-kpis{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
+.vu-kpi{flex:1 1 120px;min-width:110px;background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:2px}
+.vu-k-val{font-size:22px;font-weight:800;line-height:1.05;color:var(--ink);font-variant-numeric:tabular-nums}
+.vu-k-lbl{font-size:var(--fs-2xs);color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.vu-ranklist{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:6px;margin:8px 0 12px}
+.vu-clickable{cursor:pointer;transition:border-color .15s,transform .15s,box-shadow .15s}
+.vu-clickable:hover{border-color:var(--brand);transform:translateY(-1px);box-shadow:var(--shadow)}
+.vu-clickable.vu-on{border-color:var(--brand);box-shadow:0 0 0 2px var(--brand) inset}
+.vu-clickable.vu-disabled{opacity:.5;cursor:default;pointer-events:none}
+.vu-tap{display:inline-block;font-size:9px;font-weight:700;color:var(--brand);letter-spacing:.02em;text-transform:none;margin-left:2px}
+.vu-colormode{display:flex;align-items:center;gap:10px;margin-top:12px;flex-wrap:wrap}
+.vu-cm-lbl{font-size:var(--fs-2xs);color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.vu-cm-seg{display:inline-flex;border:1px solid var(--line);border-radius:var(--r-full);overflow:hidden;background:var(--panel-2)}
+.vu-cm-btn{border:0;background:transparent;color:var(--muted);font:inherit;font-size:var(--fs-xs);padding:6px 14px;cursor:pointer;transition:.15s;white-space:nowrap}
+.vu-cm-btn+.vu-cm-btn{border-left:1px solid var(--line)}
+.vu-cm-btn:hover{color:var(--ink)}
+.vu-cm-btn.active{background:var(--brand);color:var(--brand-ink, #0e0f12);font-weight:700}
 
 /* Assistant conversationnel flottant (etape 5d) */
 .chat-widget{position:fixed;right:18px;bottom:18px;z-index:2000}
@@ -764,6 +782,7 @@ body.presentation-mode .wrap.sp-collapsed{grid-template-columns:1fr}
       <div class="tab" data-tab="apercu">Vue d'ensemble</div>
       <div class="tab" data-tab="recours">Recours aux soins</div>
       <div class="tab" data-tab="determinants">Déterminants</div>
+      <div class="tab" data-tab="vulnerabilite">Vulnérabilité</div>
       <div class="tab" data-tab="percept">Perceptions &amp; qualité</div>
       <div class="tab" data-tab="spatial">Analyse spatiale</div>
       <div class="tab" data-tab="croise">Analyse croisée</div>
@@ -976,6 +995,43 @@ body.presentation-mode .wrap.sp-collapsed{grid-template-columns:1fr}
         </div>
         <div class="chartbox tall"><canvas id="det_detail"></canvas></div>
         <div class="note" id="detNote"></div>
+      </div>
+    </section>
+
+    <!-- TAB: VULNERABILITE (indice socio-economique) -->
+    <section id="tab-vulnerabilite" class="hidden">
+      <div class="card wide" style="margin-bottom:16px">
+        <h3>Indice de vulnérabilité socio-économique</h3>
+        <div class="sub">Score composite (0 = faible → 1 = élevée) construit à partir de 7 indicateurs disponibles : type de logement, peuplement, dépenses, assainissement, statut d'occupation, activité, niveau d'instruction. Classes à seuils fixes : Faible &lt; 0,25 · Modérée 0,25–0,50 · Élevée 0,50–0,75 · Très élevée ≥ 0,75.</div>
+        <div class="vu-colormode">
+          <span class="vu-cm-lbl">Couleurs</span>
+          <div class="vu-cm-seg">
+            <button type="button" class="vu-cm-btn" data-mode="semantic" title="Feu tricolore vert → rouge (convention cartographique)">Sémantiques (vert → rouge)</button>
+            <button type="button" class="vu-cm-btn" data-mode="palette" title="Dégradé dérivé de la palette des graphiques active">Palette des graphiques</button>
+          </div>
+        </div>
+        <div class="vu-kpis">
+          <div class="vu-kpi"><span class="vu-k-val" id="vu-n">—</span><span class="vu-k-lbl">Enquêtés notés</span></div>
+          <div class="vu-kpi"><span class="vu-k-val" id="vu-moy">—</span><span class="vu-k-lbl">Score moyen</span></div>
+          <div class="vu-kpi vu-clickable" id="kpi-vu-elev" title="Cliquer pour n'afficher que ces personnes sur la carte"><span class="vu-k-val" id="vu-elev">—</span><span class="vu-k-lbl">Élevée + Très élevée <span class="vu-tap">↗ carte</span></span></div>
+          <div class="vu-kpi vu-clickable" id="kpi-vu-tres" title="Cliquer pour n'afficher que ces personnes sur la carte"><span class="vu-k-val" id="vu-tres">—</span><span class="vu-k-lbl">Très élevée <span class="vu-tap">↗ carte</span></span></div>
+          <div class="vu-kpi vu-clickable" id="kpi-vu-worst" title="Cliquer pour isoler ce quartier sur la carte"><span class="vu-k-val" id="vu-worst" style="font-size:15px">—</span><span class="vu-k-lbl">Quartier le + vulnérable <span class="vu-tap">↗ carte</span></span></div>
+        </div>
+      </div>
+      <div class="card wide" style="margin-bottom:16px">
+        <h3>Comment lire cet indice</h3>
+        <div class="note" style="margin-top:6px">
+          La <b>vulnérabilité socio-économique</b> mesure le cumul de désavantages qui fragilisent une personne âgée face à la maladie et au recours aux soins : logement précaire, ménage surpeuplé, faibles ressources, mauvais assainissement, absence de propriété, inactivité, faible instruction. Chaque personne reçoit un <b>score de 0 à 1</b> : proche de <b>0</b>, sa situation cumule peu de désavantages ; proche de <b>1</b>, elle en cumule beaucoup et est donc plus exposée. Le score est la <b>moyenne</b> de 7 indicateurs (chacun noté de 0 = favorable à 1 = défavorable). Il ne mesure pas la santé elle-même, mais le <b>terrain socio-économique</b> qui pèse sur l'accès aux soins : un quartier au score élevé concentre des personnes cumulant les fragilités, à cibler en priorité. Les couleurs vont du plus clair (Faible) au plus soutenu (Très élevée) et suivent la palette choisie dans « Couleurs des graphiques ».
+        </div>
+      </div>
+      <div class="grid g2">
+        <div class="card"><h3>Répartition par niveau de vulnérabilité</h3><div class="chartbox tall"><canvas id="vu_dist"></canvas></div></div>
+        <div class="card"><h3>Quartiers les plus vulnérables</h3><div class="sub">Score moyen par quartier (min. 3 enquêtés). Cliquez une barre pour isoler le quartier sur la carte.</div><div class="chartbox tall"><canvas id="vu_quart"></canvas></div></div>
+      </div>
+      <div class="card wide" style="margin-top:16px">
+        <h3>Classement des quartiers</h3>
+        <div class="vu-ranklist" id="vu-rank"></div>
+        <div class="note">Méthode adaptée du document « Indicateurs de mesure de la vulnérabilité et la pauvreté socioéconomique ». Sur les 9 indicateurs d'origine, 2 ne sont pas collectés dans l'enquête (moyens de télécommunication ; confort eau/électricité/WC) : le score porte sur les 7 restants. Sur la carte, l'option « Vulnérabilité socio-éco (individu) » colore chaque personne par sa classe ; « Vulnérabilité moyenne du quartier » colore en dégradé continu.</div>
       </div>
     </section>
 
@@ -1365,6 +1421,6 @@ body.presentation-mode .wrap.sp-collapsed{grid-template-columns:1fr}
 <script src="data/centres.js"></script>   <!-- window.CENTRES : 108 etablissements de sante -->
 <script src="data/yopougon.js"></script>  <!-- window.YOP_BOUNDARY : limite communale -->
 <script src="data/grille.js"></script>    <!-- window.GRID : grille d'echantillonnage 500 m -->
-<script src="app.js?v=20260727"></script>
+<script src="app.js?v=20260729c"></script>
 </body>
 </html>
