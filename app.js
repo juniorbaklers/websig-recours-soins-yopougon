@@ -1154,10 +1154,16 @@ async function loadFullDataFromCloud(){
     // validation : au moins 80% des points doivent avoir des coordonnees valides
     const ok=rows.filter(r=>typeof r.lat==='number'&&typeof r.lng==='number'&&r.lat).length;
     if(ok < rows.length*0.8){ setCloudInfo('ℹ Données « enquetes » incomplètes (coordonnées). Données locales utilisées.'); return false; }
+    // le quartier "officiel" (24 valeurs) vient d'une jointure spatiale faite une fois sur data.js
+    // (chaque point contre les limites de quartier) ; la table cloud "enquetes" ne contient que le
+    // quartier declare en enquete (texte libre, ~139 variantes/sous-localites). On memorise le
+    // quartier officiel par id AVANT le remplacement pour ne pas perdre ce travail de SIG.
+    const quartierOfficiel={}; DATA.forEach(d=>{ quartierOfficiel[d.id]=d.quartier; });
     DATA.length=0; rows.forEach(r=>DATA.push(r));               // remplace le jeu de donnees
+    DATA.forEach(d=>{ if(quartierOfficiel[d.id]!=null) d.quartier=quartierOfficiel[d.id]; }); // restaure le quartier SIG
     DATA.forEach(d=>{ d._gLat0=d.gLat; d._gLon0=d.gLon; d._cellId0=d.cellId; d._lat0=d.lat; d._lng0=d.lng; });
     Object.keys(DIMS).forEach(k=>CATS[k]=catsOf(k));            // recalcule les modalites/couleurs
-    setCloudInfo('✓ '+DATA.length+' enquêtés chargés depuis la base en ligne (modifiables via pgAdmin/Supabase).');
+    setCloudInfo('✓ '+DATA.length+' enquêtés chargés depuis la base en ligne (modifiables via pgAdmin/Supabase). Quartier : version SIG conservée (24 quartiers).');
     return true;
   }catch(e){ return false; }
 }
